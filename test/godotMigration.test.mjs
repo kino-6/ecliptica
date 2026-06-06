@@ -55,6 +55,7 @@ test('main scene wires gameplay, generated stage, player animation, and E2E runn
 
   assert.match(scene, /script = ExtResource\("1_game"\)/);
   assert.match(scene, /StageGenerator/);
+  assert.match(scene, /\[node name="Enemies" type="Node2D" parent="\."\]/);
   assert.match(scene, /\[node name="PlayerSprite" type="AnimatedSprite2D" parent="Player"\]/);
   assert.match(scene, /\[node name="AttackArc" type="AnimatedSprite2D" parent="Player"\]/);
   assert.match(scene, /\[node name="AttackHitbox" type="Area2D" parent="Player"\]/);
@@ -77,8 +78,12 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   const llmVerify = await readFile('scripts/llm_verify.gd', 'utf8');
 
   assert.match(game, /func collect_sigil/);
+  assert.match(game, /func damage_player/);
+  assert.match(game, /func _update_camera/);
   assert.match(game, /func open_gate/);
   assert.match(game, /func win_game/);
+  assert.match(game, /player_health/);
+  assert.match(game, /PLAYER_MAX_HEALTH := 3/);
   assert.match(game, /TARGET_WINDOW_SIZE := Vector2i\(1920, 1080\)/);
   assert.match(game, /DisplayServer\.window_set_size\(TARGET_WINDOW_SIZE\)/);
   assert.match(game, /generated_stage_summary/);
@@ -87,6 +92,8 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(generator, /DEFAULT_STAGE_SEED := 1337/);
   assert.match(generator, /platform_count/);
   assert.match(generator, /sigil_count/);
+  assert.match(generator, /enemy_count/);
+  assert.match(generator, /func _create_enemy/);
   assert.match(player, /func _physics_process/);
   assert.match(player, /func _update_animation/);
   assert.match(player, /IDLE_FRAME_COUNT := 10/);

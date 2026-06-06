@@ -43,14 +43,20 @@ test('LLM verify mode emits a machine-readable pass summary', async () => {
   assert.equal(summary.project.viewport.height, 1080);
   assert.equal(summary.stage.seed, 1337);
   assert.equal(summary.stage.sigil_count, 6);
+  assert.ok(summary.stage.enemy_count >= 3);
   assert.ok(summary.stage.platform_count >= 7);
+  assert.equal(summary.camera.followed_player, true);
   assert.ok(summary.player.moved_right_by >= 40);
+  assert.equal(summary.player.health_after_damage, 2);
+  assert.equal(summary.player.respawned_after_damage, true);
   assert.equal(summary.attack.available, true);
   assert.equal(summary.attack.animation_seen, true);
   assert.equal(summary.attack.hitbox_enabled_during_attack, true);
   assert.equal(summary.attack.training_dummy_destroyed, true);
+  assert.equal(summary.combat.enemy_destroyed_by_attack, true);
   assert.equal(summary.gameplay.gate_open_after_collecting_sigils, true);
   assert.equal(summary.gameplay.win_state_reached, true);
+  assert.equal(summary.gameplay.stage_playable_path, true);
   assert.deepEqual(summary.failures, []);
 });
 
