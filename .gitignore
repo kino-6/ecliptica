@@ -1,4 +1,21 @@
-.venv/
-.godot/
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Godot
+.godot/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# OS/editor
+.DS_Store
+.vscode/
