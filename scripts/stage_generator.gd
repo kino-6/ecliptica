@@ -4,6 +4,12 @@ const DEFAULT_STAGE_SEED := 1337
 const FLOOR_COLOR := Color(0.10, 0.10, 0.13, 0.92)
 const BRANCH_COLOR := Color(0.08, 0.09, 0.12, 0.94)
 const SIGIL_COLOR := Color(0.72, 0.08, 0.13, 0.92)
+const ENEMY_COLOR := Color(0.38, 0.04, 0.08, 0.9)
+const ENEMY_LIBRARY := [
+	Vector2(690, 410),
+	Vector2(1660, 390),
+	Vector2(2280, 400),
+]
 const ROOM_LIBRARY := [
 	{
 		"name": "entrance",
@@ -55,6 +61,7 @@ const ROOM_LIBRARY := [
 func generate_stage(game: Node2D) -> Dictionary:
 	var platforms: Node2D = game.get_node("Platforms")
 	var collectibles: Node2D = game.get_node("Collectibles")
+	var enemies: Node2D = game.get_node("Enemies")
 	var player: CharacterBody2D = game.get_node("Player")
 	var goal: Area2D = game.get_node("Goal")
 	var rng := RandomNumberGenerator.new()
@@ -62,9 +69,11 @@ func generate_stage(game: Node2D) -> Dictionary:
 
 	_clear_children(platforms)
 	_clear_children(collectibles)
+	_clear_children(enemies)
 
 	var platform_count := 0
 	var sigil_count := 0
+	var enemy_count := 0
 	for index in range(ROOM_LIBRARY.size()):
 		var room: Dictionary = ROOM_LIBRARY[index]
 		var jitter: Vector2 = _room_jitter(rng, index)
@@ -79,6 +88,10 @@ func generate_stage(game: Node2D) -> Dictionary:
 			var sigil_position: Vector2 = room["sigil"] + jitter
 			_create_sigil(collectibles, sigil_count + 1, sigil_position)
 			sigil_count += 1
+
+	for enemy_position in ENEMY_LIBRARY:
+		_create_enemy(enemies, enemy_count + 1, enemy_position)
+		enemy_count += 1
 
 	var entrance: Dictionary = ROOM_LIBRARY[0]
 	var entrance_center: Vector2 = entrance["center"]
@@ -96,6 +109,7 @@ func generate_stage(game: Node2D) -> Dictionary:
 		"seed": stage_seed,
 		"platform_count": platform_count,
 		"sigil_count": sigil_count,
+		"enemy_count": enemy_count,
 		"goal_position": goal.global_position,
 		"theme": "cathedral_forest",
 	}
@@ -153,3 +167,27 @@ func _create_sigil(parent: Node2D, index: int, position: Vector2) -> void:
 	collision.name = "CollisionShape2D"
 	collision.shape = shape
 	sigil.add_child(collision)
+
+func _create_enemy(parent: Node2D, index: int, position: Vector2) -> void:
+	var enemy := Area2D.new()
+	enemy.name = "GeneratedEnemy%d" % index
+	enemy.position = position
+	enemy.add_to_group("enemies")
+	enemy.add_to_group("attack_targets")
+	parent.add_child(enemy)
+
+	var visual := ColorRect.new()
+	visual.name = "Visual"
+	visual.offset_left = -18.0
+	visual.offset_top = -28.0
+	visual.offset_right = 18.0
+	visual.offset_bottom = 28.0
+	visual.color = ENEMY_COLOR
+	enemy.add_child(visual)
+
+	var shape := RectangleShape2D.new()
+	shape.size = Vector2(36, 56)
+	var collision := CollisionShape2D.new()
+	collision.name = "CollisionShape2D"
+	collision.shape = shape
+	enemy.add_child(collision)

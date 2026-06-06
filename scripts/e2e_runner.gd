@@ -46,6 +46,8 @@ func run_e2e() -> void:
 		return
 	if not _expect(get_nodes_in_group("sigils").size() == game.generated_stage_summary["sigil_count"], "sigil group should match generated summary"):
 		return
+	if not _expect(get_nodes_in_group("enemies").size() == game.generated_stage_summary["enemy_count"], "enemy group should match generated summary"):
+		return
 
 	var start_x: float = player.global_position.x
 	player.e2e_set_axis(1.0)
@@ -54,6 +56,11 @@ func run_e2e() -> void:
 	if not _expect(player.global_position.x > start_x + 40.0, "player should move right"):
 		return
 	if not _expect(scene.get_node("Player/PlayerSprite").animation == "walk", "walk animation should become active"):
+		return
+
+	player.global_position = Vector2(1300.0, player.global_position.y)
+	game._update_camera()
+	if not _expect(scene.get_node("Camera2D").global_position.x > 1000.0, "camera should follow the player across the stage"):
 		return
 
 	var dummy: Area2D = scene.get_node("TrainingDummy")
@@ -74,6 +81,17 @@ func run_e2e() -> void:
 	if not _expect(hitbox_enabled, "attack hitbox should enable during active frames"):
 		return
 	if not _expect(dummy.get_meta("destroyed", false), "attack should destroy training dummy"):
+		return
+
+	var enemies := get_nodes_in_group("enemies")
+	if not _expect(enemies.size() >= 3, "generated stage should include enemies"):
+		return
+	game.damage_invulnerability_timer = 0.0
+	var health_before: int = game.player_health
+	game.damage_player(enemies[0])
+	if not _expect(game.player_health == health_before - 1, "enemy contact should damage player"):
+		return
+	if not _expect(player.global_position.distance_to(player.spawn_position) < 1.0, "damage should return player to spawn"):
 		return
 
 	for sigil: Node in get_nodes_in_group("sigils"):

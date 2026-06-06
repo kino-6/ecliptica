@@ -64,6 +64,8 @@ shape = SubResource("RectangleShape2D_attack")
 
 [node name="Collectibles" type="Node2D" parent="."]
 
+[node name="Enemies" type="Node2D" parent="."]
+
 [node name="TrainingDummy" type="Area2D" parent="." groups=["attack_targets"]]
 position = Vector2(238, 430)
 
