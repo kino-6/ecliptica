@@ -1,0 +1,10 @@
+{
+  "name": "ecliptica",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "test:e2e": "node --test test/godotE2E.test.mjs"
+  }
+}

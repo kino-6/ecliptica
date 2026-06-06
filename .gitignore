@@ -1,0 +1,4 @@
+.venv/
+.godot/
+__pycache__/
+*.pyc
