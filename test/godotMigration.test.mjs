@@ -15,6 +15,7 @@ const requiredFiles = [
   'scripts/e2e_runner.gd',
   'scripts/llm_verify.gd',
   'assets/background-city.png',
+  'assets/axe-swing-sheet-8.png',
   'assets/player-idle-sheet-10.png',
   'assets/player-walk-sheet-24.png',
 ];
@@ -55,6 +56,9 @@ test('main scene wires gameplay, generated stage, player animation, and E2E runn
   assert.match(scene, /script = ExtResource\("1_game"\)/);
   assert.match(scene, /StageGenerator/);
   assert.match(scene, /\[node name="PlayerSprite" type="AnimatedSprite2D" parent="Player"\]/);
+  assert.match(scene, /\[node name="AttackArc" type="AnimatedSprite2D" parent="Player"\]/);
+  assert.match(scene, /\[node name="AttackHitbox" type="Area2D" parent="Player"\]/);
+  assert.match(scene, /\[node name="TrainingDummy" type="Area2D" parent="\."\]/);
   assert.match(scene, /E2ERunner/);
   assert.match(scene, /Goal/);
   assert.doesNotMatch(scene, /\[node name="Ground1"/);
@@ -87,8 +91,13 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(player, /func _update_animation/);
   assert.match(player, /IDLE_FRAME_COUNT := 10/);
   assert.match(player, /WALK_FRAME_COUNT := 24/);
+  assert.match(player, /ATTACK_FRAME_COUNT := 8/);
   assert.match(player, /player-idle-sheet-10\.png/);
   assert.match(player, /player-walk-sheet-24\.png/);
+  assert.match(player, /axe-swing-sheet-8\.png/);
+  assert.match(player, /func attack/);
+  assert.match(player, /func e2e_attack/);
+  assert.match(player, /func is_attacking/);
   assert.match(e2e, /func run_e2e/);
   assert.match(e2e, /E2E_OK/);
   assert.match(llmVerify, /LLM_VERIFY_JSON/);
@@ -104,6 +113,15 @@ test('player visuals flip sprites instead of scaling the physics body', async ()
 
 test('walk atlas frames have transparent gutters for Godot hframes slicing', () => {
   const result = spawnSync(process.execPath, ['test/walkAtlasCheck.mjs'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+});
+
+test('axe swing atlas follows the accessory animation contract', () => {
+  const result = spawnSync(process.execPath, ['test/axeAttackAssetCheck.mjs'], {
     cwd: process.cwd(),
     encoding: 'utf8',
   });
