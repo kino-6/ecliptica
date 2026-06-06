@@ -53,6 +53,11 @@ test('LLM verify mode emits a machine-readable pass summary', async () => {
   assert.equal(summary.attack.animation_seen, true);
   assert.equal(summary.attack.hitbox_enabled_during_attack, true);
   assert.equal(summary.attack.training_dummy_destroyed, true);
+  assert.equal(summary.ranged.available, true);
+  assert.equal(summary.ranged.projectile_spawned, true);
+  assert.equal(summary.ranged.enemy_destroyed_by_shot, true);
+  assert.equal(summary.ranged.focus_after_shot, 2);
+  assert.ok(summary.ranged.focus_after_regen > summary.ranged.focus_after_shot);
   assert.equal(summary.combat.enemy_destroyed_by_attack, true);
   assert.equal(summary.gameplay.gate_open_after_collecting_sigils, true);
   assert.equal(summary.gameplay.win_state_reached, true);

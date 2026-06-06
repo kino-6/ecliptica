@@ -59,6 +59,7 @@ test('main scene wires gameplay, generated stage, player animation, and E2E runn
   assert.match(scene, /\[node name="PlayerSprite" type="AnimatedSprite2D" parent="Player"\]/);
   assert.match(scene, /\[node name="AttackArc" type="AnimatedSprite2D" parent="Player"\]/);
   assert.match(scene, /\[node name="AttackHitbox" type="Area2D" parent="Player"\]/);
+  assert.match(scene, /\[node name="Projectiles" type="Node2D" parent="\."\]/);
   assert.match(scene, /\[node name="TrainingDummy" type="Area2D" parent="." groups=\["attack_targets"\]\]/);
   assert.match(scene, /E2ERunner/);
   assert.match(scene, /Goal/);
@@ -103,12 +104,23 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(player, /player-walk-sheet-24\.png/);
   assert.match(player, /axe-swing-sheet-8\.png/);
   assert.match(player, /func attack/);
+  assert.match(player, /FOCUS_MAX := 3\.0/);
+  assert.match(player, /FOCUS_REGEN_PER_SECOND/);
+  assert.match(player, /SHOT_COST := 1\.0/);
+  assert.match(player, /func shoot/);
+  assert.match(player, /func e2e_shoot/);
+  assert.match(player, /func can_shoot/);
+  assert.match(player, /func _create_projectile/);
   assert.match(player, /func e2e_attack/);
   assert.match(player, /func is_attacking/);
+  assert.match(game, /shoot_focus/);
   assert.match(e2e, /func run_e2e/);
+  assert.match(e2e, /shoot should consume focus/);
+  assert.match(e2e, /focus should regenerate over time/);
   assert.match(e2e, /E2E_OK/);
   assert.match(llmVerify, /LLM_VERIFY_JSON/);
   assert.match(llmVerify, /llm_headless_verify/);
+  assert.match(llmVerify, /ranged/);
 });
 
 test('player visuals flip sprites instead of scaling the physics body', async () => {
