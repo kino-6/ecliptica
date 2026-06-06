@@ -13,6 +13,7 @@ const requiredFiles = [
   'scripts/stage_generator.gd',
   'scripts/player.gd',
   'scripts/e2e_runner.gd',
+  'scripts/llm_verify.gd',
   'assets/background-city.png',
   'assets/player-idle-sheet-10.png',
   'assets/player-walk-sheet-24.png',
@@ -69,6 +70,7 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   const generator = await readFile('scripts/stage_generator.gd', 'utf8');
   const player = await readFile('scripts/player.gd', 'utf8');
   const e2e = await readFile('scripts/e2e_runner.gd', 'utf8');
+  const llmVerify = await readFile('scripts/llm_verify.gd', 'utf8');
 
   assert.match(game, /func collect_sigil/);
   assert.match(game, /func open_gate/);
@@ -89,6 +91,8 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(player, /player-walk-sheet-24\.png/);
   assert.match(e2e, /func run_e2e/);
   assert.match(e2e, /E2E_OK/);
+  assert.match(llmVerify, /LLM_VERIFY_JSON/);
+  assert.match(llmVerify, /llm_headless_verify/);
 });
 
 test('player visuals flip sprites instead of scaling the physics body', async () => {
