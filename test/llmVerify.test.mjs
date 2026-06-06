@@ -14,9 +14,9 @@ const godotCandidates = [
 test('LLM verify mode is documented as a package script', async () => {
   const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
 
-  assert.equal(packageJson.scripts['verify:llm'], 'node test/llmVerifyRunner.mjs');
+  assert.equal(packageJson.scripts['verify:llm'], 'node tools/llmVerifyRunner.mjs');
   assert.equal(existsSync('scripts/llm_verify.gd'), true, 'scripts/llm_verify.gd should exist');
-  assert.equal(existsSync('test/llmVerifyRunner.mjs'), true, 'test/llmVerifyRunner.mjs should exist');
+  assert.equal(existsSync('tools/llmVerifyRunner.mjs'), true, 'tools/llmVerifyRunner.mjs should exist');
 });
 
 test('LLM verify mode emits a machine-readable pass summary', async () => {

@@ -91,6 +91,22 @@ npm run test:e2e
 
 E2E は Godot でメインシーンをロードし、プレイヤー移動、歩行アニメ表示、生成ステージ確認、全シジル収集、ゲート開放、勝利状態まで確認します。
 
+## LLM Headless 検証
+
+LLM や自動エージェントが画面を開かずに現在のゲーム状態を検証するためのモードです。
+
+```bash
+npm run verify:llm
+```
+
+内部では Godot を headless 起動し、`scripts/llm_verify.gd` でメインシーンをロードします。検証結果は stdout に次の形式で 1 行出力されます。
+
+```text
+LLM_VERIFY_JSON {"mode":"llm_headless_verify","status":"pass",...}
+```
+
+JSON にはプロジェクト名、ビューポート、生成ステージの seed、足場数、シジル数、プレイヤー移動量、ゲート開放、勝利状態、失敗理由の配列が含まれます。失敗時も `failures` に理由を入れて出力するため、LLM が次の修正対象を読み取りやすくなります。
+
 ## ディレクトリ
 
 - `project.godot` - Godot プロジェクト設定

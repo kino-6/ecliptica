@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "test:e2e": "node --test test/godotE2E.test.mjs"
+    "test:e2e": "node --test test/godotE2E.test.mjs",
+    "verify:llm": "node tools/llmVerifyRunner.mjs"
   }
 }
