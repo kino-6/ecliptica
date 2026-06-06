@@ -37,6 +37,7 @@ func _process(delta: float) -> void:
 	if player.global_position.y > LEVEL_HEIGHT + 80.0:
 		damage_player()
 	_update_camera()
+	_update_hud()
 
 func collect_sigil(sigil: Area2D) -> void:
 	if sigil == null or sigil.get_meta("collected", false):
@@ -101,13 +102,15 @@ func _update_hud() -> void:
 	var gate_text := "OPEN" if gate_open else "SEALED"
 	var win_text := " / WON" if won else ""
 	var state_text := " / GAME OVER" if game_over else win_text
-	hud_label.text = "HP %d/%d / SIGILS %d/%d / %s%s" % [player_health, PLAYER_MAX_HEALTH, sigils_collected, sigils_total, gate_text, state_text]
+	var shoot_focus: float = player.shoot_focus
+	hud_label.text = "HP %d/%d / FOCUS %.1f/%.0f / SIGILS %d/%d / %s%s" % [player_health, PLAYER_MAX_HEALTH, shoot_focus, player.FOCUS_MAX, sigils_collected, sigils_total, gate_text, state_text]
 
 func _ensure_input_actions() -> void:
 	_add_key_action("move_left", [KEY_A, KEY_LEFT])
 	_add_key_action("move_right", [KEY_D, KEY_RIGHT])
 	_add_key_action("jump", [KEY_W, KEY_UP, KEY_SPACE])
 	_add_key_action("attack", [KEY_J, KEY_K, KEY_X])
+	_add_key_action("shoot", [KEY_L, KEY_C, KEY_V])
 
 func _add_key_action(action_name: StringName, keys: Array) -> void:
 	if not InputMap.has_action(action_name):

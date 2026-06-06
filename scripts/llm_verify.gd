@@ -30,6 +30,7 @@ func run_verify() -> void:
 	_expect(scene.get_node_or_null("StageGenerator") != null, "stage generator should exist", failures)
 	_expect(scene.get_node_or_null("Platforms") != null, "platform container should exist", failures)
 	_expect(scene.get_node_or_null("Collectibles") != null, "collectible container should exist", failures)
+	_expect(scene.get_node_or_null("Projectiles") != null, "projectile container should exist", failures)
 	_expect(scene.get_node_or_null("Goal") != null, "goal should exist", failures)
 
 	if player == null:
@@ -39,6 +40,7 @@ func run_verify() -> void:
 	_record_stage(scene, game, summary, failures)
 	await _verify_player_movement(scene, player, summary, failures)
 	await _verify_attack(scene, player, summary, failures)
+	await _verify_ranged_attack(scene, player, summary, failures)
 	await _verify_combat_and_damage(scene, game, player, summary, failures)
 	_verify_gameplay(scene, game, summary, failures)
 
@@ -49,13 +51,14 @@ func _base_summary() -> Dictionary:
 		"mode": MODE,
 		"status": "fail",
 		"project": {},
-			"stage": {},
-			"player": {},
-			"camera": {},
-			"attack": {},
-			"combat": {},
-			"gameplay": {},
-			"failures": [],
+		"stage": {},
+		"player": {},
+		"camera": {},
+		"attack": {},
+		"ranged": {},
+		"combat": {},
+		"gameplay": {},
+		"failures": [],
 	}
 
 func _record_project(summary: Dictionary, failures: Array) -> void:
@@ -174,6 +177,61 @@ func _verify_attack(scene: Node, player: CharacterBody2D, summary: Dictionary, f
 	_expect(animation_seen, "attack arc should become visible during attack", failures)
 	_expect(hitbox_enabled, "attack hitbox should enable during active attack frames", failures)
 	_expect(destroyed, "attack should destroy training dummy", failures)
+
+func _verify_ranged_attack(scene: Node, player: CharacterBody2D, summary: Dictionary, failures: Array) -> void:
+	for frame in 24:
+		await process_frame
+
+	var enemies := get_nodes_in_group("enemies")
+	var projectiles: Node2D = scene.get_node("Projectiles")
+	if enemies.size() < 2:
+		_expect(false, "ranged verify needs at least two enemies", failures)
+		summary["ranged"] = {
+			"available": player.has_method("shoot"),
+			"projectile_spawned": false,
+			"enemy_destroyed_by_shot": false,
+			"focus_after_shot": null,
+			"focus_after_regen": null,
+		}
+		return
+
+	player.e2e_set_axis(0.0)
+	player.facing_left = false
+	player.shoot_focus = player.FOCUS_MAX
+	var enemy: Area2D = enemies[1]
+	enemy.visible = true
+	enemy.monitoring = true
+	enemy.monitorable = true
+	enemy.set_meta("destroyed", false)
+	enemy.global_position = player.global_position + Vector2(240.0, -44.0)
+
+	var projectile_count_before := projectiles.get_child_count()
+	var fired: bool = player.shoot()
+	var focus_after_shot: float = player.shoot_focus
+	var projectile_spawned := projectiles.get_child_count() > projectile_count_before
+	for frame in 30:
+		await process_frame
+
+	var destroyed := bool(enemy.get_meta("destroyed", false))
+	for frame in 60:
+		await process_frame
+	var focus_after_regen: float = player.shoot_focus
+
+	summary["ranged"] = {
+		"available": player.has_method("shoot"),
+		"fired": fired,
+		"projectile_spawned": projectile_spawned,
+		"enemy_destroyed_by_shot": destroyed,
+		"focus_after_shot": focus_after_shot,
+		"focus_after_regen": focus_after_regen,
+	}
+
+	_expect(player.has_method("shoot"), "player should expose ranged shoot action", failures)
+	_expect(fired, "shoot should fire when focus is available", failures)
+	_expect(projectile_spawned, "shoot should spawn a projectile", failures)
+	_expect(destroyed, "shot should destroy an enemy at range", failures)
+	_expect(is_equal_approx(focus_after_shot, player.FOCUS_MAX - player.SHOT_COST), "shoot should consume focus", failures)
+	_expect(focus_after_regen > focus_after_shot, "focus should regenerate over time", failures)
 
 func _verify_combat_and_damage(scene: Node, game: Node, player: CharacterBody2D, summary: Dictionary, failures: Array) -> void:
 	for frame in 24:

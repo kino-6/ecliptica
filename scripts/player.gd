@@ -13,6 +13,13 @@ const ATTACK_DURATION := 0.34
 const ATTACK_ACTIVE_START := 0.08
 const ATTACK_ACTIVE_END := 0.22
 const ATTACK_RECOVERY_SPEED_SCALE := 0.35
+const FOCUS_MAX := 3.0
+const FOCUS_REGEN_PER_SECOND := 0.75
+const SHOT_COST := 1.0
+const SHOT_SPEED := 820.0
+const SHOT_LIFETIME := 0.85
+const SHOT_OFFSET := Vector2(56, -44)
+const SHOT_SIZE := Vector2(28, 8)
 const IDLE_TEXTURE := preload("res://assets/player-idle-sheet-10.png")
 const WALK_TEXTURE := preload("res://assets/player-walk-sheet-24.png")
 const ATTACK_TEXTURE := preload("res://assets/axe-swing-sheet-8.png")
@@ -20,14 +27,17 @@ const ATTACK_TEXTURE := preload("res://assets/axe-swing-sheet-8.png")
 @onready var player_sprite: AnimatedSprite2D = $PlayerSprite
 @onready var attack_arc: AnimatedSprite2D = $AttackArc
 @onready var attack_hitbox: Area2D = $AttackHitbox
+@onready var projectile_container: Node2D = $"../Projectiles"
 
 var spawn_position := Vector2.ZERO
 var forced_axis := 0.0
 var force_jump := false
 var force_attack := false
+var force_shoot := false
 var e2e_control := false
 var facing_left := false
 var attack_timer := 0.0
+var shoot_focus := FOCUS_MAX
 var hit_targets := {}
 
 func _ready() -> void:
@@ -44,6 +54,10 @@ func _physics_process(delta: float) -> void:
 		attack()
 	force_attack = false
 
+	if force_shoot or Input.is_action_just_pressed("shoot"):
+		shoot()
+	force_shoot = false
+
 	var speed_scale := ATTACK_RECOVERY_SPEED_SCALE if is_attacking() else 1.0
 	velocity.x = axis * SPEED * speed_scale
 	if axis != 0.0:
@@ -55,6 +69,8 @@ func _physics_process(delta: float) -> void:
 
 	velocity.y = minf(velocity.y + GRAVITY * delta, MAX_FALL)
 	move_and_slide()
+	_update_focus(delta)
+	_update_projectiles(delta)
 	_update_attack(delta)
 	_update_animation()
 
@@ -65,6 +81,7 @@ func reset_to_spawn() -> void:
 	forced_axis = 0.0
 	force_jump = false
 	force_attack = false
+	force_shoot = false
 	attack_timer = 0.0
 	attack_hitbox.monitoring = false
 	attack_arc.visible = false
@@ -80,6 +97,9 @@ func e2e_jump() -> void:
 func e2e_attack() -> void:
 	force_attack = true
 
+func e2e_shoot() -> void:
+	force_shoot = true
+
 func attack() -> void:
 	if is_attacking():
 		return
@@ -87,6 +107,16 @@ func attack() -> void:
 	hit_targets = {}
 	attack_arc.visible = true
 	attack_arc.play("swing")
+
+func shoot() -> bool:
+	if not can_shoot():
+		return false
+	shoot_focus = maxf(shoot_focus - SHOT_COST, 0.0)
+	_create_projectile()
+	return true
+
+func can_shoot() -> bool:
+	return shoot_focus >= SHOT_COST
 
 func is_attacking() -> bool:
 	return attack_timer > 0.0
@@ -154,6 +184,85 @@ func _strike_target(area: Area2D) -> void:
 	if hit_targets.has(target_id):
 		return
 	hit_targets[target_id] = true
+	_destroy_attack_target(area)
+
+func _update_focus(delta: float) -> void:
+	shoot_focus = minf(shoot_focus + FOCUS_REGEN_PER_SECOND * delta, FOCUS_MAX)
+
+func _create_projectile() -> Area2D:
+	var projectile := Area2D.new()
+	var direction := -1.0 if facing_left else 1.0
+	projectile.name = "PlayerShot"
+	projectile.global_position = global_position + Vector2(SHOT_OFFSET.x * direction, SHOT_OFFSET.y)
+	projectile.add_to_group("player_projectiles")
+	projectile.set_meta("direction", direction)
+	projectile.set_meta("age", 0.0)
+	projectile.area_entered.connect(_on_projectile_area_entered.bind(projectile))
+	projectile_container.add_child(projectile)
+
+	var visual := ColorRect.new()
+	visual.name = "Visual"
+	visual.offset_left = -SHOT_SIZE.x * 0.5
+	visual.offset_top = -SHOT_SIZE.y * 0.5
+	visual.offset_right = SHOT_SIZE.x * 0.5
+	visual.offset_bottom = SHOT_SIZE.y * 0.5
+	visual.color = Color(0.75, 0.68, 0.50, 0.94)
+	projectile.add_child(visual)
+
+	var shape := RectangleShape2D.new()
+	shape.size = SHOT_SIZE
+	var collision := CollisionShape2D.new()
+	collision.name = "CollisionShape2D"
+	collision.shape = shape
+	projectile.add_child(collision)
+	return projectile
+
+func _update_projectiles(delta: float) -> void:
+	if projectile_container == null:
+		return
+	for projectile: Area2D in projectile_container.get_children():
+		var direction: float = float(projectile.get_meta("direction", 1.0))
+		var age: float = float(projectile.get_meta("age", 0.0)) + delta
+		var previous_x := projectile.global_position.x
+		projectile.set_meta("age", age)
+		projectile.global_position.x += direction * SHOT_SPEED * delta
+		_hit_projectile_sweep(projectile, previous_x, projectile.global_position.x)
+		if not is_instance_valid(projectile) or projectile.is_queued_for_deletion():
+			continue
+		_hit_projectile_overlaps(projectile)
+		if age >= SHOT_LIFETIME and is_instance_valid(projectile):
+			projectile.queue_free()
+
+func _hit_projectile_sweep(projectile: Area2D, previous_x: float, current_x: float) -> void:
+	var min_x := minf(previous_x, current_x) - SHOT_SIZE.x
+	var max_x := maxf(previous_x, current_x) + SHOT_SIZE.x
+	for area: Area2D in get_tree().get_nodes_in_group("attack_targets"):
+		if area.get_meta("destroyed", false) or not area.visible:
+			continue
+		var horizontal_hit := area.global_position.x >= min_x and area.global_position.x <= max_x
+		var vertical_hit := absf(area.global_position.y - projectile.global_position.y) <= 36.0
+		if horizontal_hit and vertical_hit:
+			_hit_projectile_target(projectile, area)
+			return
+
+func _on_projectile_area_entered(area: Area2D, projectile: Area2D) -> void:
+	_hit_projectile_target(projectile, area)
+
+func _hit_projectile_overlaps(projectile: Area2D) -> void:
+	for area: Area2D in projectile.get_overlapping_areas():
+		_hit_projectile_target(projectile, area)
+		if not is_instance_valid(projectile) or projectile.is_queued_for_deletion():
+			return
+
+func _hit_projectile_target(projectile: Area2D, area: Area2D) -> void:
+	if not is_instance_valid(projectile) or projectile.is_queued_for_deletion():
+		return
+	if not area.is_in_group("attack_targets") or area.get_meta("destroyed", false):
+		return
+	_destroy_attack_target(area)
+	projectile.queue_free()
+
+func _destroy_attack_target(area: Area2D) -> void:
 	area.set_meta("destroyed", true)
 	area.visible = false
 	area.set_deferred("monitoring", false)

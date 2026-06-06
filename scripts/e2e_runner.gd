@@ -30,6 +30,8 @@ func run_e2e() -> void:
 		return
 	if not _expect(scene.get_node_or_null("Player/AttackHitbox") != null, "attack hitbox should exist"):
 		return
+	if not _expect(scene.get_node_or_null("Projectiles") != null, "projectile container should exist"):
+		return
 	if not _expect(scene.get_node_or_null("TrainingDummy") != null, "training dummy should exist"):
 		return
 	if not _expect(scene.get_node_or_null("StageGenerator") != null, "stage generator should exist"):
@@ -86,6 +88,32 @@ func run_e2e() -> void:
 	var enemies := get_nodes_in_group("enemies")
 	if not _expect(enemies.size() >= 3, "generated stage should include enemies"):
 		return
+
+	var ranged_enemy: Area2D = enemies[1]
+	ranged_enemy.visible = true
+	ranged_enemy.monitoring = true
+	ranged_enemy.monitorable = true
+	ranged_enemy.set_meta("destroyed", false)
+	ranged_enemy.global_position = player.global_position + Vector2(240.0, -44.0)
+	player.shoot_focus = player.FOCUS_MAX
+	var focus_before_shot: float = player.shoot_focus
+	var projectile_count_before: int = scene.get_node("Projectiles").get_child_count()
+	if not _expect(player.shoot(), "shoot should fire when focus is available"):
+		return
+	var focus_after_shot: float = player.shoot_focus
+	if not _expect(focus_after_shot < focus_before_shot, "shoot should consume focus"):
+		return
+	if not _expect(scene.get_node("Projectiles").get_child_count() > projectile_count_before, "shoot should spawn a projectile"):
+		return
+	for frame in 30:
+		await process_frame
+	if not _expect(ranged_enemy.get_meta("destroyed", false), "shot should destroy an enemy at range"):
+		return
+	for frame in 90:
+		await process_frame
+	if not _expect(player.shoot_focus > focus_after_shot, "focus should regenerate over time"):
+		return
+
 	game.damage_invulnerability_timer = 0.0
 	var health_before: int = game.player_health
 	game.damage_player(enemies[0])
