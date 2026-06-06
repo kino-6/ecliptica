@@ -10,7 +10,8 @@ Ecliptica は、ローグライク要素を持つ悪魔城ドラキュラ風の 
 - シード付き `StageGenerator` による 1 ステージ生成
 - 1920x1080 の既定ウィンドウ/ビューポート
 - 10 フレーム Idle、24 フレーム Walk の主人公スプライト
-- Godot headless E2E による起動、移動、収集、ゲート開放、勝利確認
+- 8 フレームの斧スイング、前方攻撃判定、訓練用ターゲット破壊
+- Godot headless E2E による起動、移動、攻撃、収集、ゲート開放、勝利確認
 
 ## 必要なもの
 
@@ -49,8 +50,9 @@ godot --path . --scene res://scenes/main.tscn
 
 - 移動: `A/D` または `←/→`
 - ジャンプ: `W`、`↑`、または `Space`
+- 攻撃: `J`、`K`、または `X`
 
-赤いシジルをすべて集めるとゲートが開きます。
+赤いシジルをすべて集めるとゲートが開きます。ステージ序盤の訓練用ターゲットは斧攻撃で壊せます。
 
 ## 生成ステージ
 
@@ -65,7 +67,9 @@ godot --path . --scene res://scenes/main.tscn
 - 基準位置: 人物中心 `x=96`、足元 baseline `y=344`
 - Idle: `assets/player-idle-sheet-10.png`、10 frames
 - Walk: `assets/player-walk-sheet-24.png`、24 frames
+- Axe swing: `assets/axe-swing-sheet-8.png`、8 frames、`128x128`
 - Godot 表示: `PlayerSprite` の単一 `AnimatedSprite2D` で `idle` / `walk` を切り替える
+- 攻撃表示: `AttackArc` の別 `AnimatedSprite2D` で斧スイングを重ねる
 
 ## 開発ロードマップ
 
@@ -105,7 +109,7 @@ npm run verify:llm
 LLM_VERIFY_JSON {"mode":"llm_headless_verify","status":"pass",...}
 ```
 
-JSON にはプロジェクト名、ビューポート、生成ステージの seed、足場数、シジル数、プレイヤー移動量、ゲート開放、勝利状態、失敗理由の配列が含まれます。失敗時も `failures` に理由を入れて出力するため、LLM が次の修正対象を読み取りやすくなります。
+JSON にはプロジェクト名、ビューポート、生成ステージの seed、足場数、シジル数、プレイヤー移動量、攻撃表示、攻撃判定、訓練用ターゲット破壊、ゲート開放、勝利状態、失敗理由の配列が含まれます。失敗時も `failures` に理由を入れて出力するため、LLM が次の修正対象を読み取りやすくなります。
 
 ## ディレクトリ
 

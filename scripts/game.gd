@@ -74,6 +74,7 @@ func _ensure_input_actions() -> void:
 	_add_key_action("move_left", [KEY_A, KEY_LEFT])
 	_add_key_action("move_right", [KEY_D, KEY_RIGHT])
 	_add_key_action("jump", [KEY_W, KEY_UP, KEY_SPACE])
+	_add_key_action("attack", [KEY_J, KEY_K, KEY_X])
 
 func _add_key_action(action_name: StringName, keys: Array) -> void:
 	if not InputMap.has_action(action_name):

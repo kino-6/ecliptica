@@ -26,6 +26,12 @@ func run_e2e() -> void:
 		return
 	if not _expect(scene.get_node_or_null("Player/PlayerSprite") != null, "player sprite should exist"):
 		return
+	if not _expect(scene.get_node_or_null("Player/AttackArc") != null, "attack arc should exist"):
+		return
+	if not _expect(scene.get_node_or_null("Player/AttackHitbox") != null, "attack hitbox should exist"):
+		return
+	if not _expect(scene.get_node_or_null("TrainingDummy") != null, "training dummy should exist"):
+		return
 	if not _expect(scene.get_node_or_null("StageGenerator") != null, "stage generator should exist"):
 		return
 	if not _expect(game.generated_stage_summary.has("seed"), "stage summary should exist"):
@@ -48,6 +54,26 @@ func run_e2e() -> void:
 	if not _expect(player.global_position.x > start_x + 40.0, "player should move right"):
 		return
 	if not _expect(scene.get_node("Player/PlayerSprite").animation == "walk", "walk animation should become active"):
+		return
+
+	var dummy: Area2D = scene.get_node("TrainingDummy")
+	dummy.visible = true
+	dummy.monitoring = true
+	dummy.monitorable = true
+	dummy.set_meta("destroyed", false)
+	dummy.global_position = player.global_position + Vector2(76.0, -42.0)
+	player.attack()
+	await process_frame
+	await process_frame
+	if not _expect(scene.get_node("Player/AttackArc").visible, "attack arc should become visible"):
+		return
+	var hitbox_enabled := false
+	for frame in 16:
+		await process_frame
+		hitbox_enabled = hitbox_enabled or scene.get_node("Player/AttackHitbox").monitoring
+	if not _expect(hitbox_enabled, "attack hitbox should enable during active frames"):
+		return
+	if not _expect(dummy.get_meta("destroyed", false), "attack should destroy training dummy"):
 		return
 
 	for sigil: Node in get_nodes_in_group("sigils"):

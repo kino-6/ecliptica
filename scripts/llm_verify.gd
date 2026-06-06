@@ -38,6 +38,7 @@ func run_verify() -> void:
 
 	_record_stage(scene, game, summary, failures)
 	await _verify_player_movement(scene, player, summary, failures)
+	await _verify_attack(scene, player, summary, failures)
 	_verify_gameplay(scene, game, summary, failures)
 
 	_finish(summary, failures)
@@ -47,10 +48,11 @@ func _base_summary() -> Dictionary:
 		"mode": MODE,
 		"status": "fail",
 		"project": {},
-		"stage": {},
-		"player": {},
-		"gameplay": {},
-		"failures": [],
+			"stage": {},
+			"player": {},
+			"attack": {},
+			"gameplay": {},
+			"failures": [],
 	}
 
 func _record_project(summary: Dictionary, failures: Array) -> void:
@@ -109,6 +111,50 @@ func _verify_player_movement(scene: Node, player: CharacterBody2D, summary: Dict
 
 	_expect(moved_right_by >= 40.0, "player should move right in headless simulation", failures)
 	_expect(sprite.animation == "walk", "walk animation should become active", failures)
+
+func _verify_attack(scene: Node, player: CharacterBody2D, summary: Dictionary, failures: Array) -> void:
+	var dummy: Area2D = scene.get_node_or_null("TrainingDummy")
+	var attack_arc: AnimatedSprite2D = scene.get_node("Player/AttackArc")
+	var attack_hitbox: Area2D = scene.get_node("Player/AttackHitbox")
+
+	if dummy == null:
+		_expect(false, "training dummy should exist", failures)
+		summary["attack"] = {
+			"available": player.has_method("attack"),
+			"animation_seen": false,
+			"hitbox_enabled_during_attack": false,
+			"training_dummy_destroyed": false,
+		}
+		return
+
+	dummy.visible = true
+	dummy.monitoring = true
+	dummy.monitorable = true
+	dummy.set_meta("destroyed", false)
+	dummy.global_position = player.global_position + Vector2(76.0, -42.0)
+
+	player.e2e_attack()
+	await process_frame
+	await process_frame
+
+	var animation_seen := attack_arc.visible
+	var hitbox_enabled := false
+	for frame in 16:
+		await process_frame
+		hitbox_enabled = hitbox_enabled or attack_hitbox.monitoring
+
+	var destroyed := bool(dummy.get_meta("destroyed", false))
+	summary["attack"] = {
+		"available": player.has_method("attack"),
+		"animation_seen": animation_seen,
+		"hitbox_enabled_during_attack": hitbox_enabled,
+		"training_dummy_destroyed": destroyed,
+	}
+
+	_expect(player.has_method("attack"), "player should expose attack action", failures)
+	_expect(animation_seen, "attack arc should become visible during attack", failures)
+	_expect(hitbox_enabled, "attack hitbox should enable during active attack frames", failures)
+	_expect(destroyed, "attack should destroy training dummy", failures)
 
 func _verify_gameplay(scene: Node, game: Node, summary: Dictionary, failures: Array) -> void:
 	for sigil: Node in get_nodes_in_group("sigils"):

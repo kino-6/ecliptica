@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://ecliptica_main"]
+[gd_scene load_steps=9 format=3 uid="uid://ecliptica_main"]
 
 [ext_resource type="Script" path="res://scripts/game.gd" id="1_game"]
 [ext_resource type="Script" path="res://scripts/player.gd" id="2_player"]
@@ -10,6 +10,12 @@ size = Vector2(34, 46)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_goal"]
 size = Vector2(60, 96)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_attack"]
+size = Vector2(96, 72)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_dummy"]
+size = Vector2(34, 54)
 
 [node name="Game" type="Node2D"]
 script = ExtResource("1_game")
@@ -43,7 +49,33 @@ shape = SubResource("RectangleShape2D_player")
 position = Vector2(-2, -68)
 scale = Vector2(0.3, 0.3)
 
+[node name="AttackArc" type="AnimatedSprite2D" parent="Player"]
+position = Vector2(44, -48)
+scale = Vector2(0.72, 0.72)
+visible = false
+
+[node name="AttackHitbox" type="Area2D" parent="Player"]
+position = Vector2(62, -36)
+monitoring = false
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player/AttackHitbox"]
+shape = SubResource("RectangleShape2D_attack")
+
 [node name="Collectibles" type="Node2D" parent="."]
+
+[node name="TrainingDummy" type="Area2D" parent="." groups=["attack_targets"]]
+position = Vector2(238, 430)
+
+[node name="Visual" type="ColorRect" parent="TrainingDummy"]
+offset_left = -17.0
+offset_top = -27.0
+offset_right = 17.0
+offset_bottom = 27.0
+color = Color(0.22, 0.07, 0.08, 0.86)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="TrainingDummy"]
+shape = SubResource("RectangleShape2D_dummy")
 
 [node name="Goal" type="Area2D" parent="."]
 position = Vector2(2460, 436)

@@ -58,7 +58,7 @@ test('main scene wires gameplay, generated stage, player animation, and E2E runn
   assert.match(scene, /\[node name="PlayerSprite" type="AnimatedSprite2D" parent="Player"\]/);
   assert.match(scene, /\[node name="AttackArc" type="AnimatedSprite2D" parent="Player"\]/);
   assert.match(scene, /\[node name="AttackHitbox" type="Area2D" parent="Player"\]/);
-  assert.match(scene, /\[node name="TrainingDummy" type="Area2D" parent="\."\]/);
+  assert.match(scene, /\[node name="TrainingDummy" type="Area2D" parent="." groups=\["attack_targets"\]\]/);
   assert.match(scene, /E2ERunner/);
   assert.match(scene, /Goal/);
   assert.doesNotMatch(scene, /\[node name="Ground1"/);
