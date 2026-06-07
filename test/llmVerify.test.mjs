@@ -45,6 +45,17 @@ test('LLM verify mode emits a machine-readable pass summary', async () => {
   assert.equal(summary.stage.sigil_count, 6);
   assert.ok(summary.stage.enemy_count >= 3);
   assert.ok(summary.stage.platform_count >= 7);
+  assert.equal(summary.balance.target_clear_attempts, 2);
+  assert.equal(summary.balance.expected_clear_attempts, 2);
+  assert.ok(summary.balance.risk_score >= 7, 'first stage should not be trivial');
+  assert.ok(summary.balance.risk_score <= 10, 'first stage should stay fair for a skilled player');
+  assert.equal(summary.balance.health_buffer_hits, 2);
+  assert.equal(summary.balance.focus_shots_available, 3);
+  assert.equal(summary.balance.branch_challenge_count, 2);
+  assert.equal(summary.balance.combat_encounter_count, 4);
+  assert.equal(summary.balance.boss_hit_points, 3);
+  assert.equal(summary.balance.recovery_window_count >= 2, true);
+  assert.equal(summary.balance.pacing, 'first_stage_two_try');
   assert.equal(summary.camera.followed_player, true);
   assert.ok(summary.player.moved_right_by >= 40);
   assert.equal(summary.player.health_after_damage, 2);
