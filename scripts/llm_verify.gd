@@ -90,6 +90,11 @@ func _record_stage(scene: Node, game: Node, summary: Dictionary, failures: Array
 	summary["stage"] = {
 		"seed": stage_summary.get("seed", null),
 		"theme": stage_summary.get("theme", ""),
+		"layout_style": stage_summary.get("layout_style", ""),
+		"vertical_room_count": int(stage_summary.get("vertical_room_count", 0)),
+		"shortcut_count": int(stage_summary.get("shortcut_count", 0)),
+		"locked_gate_count": int(stage_summary.get("locked_gate_count", 0)),
+		"critical_path_room_count": int(stage_summary.get("critical_path_room_count", 0)),
 		"platform_count": platform_count,
 		"sigil_count": sigil_count,
 		"enemy_count": enemy_count,
@@ -99,6 +104,11 @@ func _record_stage(scene: Node, game: Node, summary: Dictionary, failures: Array
 	}
 
 	_expect(stage_summary.get("seed", null) == 1337, "stage seed should be deterministic", failures)
+	_expect(stage_summary.get("layout_style", "") == "castle_keep", "stage should use a castle keep layout rather than a linear platform chain", failures)
+	_expect(int(stage_summary.get("vertical_room_count", 0)) == 3, "stage should include three vertical castle rooms", failures)
+	_expect(int(stage_summary.get("shortcut_count", 0)) == 1, "stage should include one readable shortcut branch", failures)
+	_expect(int(stage_summary.get("locked_gate_count", 0)) == 1, "stage should end at one locked gate hall", failures)
+	_expect(int(stage_summary.get("critical_path_room_count", 0)) == 6, "stage should expose a six-room critical path", failures)
 	_expect(platform_count >= 7, "stage should generate traversable platforms", failures)
 	_expect(sigil_count == 6, "stage should generate six sigils", failures)
 	_expect(enemy_count >= 3, "stage should generate enemies", failures)

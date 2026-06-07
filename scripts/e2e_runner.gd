@@ -51,6 +51,16 @@ func run_e2e() -> void:
 		return
 	if not _expect(game.generated_stage_summary["seed"] == 1337, "stage seed should be deterministic"):
 		return
+	if not _expect(game.generated_stage_summary.get("layout_style", "") == "castle_keep", "stage should use a castle keep layout"):
+		return
+	if not _expect(game.generated_stage_summary.get("vertical_room_count", 0) == 3, "stage should include vertical castle rooms"):
+		return
+	if not _expect(game.generated_stage_summary.get("shortcut_count", 0) == 1, "stage should include a shortcut branch"):
+		return
+	if not _expect(game.generated_stage_summary.get("locked_gate_count", 0) == 1, "stage should include a locked gate hall"):
+		return
+	if not _expect(game.generated_stage_summary.get("critical_path_room_count", 0) == 6, "stage should expose a six-room critical path"):
+		return
 	if not _expect(game.generated_stage_summary["platform_count"] >= 7, "stage should generate traversable platforms"):
 		return
 	if not _expect(game.generated_stage_summary["sigil_count"] == 6, "stage should generate six sigils"):
