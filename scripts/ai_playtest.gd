@@ -184,6 +184,7 @@ func _probe_melee(scene: Node, player: CharacterBody2D, reaction_frames: int, ac
 	enemy.set_meta("destroyed", false)
 	enemy.set_meta("hit_points", 1)
 	enemy.global_position = player.global_position + Vector2(76.0, -42.0)
+	enemy.set_physics_process(false)
 	await _wait_frames(reaction_frames)
 	player.attack_timer = 0.0
 	player.attack()
@@ -208,6 +209,7 @@ func _probe_ranged(scene: Node, player: CharacterBody2D, reaction_frames: int, a
 	enemy.set_meta("destroyed", false)
 	enemy.set_meta("hit_points", 1)
 	enemy.global_position = player.global_position + Vector2(240.0, -44.0)
+	enemy.set_physics_process(false)
 	player.facing_left = false
 	player.shoot_focus = player.FOCUS_MAX
 	await _wait_frames(reaction_frames)

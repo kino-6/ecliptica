@@ -318,6 +318,7 @@ func _verify_ranged_attack(scene: Node, player: CharacterBody2D, summary: Dictio
 	enemy.monitorable = true
 	enemy.set_meta("destroyed", false)
 	enemy.global_position = player.global_position + Vector2(240.0, -44.0)
+	enemy.set_physics_process(false)
 
 	var projectile_count_before := projectiles.get_child_count()
 	var fired: bool = player.shoot()
@@ -367,6 +368,7 @@ func _verify_combat_and_damage(scene: Node, game: Node, player: CharacterBody2D,
 	enemy.monitorable = true
 	enemy.set_meta("destroyed", false)
 	enemy.global_position = player.global_position + Vector2(104.0, -42.0)
+	enemy.set_physics_process(false)
 
 	player.attack()
 	await process_frame

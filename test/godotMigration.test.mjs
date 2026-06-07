@@ -174,7 +174,9 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(generator, /hit_points/);
   assert.match(enemy, /extends Area2D/);
   assert.match(enemy, /func configure_patrol/);
-  assert.match(enemy, /func _process/);
+  assert.match(enemy, /func _physics_process/);
+  assert.match(enemy, /GRAVITY :=/);
+  assert.match(enemy, /intersect_ray/);
   assert.match(enemy, /PATROL_STATE := "walk"/);
   assert.match(enemy, /ATTACK_STATE := "attack"/);
   assert.match(enemy, /get_first_node_in_group\("player"\)/);

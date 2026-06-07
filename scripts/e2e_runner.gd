@@ -153,6 +153,7 @@ func run_e2e() -> void:
 	ranged_enemy.monitorable = true
 	ranged_enemy.set_meta("destroyed", false)
 	ranged_enemy.global_position = player.global_position + Vector2(240.0, -44.0)
+	ranged_enemy.set_physics_process(false)
 	player.shoot_focus = player.FOCUS_MAX
 	var focus_before_shot: float = player.shoot_focus
 	var projectile_count_before: int = scene.get_node("Projectiles").get_child_count()
