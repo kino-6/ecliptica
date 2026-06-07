@@ -2,7 +2,7 @@ extends Node2D
 
 const LEVEL_HEIGHT := 540.0
 const TARGET_WINDOW_SIZE := Vector2i(1920, 1080)
-const CAMERA_ZOOM := Vector2(1.65, 1.65)
+const CAMERA_ZOOM := Vector2(2.2, 2.2)
 const HUD_BAR_WIDTH := 240.0
 const PLAYER_MAX_HEALTH := 3
 const DAMAGE_INVULNERABILITY := 0.75
