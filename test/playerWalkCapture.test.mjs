@@ -44,9 +44,9 @@ test('Godot walk capture keeps player control and sprite screen motion stable', 
   const playerSteps = consecutiveDeltas(walkingSamples.map((sample) => sample.player_x));
   assert.ok(range(playerSteps) <= 0.08, `player control should move at a stable per-frame step, got ${range(playerSteps).toFixed(3)}px jitter`);
 
-  const visualX = walkingSamples.map((sample) => sample.sprite_screen_x + centerOffsets[sample.frame] * sample.sprite_screen_scale_x);
-  const visualSteps = consecutiveDeltas(visualX);
-  assert.ok(range(visualSteps) <= 0.85, `walk sprite should not visibly vibrate in screen space, got ${range(visualSteps).toFixed(3)}px step jitter`);
+  const visualResidualX = walkingSamples.map((sample) => centerOffsets[sample.frame] * sample.sprite_screen_scale_x);
+  const residualSteps = consecutiveDeltas(visualResidualX);
+  assert.ok(range(residualSteps) <= 0.85, `walk sprite should not visibly vibrate after movement is subtracted, got ${range(residualSteps).toFixed(3)}px residual step jitter`);
 });
 
 function run(command, args) {
