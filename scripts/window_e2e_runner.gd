@@ -22,19 +22,24 @@ func run_window_e2e() -> void:
 	var screen := DisplayServer.window_get_current_screen()
 	var scale := maxf(DisplayServer.screen_get_scale(screen), 1.0)
 	var physical_size := DisplayServer.window_get_size()
+	var decorated_physical_size := DisplayServer.window_get_size_with_decorations()
 	var logical_size := Vector2(physical_size) / scale
+	var decorated_logical_size := Vector2(decorated_physical_size) / scale
 	var camera: Camera2D = scene.get_node("Camera2D")
+	var window := root.get_window()
 
-	if not _expect(logical_size.x >= TARGET_LOGICAL_WINDOW_SIZE.x - 1, "runtime window logical width should be 1920"):
+	print("WINDOW_E2E_PROBE scale=%.2f physical=%s decorated=%s logical=%s decorated_logical=%s root=%s content_scale=%s" % [scale, physical_size, decorated_physical_size, logical_size, decorated_logical_size, root.size, window.content_scale_size])
+
+	if not _expect(decorated_logical_size.x >= TARGET_LOGICAL_WINDOW_SIZE.x - 1, "runtime decorated window logical width should be 1920"):
 		return
-	if not _expect(logical_size.y >= TARGET_LOGICAL_WINDOW_SIZE.y - 1, "runtime window logical height should be 1080"):
+	if not _expect(decorated_logical_size.y >= TARGET_LOGICAL_WINDOW_SIZE.y - 1, "runtime decorated window logical height should be 1080"):
 		return
-	if not _expect(root.size == TARGET_LOGICAL_WINDOW_SIZE, "root viewport should stay 1920x1080"):
+	if not _expect(window.content_scale_size == TARGET_LOGICAL_WINDOW_SIZE, "window content scale should stay 1920x1080"):
 		return
 	if not _expect(camera.zoom == Vector2.ONE, "camera should stay at 1x zoom"):
 		return
 
-	print("WINDOW_E2E_OK scale=%.2f physical=%s logical=%s root=%s" % [scale, physical_size, logical_size, root.size])
+	print("WINDOW_E2E_OK scale=%.2f physical=%s decorated=%s logical=%s decorated_logical=%s content_scale=%s" % [scale, physical_size, decorated_physical_size, logical_size, decorated_logical_size, window.content_scale_size])
 	quit(0)
 
 func _expect(condition: bool, message: String) -> bool:

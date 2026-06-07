@@ -127,7 +127,7 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(e2e, /shoot should consume focus/);
   assert.match(e2e, /focus should regenerate over time/);
   assert.match(e2e, /E2E_OK/);
-  assert.equal(packageJson.scripts['test:window'], 'node --test test/godotWindowE2E.test.mjs');
+  assert.equal(packageJson.scripts['test:window'], 'RUN_GODOT_WINDOW_E2E=1 node --test test/godotWindowE2E.test.mjs');
   assert.match(windowE2e, /func run_window_e2e/);
   assert.match(windowE2e, /DisplayServer\.screen_get_scale/);
   assert.match(windowE2e, /WINDOW_E2E_OK/);

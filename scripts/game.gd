@@ -131,8 +131,18 @@ func _apply_window_size() -> void:
 	window.content_scale_size = TARGET_WINDOW_SIZE
 	if DisplayServer.get_name() == "headless":
 		return
+	var physical_window_size := _target_physical_window_size()
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
-	DisplayServer.window_set_size(TARGET_WINDOW_SIZE)
+	DisplayServer.window_set_size(physical_window_size)
+	window.size = physical_window_size
+	window.content_scale_size = TARGET_WINDOW_SIZE
+
+func _target_physical_window_size() -> Vector2i:
+	if DisplayServer.get_name() == "headless":
+		return TARGET_WINDOW_SIZE
+	var screen := DisplayServer.window_get_current_screen()
+	var scale := maxf(DisplayServer.screen_get_scale(screen), 1.0)
+	return Vector2i(ceili(TARGET_WINDOW_SIZE.x * scale), ceili(TARGET_WINDOW_SIZE.y * scale))
 
 func _generate_stage() -> void:
 	generated_stage_summary = stage_generator.generate_stage(self)

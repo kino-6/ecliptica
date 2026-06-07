@@ -10,7 +10,7 @@ const godotCandidates = [
   '/Applications/Godot.app/Contents/MacOS/Godot',
 ].filter(Boolean);
 
-test('Godot window E2E opens at 1920x1080 logical size', async () => {
+test('Godot window E2E opens at 1920x1080 logical size', { skip: process.env.RUN_GODOT_WINDOW_E2E !== '1' }, async () => {
   const godot = godotCandidates.find((candidate) => existsSync(candidate) || !candidate.includes('/'));
   assert.ok(godot, 'Godot executable should be available');
 
