@@ -51,6 +51,7 @@ var shoot_focus := FOCUS_MAX
 var hit_targets := {}
 
 func _ready() -> void:
+	add_to_group("player")
 	spawn_position = global_position
 	_setup_animations()
 	_setup_attack_animation()

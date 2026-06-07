@@ -12,7 +12,7 @@ Ecliptica は、ローグライク要素を持つ悪魔城ドラキュラ風の 
 - 10 フレーム Idle、24 フレーム Walk の主人公スプライト
 - 18 フレームの 3 段斧攻撃本体アニメーション、8 フレームの斧スイング、前方攻撃判定、訓練用ターゲット破壊
 - 8 フレームの射撃本体アニメーション、時間回復する FOCUS を消費する銃撃、前方弾、遠距離の敵破壊
-- 専用スプライトの通常敵と、複数ヒットで倒す Boss
+- 専用スプライトの通常敵、巡回/突進 Enemy AI、複数ヒットで倒す Boss
 - 初回ステージは「中級以上のアクションゲーム経験者が 2 回前後のトライでクリア」想定のバランス指標つき
 - 5 段階の人間反応速度つき AI プロファイルによる headless プレイテスト
 - 読みやすい寄りカメラ、HP/FOCUS バー、シジルピップ、敵接触ダメージ、被弾時リスポーン
@@ -58,7 +58,7 @@ godot --path . --scene res://scenes/main.tscn
 - 攻撃: `J`、`K`、または `X`
 - 射撃: `L`、`C`、または `V`
 
-赤いシジルをすべて集めるとゲートが開きます。ステージ上の敵と訓練用ターゲットは斧攻撃や銃撃で壊せます。Boss は複数回攻撃すると倒せます。銃撃は FOCUS を 1 消費し、FOCUS は時間経過で最大 3 まで回復します。敵に触れると HP が減り、開始位置へ戻されます。
+赤いシジルをすべて集めるとゲートが開きます。ステージ上の敵と訓練用ターゲットは斧攻撃や銃撃で壊せます。通常敵は巡回し、プレイヤーが近づくと短く突進します。Boss は複数回攻撃すると倒せます。銃撃は FOCUS を 1 消費し、FOCUS は時間経過で最大 3 まで回復します。敵に触れると HP が減り、開始位置へ戻されます。
 
 ## 生成ステージ
 
@@ -93,6 +93,7 @@ godot --path . --scene res://scenes/main.tscn
 - Axe attack body: `assets/player-attack-combo-sheet-18.png`、3 steps x 6 frames
 - Shoot body: `assets/player-shoot-sheet-8.png`、8 frames
 - Axe swing: `assets/axe-swing-sheet-8.png`、8 frames、`128x128`
+- Enemy: `assets/enemy-idle-sheet-8.png`、`assets/enemy-walk-sheet-12.png`、`assets/enemy-attack-sheet-8.png`、`96x96`
 - Godot 表示: `PlayerSprite` の単一 `AnimatedSprite2D` で `idle` / `walk` / `attack1` / `attack2` / `attack3` / `shoot` を切り替える
 - 攻撃表示: `AttackArc` の別 `AnimatedSprite2D` で斧スイングを重ねる
 

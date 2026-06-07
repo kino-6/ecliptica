@@ -7,7 +7,10 @@ const GATE_COLOR := Color(0.14, 0.11, 0.12, 0.96)
 const SIGIL_COLOR := Color(0.72, 0.08, 0.13, 0.92)
 const ENEMY_FRAME_SIZE := Vector2i(96, 96)
 const BOSS_FRAME_SIZE := Vector2i(192, 160)
-const ACTOR_FRAME_COUNT := 8
+const ENEMY_IDLE_FRAME_COUNT := 8
+const ENEMY_WALK_FRAME_COUNT := 12
+const ENEMY_ATTACK_FRAME_COUNT := 8
+const BOSS_FRAME_COUNT := 8
 const CASTLE_LAYOUT_STYLE := "castle_keep"
 const VERTICAL_ROOM_COUNT := 3
 const SHORTCUT_COUNT := 1
@@ -20,7 +23,10 @@ const BALANCE_RISK_SCORE := 8
 const BRANCH_CHALLENGE_COUNT := 2
 const RECOVERY_WINDOW_COUNT := 2
 const STAGE_PACING := "first_stage_two_try"
-const ENEMY_TEXTURE := preload("res://assets/enemy-idle-sheet-8.png")
+const ENEMY_SCRIPT := preload("res://scripts/enemy.gd")
+const ENEMY_IDLE_TEXTURE := preload("res://assets/enemy-idle-sheet-8.png")
+const ENEMY_WALK_TEXTURE := preload("res://assets/enemy-walk-sheet-12.png")
+const ENEMY_ATTACK_TEXTURE := preload("res://assets/enemy-attack-sheet-8.png")
 const BOSS_TEXTURE := preload("res://assets/boss-idle-sheet-8.png")
 const ENEMY_LIBRARY := [
 	Vector2(960, 432),
@@ -261,16 +267,16 @@ func _create_sigil(parent: Node2D, index: int, position: Vector2) -> void:
 	sigil.add_child(collision)
 
 func _create_enemy(parent: Node2D, index: int, position: Vector2) -> void:
-	var enemy := Area2D.new()
+	var enemy: Area2D = ENEMY_SCRIPT.new()
 	enemy.name = "GeneratedEnemy%d" % index
 	enemy.position = position
 	enemy.add_to_group("enemies")
 	enemy.add_to_group("attack_targets")
 	enemy.set_meta("hit_points", 1)
 	enemy.set_meta("max_hit_points", 1)
-	parent.add_child(enemy)
+	enemy.configure_patrol(66.0 + index * 10.0, 30.0 + index * 3.0, 265.0, 96.0 + index * 8.0)
 
-	var sprite := _create_actor_sprite("EnemySprite", ENEMY_TEXTURE, ENEMY_FRAME_SIZE, 8.0)
+	var sprite := _create_enemy_sprite()
 	sprite.position = Vector2(0, -8)
 	enemy.add_child(sprite)
 
@@ -280,6 +286,7 @@ func _create_enemy(parent: Node2D, index: int, position: Vector2) -> void:
 	collision.name = "CollisionShape2D"
 	collision.shape = shape
 	enemy.add_child(collision)
+	parent.add_child(enemy)
 
 func _create_boss(parent: Node2D, position: Vector2) -> void:
 	var boss := Area2D.new()
@@ -307,14 +314,36 @@ func _create_actor_sprite(sprite_name: StringName, texture: Texture2D, frame_siz
 	var sprite := AnimatedSprite2D.new()
 	sprite.name = sprite_name
 	var frames := SpriteFrames.new()
-	frames.add_animation("idle")
-	frames.set_animation_loop("idle", true)
-	frames.set_animation_speed("idle", speed)
-	for frame in range(ACTOR_FRAME_COUNT):
-		var atlas := AtlasTexture.new()
-		atlas.atlas = texture
-		atlas.region = Rect2(frame * frame_size.x, 0, frame_size.x, frame_size.y)
-		frames.add_frame("idle", atlas)
+	_add_texture_animation(frames, "idle", texture, frame_size, BOSS_FRAME_COUNT, speed, true)
 	sprite.sprite_frames = frames
 	sprite.play("idle")
 	return sprite
+
+func _create_enemy_sprite() -> AnimatedSprite2D:
+	var sprite := AnimatedSprite2D.new()
+	sprite.name = "EnemySprite"
+	var frames := SpriteFrames.new()
+	_add_texture_animation(frames, "idle", ENEMY_IDLE_TEXTURE, ENEMY_FRAME_SIZE, ENEMY_IDLE_FRAME_COUNT, 7.0, true)
+	_add_texture_animation(frames, "walk", ENEMY_WALK_TEXTURE, ENEMY_FRAME_SIZE, ENEMY_WALK_FRAME_COUNT, 12.0, true)
+	_add_texture_animation(frames, "attack", ENEMY_ATTACK_TEXTURE, ENEMY_FRAME_SIZE, ENEMY_ATTACK_FRAME_COUNT, 16.0, true)
+	sprite.sprite_frames = frames
+	sprite.play("walk")
+	return sprite
+
+func _add_texture_animation(
+	frames: SpriteFrames,
+	animation_name: StringName,
+	texture: Texture2D,
+	frame_size: Vector2i,
+	frame_count: int,
+	speed: float,
+	loop: bool
+) -> void:
+	frames.add_animation(animation_name)
+	frames.set_animation_loop(animation_name, loop)
+	frames.set_animation_speed(animation_name, speed)
+	for frame in range(frame_count):
+		var atlas := AtlasTexture.new()
+		atlas.atlas = texture
+		atlas.region = Rect2(frame * frame_size.x, 0, frame_size.x, frame_size.y)
+		frames.add_frame(animation_name, atlas)

@@ -38,6 +38,7 @@ func run_verify() -> void:
 		return
 
 	_record_stage(scene, game, summary, failures)
+	await _verify_enemy_behavior(scene, summary, failures)
 	await _verify_player_movement(scene, player, summary, failures)
 	await _verify_attack(scene, player, summary, failures)
 	await _verify_ranged_attack(scene, player, summary, failures)
@@ -54,6 +55,7 @@ func _base_summary() -> Dictionary:
 		"stage": {},
 		"player": {},
 		"camera": {},
+		"enemy": {},
 		"attack": {},
 		"ranged": {},
 		"combat": {},
@@ -179,6 +181,36 @@ func _verify_player_movement(scene: Node, player: CharacterBody2D, summary: Dict
 	}
 	_expect(camera_followed, "camera should follow the player across the stage", failures)
 
+func _verify_enemy_behavior(scene: Node, summary: Dictionary, failures: Array) -> void:
+	var enemies := get_nodes_in_group("enemies")
+	if enemies.is_empty():
+		_expect(false, "enemy behavior verify needs at least one enemy", failures)
+		summary["enemy"] = {
+			"has_ai_script": false,
+			"patrol_moved_by": 0.0,
+			"animation_after_patrol": "",
+		}
+		return
+
+	var enemy: Area2D = enemies[0]
+	var sprite := enemy.get_node_or_null("EnemySprite") as AnimatedSprite2D
+	var start_x := enemy.global_position.x
+	for frame in 45:
+		await process_frame
+	var moved_by := absf(enemy.global_position.x - start_x)
+	var animation := "" if sprite == null else String(sprite.animation)
+	var has_ai_script := enemy.get_script() != null and enemy.has_method("configure_patrol")
+
+	summary["enemy"] = {
+		"has_ai_script": has_ai_script,
+		"patrol_moved_by": moved_by,
+		"animation_after_patrol": animation,
+	}
+
+	_expect(has_ai_script, "generated enemies should use the dedicated enemy AI script", failures)
+	_expect(moved_by >= 6.0, "generated enemies should patrol instead of standing still", failures)
+	_expect(animation == "walk" or animation == "attack", "generated enemies should play walk or attack animation", failures)
+
 func _verify_attack(scene: Node, player: CharacterBody2D, summary: Dictionary, failures: Array) -> void:
 	var dummy: Area2D = scene.get_node_or_null("TrainingDummy")
 	var attack_arc: AnimatedSprite2D = scene.get_node("Player/AttackArc")
@@ -208,6 +240,7 @@ func _verify_attack(scene: Node, player: CharacterBody2D, summary: Dictionary, f
 	var hitbox_enabled := false
 	for frame in 16:
 		await process_frame
+		animation_seen = animation_seen or attack_arc.visible
 		hitbox_enabled = hitbox_enabled or attack_hitbox.monitoring
 
 	var destroyed := bool(dummy.get_meta("destroyed", false))
