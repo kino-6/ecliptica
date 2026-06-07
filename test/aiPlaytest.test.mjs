@@ -15,17 +15,30 @@ test('AI playtest mode is documented as a package script and skill', async () =>
 
 test('AI playtest mode evaluates five human-limited skill profiles', async () => {
   const result = await run('npm', ['run', 'playtest:ai']);
-  assert.equal(result.code, 0, result.stderr || result.stdout);
   const summary = parseSummary(result.stdout);
 
-  assert.equal(summary.status, 'pass');
   assert.equal(summary.mode, 'ai_headless_playtest');
   assert.equal(summary.stage.seed, 1337);
   assert.equal(summary.stage.balance.pacing, 'first_stage_two_try');
+  assert.equal(summary.parallel.strategy, 'auto_machine_fit');
+  assert.equal(typeof summary.parallel.available_parallelism, 'number');
+  assert.equal(typeof summary.parallel.total_memory_gb, 'number');
+  assert.equal(typeof summary.parallel.selected_workers, 'number');
+  assert.equal(typeof summary.parallel.total_elapsed_ms, 'number');
+  assert.ok(summary.parallel.available_parallelism >= 1);
+  assert.ok(summary.parallel.selected_workers >= Math.min(2, summary.parallel.available_parallelism, 5));
+  assert.ok(summary.parallel.selected_workers <= 5);
+  assert.ok(summary.parallel.total_elapsed_ms > 0);
+  assert.equal(result.code, 0, result.stderr || result.stdout);
+  assert.equal(summary.status, 'pass');
   assert.equal(summary.profiles.length, 5);
   assert.deepEqual(summary.profiles.map((profile) => profile.name), ['novice', 'casual', 'adept', 'expert', 'master']);
 
   for (const profile of summary.profiles) {
+    assert.equal(typeof profile.worker_index, 'number');
+    assert.equal(typeof profile.elapsed_ms, 'number');
+    assert.ok(profile.worker_index >= 0);
+    assert.ok(profile.elapsed_ms > 0);
     assert.equal(typeof profile.human_reaction_ms, 'number');
     assert.ok(profile.human_reaction_ms >= 120, 'profiles should include plausible human reaction constraints');
     assert.equal(typeof profile.action_interval_ms, 'number');
