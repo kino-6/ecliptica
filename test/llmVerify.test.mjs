@@ -42,6 +42,11 @@ test('LLM verify mode emits a machine-readable pass summary', async () => {
   assert.equal(summary.project.viewport.width, 1920);
   assert.equal(summary.project.viewport.height, 1080);
   assert.equal(summary.stage.seed, 1337);
+  assert.equal(summary.stage.layout_style, 'castle_keep');
+  assert.equal(summary.stage.vertical_room_count, 3);
+  assert.equal(summary.stage.shortcut_count, 1);
+  assert.equal(summary.stage.locked_gate_count, 1);
+  assert.equal(summary.stage.critical_path_room_count, 6);
   assert.equal(summary.stage.sigil_count, 6);
   assert.ok(summary.stage.enemy_count >= 3);
   assert.ok(summary.stage.platform_count >= 7);
