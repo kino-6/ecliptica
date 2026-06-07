@@ -71,6 +71,13 @@ test('LLM verify mode emits a machine-readable pass summary', async () => {
   assert.equal(summary.attack.available, true);
   assert.equal(summary.attack.animation_seen, true);
   assert.equal(summary.attack.hitbox_enabled_during_attack, true);
+  assert.equal(summary.attack.arc_hitbox_aligned_right, true);
+  assert.equal(summary.attack.arc_hitbox_aligned_left, true);
+  assert.deepEqual(summary.attack.arc_position_right, { x: 62, y: -36 });
+  assert.deepEqual(summary.attack.hitbox_position_right, { x: 62, y: -36 });
+  assert.deepEqual(summary.attack.arc_position_left, { x: -62, y: -36 });
+  assert.deepEqual(summary.attack.hitbox_position_left, { x: -62, y: -36 });
+  assert.deepEqual(summary.attack.arc_scale, { x: 0.72, y: 0.56 });
   assert.equal(summary.attack.training_dummy_destroyed, true);
   assert.equal(summary.ranged.available, true);
   assert.equal(summary.ranged.projectile_spawned, true);

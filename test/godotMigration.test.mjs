@@ -71,7 +71,9 @@ test('main scene wires gameplay, generated stage, player animation, and E2E runn
   assert.match(scene, /\[node name="Enemies" type="Node2D" parent="\."\]/);
   assert.match(scene, /\[node name="PlayerSprite" type="AnimatedSprite2D" parent="Player"\]/);
   assert.match(scene, /\[node name="AttackArc" type="AnimatedSprite2D" parent="Player"\]/);
+  assert.match(scene, /\[node name="AttackArc" type="AnimatedSprite2D" parent="Player"\]\nposition = Vector2\(62, -36\)\nscale = Vector2\(0\.72, 0\.56\)/);
   assert.match(scene, /\[node name="AttackHitbox" type="Area2D" parent="Player"\]/);
+  assert.match(scene, /\[node name="AttackHitbox" type="Area2D" parent="Player"\]\nposition = Vector2\(62, -36\)/);
   assert.match(scene, /\[node name="Projectiles" type="Node2D" parent="\."\]/);
   assert.match(scene, /\[node name="TrainingDummy" type="Area2D" parent="." groups=\["attack_targets"\]\]/);
   assert.match(scene, /E2ERunner/);
@@ -187,6 +189,11 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(player, /player-attack-combo-sheet-18\.png/);
   assert.match(player, /player-shoot-sheet-8\.png/);
   assert.match(player, /axe-swing-sheet-8\.png/);
+  assert.match(player, /ATTACK_HITBOX_OFFSET := Vector2\(62, -36\)/);
+  assert.match(player, /ATTACK_HITBOX_SIZE := Vector2\(96, 72\)/);
+  assert.match(player, /ATTACK_ARC_OFFSET := ATTACK_HITBOX_OFFSET/);
+  assert.match(player, /ATTACK_ARC_SCALE := Vector2\(0\.72, 0\.56\)/);
+  assert.match(player, /func _sync_attack_geometry/);
   assert.match(player, /func attack/);
   assert.match(player, /func _advance_combo_step/);
   assert.match(player, /func _play_attack_body_animation/);

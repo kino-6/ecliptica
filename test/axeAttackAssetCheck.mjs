@@ -6,6 +6,11 @@ const FRAME_WIDTH = 128;
 const FRAME_HEIGHT = 128;
 const FRAME_COUNT = 8;
 const GUTTER = 4;
+const ATTACK_HITBOX_WIDTH = 96;
+const ATTACK_HITBOX_HEIGHT = 72;
+const ARC_SCALE_X = 0.72;
+const ARC_SCALE_Y = 0.56;
+const ACTIVE_FRAMES = [2, 3, 4];
 
 const png = parsePng(readFileSync('assets/axe-swing-sheet-8.png'));
 assert.equal(png.width, FRAME_WIDTH * FRAME_COUNT, 'axe swing sheet should use 8 horizontal 128px frames');
@@ -26,6 +31,16 @@ assert.ok(countQuantizedColors(png) > 20, 'axe swing should use a painterly mult
 assert.ok(frameDifference(png, 1, 2) > frameDifference(png, 0, 1) * 1.35, 'axe swing should accelerate sharply after the wind-up frame');
 assert.ok(frameDifference(png, 2, 3) > 520, 'axe swing should include a heavy impact transition');
 assert.ok(countBrightMetalPixels(png, 3) > 180, 'impact frame should expose a readable axe blade highlight');
+
+for (const frame of ACTIVE_FRAMES) {
+  const bounds = visibleBounds(png, frame);
+  assert.ok(bounds, `active frame ${frame} should have visible pixels`);
+  const scaled = scaledBoundsAroundFrameOrigin(bounds);
+  assert.ok(scaled.left >= -ATTACK_HITBOX_WIDTH / 2 - 2, `active frame ${frame} should not draw left of the attack hitbox`);
+  assert.ok(scaled.right <= ATTACK_HITBOX_WIDTH / 2 + 2, `active frame ${frame} should not draw right of the attack hitbox`);
+  assert.ok(scaled.top >= -ATTACK_HITBOX_HEIGHT / 2 - 2, `active frame ${frame} should not draw above the attack hitbox`);
+  assert.ok(scaled.bottom <= ATTACK_HITBOX_HEIGHT / 2 + 2, `active frame ${frame} should not draw below the attack hitbox`);
+}
 
 function parsePng(buffer) {
   assert.equal(buffer.toString('ascii', 1, 4), 'PNG', 'expected PNG');
@@ -154,6 +169,37 @@ function frameDifference(png, frameA, frameB) {
     }
   }
   return difference;
+}
+
+function visibleBounds(png, frame) {
+  const x0 = frame * FRAME_WIDTH;
+  let minX = FRAME_WIDTH;
+  let minY = FRAME_HEIGHT;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let yy = 0; yy < FRAME_HEIGHT; yy += 1) {
+    for (let xx = 0; xx < FRAME_WIDTH; xx += 1) {
+      const alpha = png.pixels[(yy * png.width + x0 + xx) * 4 + 3];
+      if (alpha <= 24) continue;
+      minX = Math.min(minX, xx);
+      minY = Math.min(minY, yy);
+      maxX = Math.max(maxX, xx);
+      maxY = Math.max(maxY, yy);
+    }
+  }
+
+  if (maxX < 0) return null;
+  return { minX, minY, maxX, maxY };
+}
+
+function scaledBoundsAroundFrameOrigin(bounds) {
+  return {
+    left: (bounds.minX - FRAME_WIDTH / 2) * ARC_SCALE_X,
+    right: (bounds.maxX - FRAME_WIDTH / 2) * ARC_SCALE_X,
+    top: (bounds.minY - FRAME_HEIGHT / 2) * ARC_SCALE_Y,
+    bottom: (bounds.maxY - FRAME_HEIGHT / 2) * ARC_SCALE_Y,
+  };
 }
 
 function paeth(a, b, c) {
