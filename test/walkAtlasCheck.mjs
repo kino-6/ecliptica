@@ -194,7 +194,7 @@ function maxWalkCorePixelDrift(png, frameCount) {
     const x0 = frame * FRAME_WIDTH;
     let changed = 0;
     let measured = 0;
-    for (let yy = 54; yy < 240; yy += 1) {
+    for (let yy = 42; yy < 240; yy += 1) {
       for (let xx = 84; xx < 136; xx += 1) {
         const base = (yy * png.width + baseX + xx) * 4;
         if (png.pixels[base + 3] <= 8) continue;

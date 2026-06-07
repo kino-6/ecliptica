@@ -18,6 +18,7 @@ const requiredFiles = [
   'scripts/window_e2e_runner.gd',
   'scripts/llm_verify.gd',
   'assets/background-city.png',
+  'tools/stabilizePlayerWalkSheet.py',
   'assets/axe-swing-sheet-8.png',
   'assets/enemy-idle-sheet-8.png',
   'assets/enemy-walk-sheet-12.png',
