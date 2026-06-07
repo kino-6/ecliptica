@@ -10,6 +10,7 @@ const requiredFiles = [
   'scenes/platform.tscn',
   'scenes/collectible.tscn',
   'scripts/game.gd',
+  'scripts/roguelike_run.gd',
   'scripts/stage_generator.gd',
   'scripts/enemy.gd',
   'scripts/player.gd',
@@ -27,6 +28,7 @@ const requiredFiles = [
   'assets/player-attack-combo-sheet-18.png',
   'assets/player-shoot-sheet-8.png',
   'docs/enemy-ideas.md',
+  'docs/roguelike-plan.md',
 ];
 
 test('Godot migration includes the required project files and imported assets', () => {
@@ -87,10 +89,12 @@ test('main scene wires gameplay, generated stage, player animation, and E2E runn
 
 test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   const game = await readFile('scripts/game.gd', 'utf8');
+  const roguelike = await readFile('scripts/roguelike_run.gd', 'utf8');
   const generator = await readFile('scripts/stage_generator.gd', 'utf8');
   const enemy = await readFile('scripts/enemy.gd', 'utf8');
   const player = await readFile('scripts/player.gd', 'utf8');
   const enemyIdeas = await readFile('docs/enemy-ideas.md', 'utf8');
+  const roguelikePlan = await readFile('docs/roguelike-plan.md', 'utf8');
   const e2e = await readFile('scripts/e2e_runner.gd', 'utf8');
   const windowE2e = await readFile('scripts/window_e2e_runner.gd', 'utf8');
   const llmVerify = await readFile('scripts/llm_verify.gd', 'utf8');
@@ -99,6 +103,12 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(game, /func collect_sigil/);
   assert.match(game, /func damage_player/);
   assert.match(game, /func retry_game/);
+  assert.match(game, /func advance_to_next_stage/);
+  assert.match(game, /func _complete_roguelike_stage/);
+  assert.match(game, /ROGUELIKE_RUN_SCRIPT/);
+  assert.match(game, /run_stage_index/);
+  assert.match(game, /run_rewards/);
+  assert.match(game, /pending_reward_choices/);
   assert.match(game, /func _update_camera/);
   assert.match(game, /func open_gate/);
   assert.match(game, /func win_game/);
@@ -106,7 +116,9 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(game, /PLAYER_MAX_HEALTH := 3/);
   assert.match(game, /GATE_SEALED_COLOR/);
   assert.match(game, /Input\.is_action_just_pressed\("retry"\)/);
+  assert.match(game, /Input\.is_action_just_pressed\("next_stage"\)/);
   assert.match(game, /KEY_R/);
+  assert.match(game, /KEY_N/);
   assert.match(game, /KEY_ENTER/);
   assert.match(game, /TARGET_WINDOW_SIZE := Vector2i\(1920, 1080\)/);
   assert.match(game, /CAMERA_ZOOM := Vector2\(1\.65, 1\.65\)/);
@@ -136,6 +148,11 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(generator, /locked_gate_count/);
   assert.match(generator, /critical_path_room_count/);
   assert.match(generator, /DEFAULT_STAGE_SEED := 1337/);
+  assert.match(generator, /run_stage_index/);
+  assert.match(generator, /curse_level/);
+  assert.match(generator, /run_reward_count/);
+  assert.match(generator, /stage_variant/);
+  assert.match(generator, /elite_enemy_count/);
   assert.match(generator, /platform_count/);
   assert.match(generator, /sigil_count/);
   assert.match(generator, /enemy_count/);
@@ -189,6 +206,15 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(enemyIdeas, /巡回/);
   assert.match(enemyIdeas, /突進/);
   assert.match(enemyIdeas, /Bloodborne を直接コピーしない/);
+  assert.match(roguelike, /class_name RoguelikeRun/);
+  assert.match(roguelike, /REWARD_LIBRARY/);
+  assert.match(roguelike, /func reward_choices_for/);
+  assert.match(roguelike, /func select_reward/);
+  assert.match(roguelike, /func stage_seed_for/);
+  assert.match(roguelike, /blood_vial/);
+  assert.match(roguelikePlan, /Run Loop/);
+  assert.match(roguelikePlan, /報酬/);
+  assert.match(roguelikePlan, /次ステージ/);
   assert.match(e2e, /func run_e2e/);
   assert.match(e2e, /retry should clear game over and restore health/);
   assert.match(e2e, /retry should regenerate enemies/);

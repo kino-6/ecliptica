@@ -81,6 +81,14 @@ test('LLM verify mode emits a machine-readable pass summary', async () => {
   assert.equal(summary.gameplay.gate_open_after_collecting_sigils, true);
   assert.equal(summary.gameplay.win_state_reached, true);
   assert.equal(summary.gameplay.stage_playable_path, true);
+  assert.equal(summary.roguelike.initial_stage_index, 1);
+  assert.equal(summary.roguelike.reward_granted_after_win, true);
+  assert.equal(summary.roguelike.selected_reward_id, 'blood_vial');
+  assert.equal(summary.roguelike.max_health_after_reward, 4);
+  assert.equal(summary.roguelike.advanced_to_stage_index, 2);
+  assert.notEqual(summary.roguelike.next_stage_seed, 1337);
+  assert.equal(summary.roguelike.reward_count_after_advance, 1);
+  assert.equal(summary.roguelike.next_stage_variant, 'moonlit_cloister');
   assert.equal(summary.retry.game_over_before_retry, true);
   assert.equal(summary.retry.game_over_after_retry, false);
   assert.equal(summary.retry.health_after_retry, 3);
