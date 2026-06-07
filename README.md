@@ -10,8 +10,8 @@ Ecliptica は、ローグライク要素を持つ悪魔城ドラキュラ風の 
 - シード付き `StageGenerator` による 1 ステージ生成
 - 1920x1080 の既定ビューポート、起動時は全画面
 - 10 フレーム Idle、24 フレーム Walk の主人公スプライト
-- 8 フレームの斧スイング、前方攻撃判定、訓練用ターゲット破壊
-- 時間回復する FOCUS を消費する銃撃、前方弾、遠距離の敵破壊
+- 18 フレームの 3 段斧攻撃本体アニメーション、8 フレームの斧スイング、前方攻撃判定、訓練用ターゲット破壊
+- 8 フレームの射撃本体アニメーション、時間回復する FOCUS を消費する銃撃、前方弾、遠距離の敵破壊
 - 専用スプライトの通常敵と、複数ヒットで倒す Boss
 - 読みやすい寄りカメラ、HP/FOCUS バー、シジルピップ、敵接触ダメージ、被弾時リスポーン
 - Godot headless E2E による起動、移動、近接/遠隔攻撃、被弾、収集、ゲート開放、勝利確認
@@ -71,8 +71,10 @@ godot --path . --scene res://scenes/main.tscn
 - 基準位置: 人物中心 `x=96`、足元 baseline `y=344`
 - Idle: `assets/player-idle-sheet-10.png`、10 frames
 - Walk: `assets/player-walk-sheet-24.png`、24 frames
+- Axe attack body: `assets/player-attack-combo-sheet-18.png`、3 steps x 6 frames
+- Shoot body: `assets/player-shoot-sheet-8.png`、8 frames
 - Axe swing: `assets/axe-swing-sheet-8.png`、8 frames、`128x128`
-- Godot 表示: `PlayerSprite` の単一 `AnimatedSprite2D` で `idle` / `walk` を切り替える
+- Godot 表示: `PlayerSprite` の単一 `AnimatedSprite2D` で `idle` / `walk` / `attack1` / `attack2` / `attack3` / `shoot` を切り替える
 - 攻撃表示: `AttackArc` の別 `AnimatedSprite2D` で斧スイングを重ねる
 
 ## 開発ロードマップ

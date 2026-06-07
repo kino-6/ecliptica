@@ -19,6 +19,7 @@ func run_e2e() -> void:
 	await process_frame
 
 	var player: CharacterBody2D = scene.get_node("Player")
+	var player_sprite: AnimatedSprite2D = scene.get_node("Player/PlayerSprite")
 	var game: Node = scene
 	if not _expect(root.size == Vector2i(1920, 1080), "runtime root viewport should be 1920x1080"):
 		return
@@ -69,7 +70,7 @@ func run_e2e() -> void:
 		await process_frame
 	if not _expect(player.global_position.x > start_x + 40.0, "player should move right"):
 		return
-	if not _expect(scene.get_node("Player/PlayerSprite").animation == "walk", "walk animation should become active"):
+	if not _expect(player_sprite.animation == "walk", "walk animation should become active"):
 		return
 
 	player.global_position = Vector2(1300.0, player.global_position.y)
@@ -96,6 +97,24 @@ func run_e2e() -> void:
 		return
 	if not _expect(dummy.get_meta("destroyed", false), "attack should destroy training dummy"):
 		return
+
+	player.attack_timer = 0.0
+	player.combo_reset_timer = 0.0
+	player.current_attack_step = 0
+	var combo_animations: Array[String] = []
+	for step in range(3):
+		player.attack()
+		await process_frame
+		combo_animations.append(String(player_sprite.animation))
+		player.attack_timer = 0.0
+		player.attack_hitbox.monitoring = false
+		scene.get_node("Player/AttackArc").visible = false
+	var combo_ok := combo_animations.size() == 3 and combo_animations[0] == "attack1" and combo_animations[1] == "attack2" and combo_animations[2] == "attack3"
+	if not _expect(combo_ok, "combo should advance through three attack body animations: %s" % [combo_animations]):
+		return
+	player.attack_timer = 0.0
+	player.combo_reset_timer = 0.0
+	player.current_attack_step = 0
 
 	var enemies := get_nodes_in_group("enemies")
 	if not _expect(enemies.size() >= 3, "generated stage should include enemies"):
@@ -126,6 +145,8 @@ func run_e2e() -> void:
 	var focus_before_shot: float = player.shoot_focus
 	var projectile_count_before: int = scene.get_node("Projectiles").get_child_count()
 	if not _expect(player.shoot(), "shoot should fire when focus is available"):
+		return
+	if not _expect(player_sprite.animation == "shoot", "shoot body animation should become active"):
 		return
 	var focus_after_shot: float = player.shoot_focus
 	if not _expect(focus_after_shot < focus_before_shot, "shoot should consume focus"):
