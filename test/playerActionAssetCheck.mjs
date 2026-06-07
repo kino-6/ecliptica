@@ -7,7 +7,7 @@ const FRAME_HEIGHT = 384;
 const GUTTER = 8;
 
 const contracts = [
-  { file: 'assets/player-attack-combo-sheet-18.png', frameCount: 18, minVisible: 12500, minFrameDiff: 900 },
+  { file: 'assets/player-attack-combo-sheet-18.png', frameCount: 18, minVisible: 12500, minFrameDiff: 900, heavyAttack: true },
   { file: 'assets/player-shoot-sheet-8.png', frameCount: 8, minVisible: 11800, minFrameDiff: 500 },
 ];
 
@@ -26,6 +26,14 @@ for (const contract of contracts) {
   }
 
   assert.ok(frameDifference(png, 0, contract.frameCount - 1) > contract.minFrameDiff, `${contract.file} should visibly change pose across the animation`);
+  if (contract.heavyAttack) {
+    for (let combo = 0; combo < 3; combo += 1) {
+      const base = combo * 6;
+      assert.ok(centerOfMassX(png, base + 1) < centerOfMassX(png, base + 4), `${contract.file} combo ${combo + 1} should shift body weight into the hit`);
+      assert.ok(frameDifference(png, base + 1, base + 3) > frameDifference(png, base, base + 1) * 1.12, `${contract.file} combo ${combo + 1} should accelerate after anticipation`);
+      assert.ok(countBrightMetalPixels(png, base + 3) > 110, `${contract.file} combo ${combo + 1} should show a readable axe head at impact`);
+    }
+  }
 }
 
 function parsePng(buffer) {
@@ -116,6 +124,34 @@ function frameDifference(png, frameA, frameB) {
     }
   }
   return difference;
+}
+
+function centerOfMassX(png, frame) {
+  let weighted = 0;
+  let total = 0;
+  const x0 = frame * FRAME_WIDTH;
+  for (let y = 0; y < FRAME_HEIGHT; y += 2) {
+    for (let x = 0; x < FRAME_WIDTH; x += 2) {
+      const alpha = png.pixels[(y * png.width + x0 + x) * 4 + 3];
+      if (alpha <= 16) continue;
+      weighted += x * alpha;
+      total += alpha;
+    }
+  }
+  return weighted / total;
+}
+
+function countBrightMetalPixels(png, frame) {
+  let count = 0;
+  const x0 = frame * FRAME_WIDTH;
+  for (let y = 0; y < FRAME_HEIGHT; y += 1) {
+    for (let x = 0; x < FRAME_WIDTH; x += 1) {
+      const i = (y * png.width + x0 + x) * 4;
+      const [r, g, b, a] = [png.pixels[i], png.pixels[i + 1], png.pixels[i + 2], png.pixels[i + 3]];
+      if (a > 80 && r > 145 && g > 135 && b > 105 && Math.abs(r - g) < 80) count += 1;
+    }
+  }
+  return count;
 }
 
 function paeth(a, b, c) {

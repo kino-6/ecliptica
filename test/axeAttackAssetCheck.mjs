@@ -23,6 +23,9 @@ for (let frame = 0; frame < FRAME_COUNT; frame += 1) {
 
 assert.ok(countCrimsonPixels(png) > 900, 'axe swing should include dark crimson afterimage pixels');
 assert.ok(countQuantizedColors(png) > 20, 'axe swing should use a painterly multi-tone palette instead of flat debug colors');
+assert.ok(frameDifference(png, 1, 2) > frameDifference(png, 0, 1) * 1.35, 'axe swing should accelerate sharply after the wind-up frame');
+assert.ok(frameDifference(png, 2, 3) > 520, 'axe swing should include a heavy impact transition');
+assert.ok(countBrightMetalPixels(png, 3) > 180, 'impact frame should expose a readable axe blade highlight');
 
 function parsePng(buffer) {
   assert.equal(buffer.toString('ascii', 1, 4), 'PNG', 'expected PNG');
@@ -122,6 +125,35 @@ function countQuantizedColors(png) {
     }
   }
   return colors.size;
+}
+
+function countBrightMetalPixels(png, frame) {
+  let count = 0;
+  const x0 = frame * FRAME_WIDTH;
+  for (let yy = 0; yy < png.height; yy += 1) {
+    for (let xx = x0; xx < x0 + FRAME_WIDTH; xx += 1) {
+      const i = (yy * png.width + xx) * 4;
+      const [r, g, b, a] = [png.pixels[i], png.pixels[i + 1], png.pixels[i + 2], png.pixels[i + 3]];
+      if (a > 80 && r > 150 && g > 140 && b > 110 && Math.abs(r - g) < 75) count += 1;
+    }
+  }
+  return count;
+}
+
+function frameDifference(png, frameA, frameB) {
+  let difference = 0;
+  const ax = frameA * FRAME_WIDTH;
+  const bx = frameB * FRAME_WIDTH;
+  for (let y = 0; y < FRAME_HEIGHT; y += 2) {
+    for (let x = 0; x < FRAME_WIDTH; x += 2) {
+      const ai = (y * png.width + ax + x) * 4;
+      const bi = (y * png.width + bx + x) * 4;
+      const alphaDiff = Math.abs(png.pixels[ai + 3] - png.pixels[bi + 3]);
+      const colorDiff = Math.abs(png.pixels[ai] - png.pixels[bi]) + Math.abs(png.pixels[ai + 1] - png.pixels[bi + 1]) + Math.abs(png.pixels[ai + 2] - png.pixels[bi + 2]);
+      if (alphaDiff > 18 || colorDiff > 76) difference += 1;
+    }
+  }
+  return difference;
 }
 
 function paeth(a, b, c) {
