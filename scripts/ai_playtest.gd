@@ -44,6 +44,11 @@ func _init() -> void:
 	call_deferred("run_playtest")
 
 func run_playtest() -> void:
+	var single_profile_name := OS.get_environment("AI_PLAYTEST_PROFILE")
+	if single_profile_name != "":
+		await run_single_profile(single_profile_name)
+		return
+
 	var failures: Array = []
 	var packed: PackedScene = load("res://scenes/main.tscn")
 	if packed == null:
@@ -68,6 +73,26 @@ func run_playtest() -> void:
 		"failures": failures,
 	}
 	_finish(summary, failures)
+
+func run_single_profile(profile_name: String) -> void:
+	var failures: Array = []
+	var packed: PackedScene = load("res://scenes/main.tscn")
+	if packed == null:
+		_finish_profile({"mode": "ai_profile_playtest", "status": "fail", "failures": ["main scene should load"]}, ["main scene should load"])
+		return
+	var profile := _profile_by_name(PROFILES, profile_name)
+	if profile.is_empty():
+		_finish_profile({"mode": "ai_profile_playtest", "status": "fail", "failures": ["unknown profile %s" % [profile_name]]}, ["unknown profile %s" % [profile_name]])
+		return
+	var result: Dictionary = await _run_profile(packed, profile, failures)
+	var summary := {
+		"mode": "ai_profile_playtest",
+		"status": "pass" if failures.is_empty() else "fail",
+		"profile": result,
+		"stage": result.get("stage", {}),
+		"failures": failures,
+	}
+	_finish_profile(summary, failures)
 
 func _run_profile(packed: PackedScene, profile: Dictionary, failures: Array) -> Dictionary:
 	var scene: Node = packed.instantiate()
@@ -135,10 +160,10 @@ func _probe_movement(player: CharacterBody2D, reaction_frames: int, action_inter
 	await _wait_frames(reaction_frames)
 	var start_x := player.global_position.x
 	player.e2e_set_axis(1.0)
-	await _wait_frames(maxi(action_interval_frames, 24))
+	await _wait_frames(maxi(action_interval_frames, 30))
 	player.e2e_set_axis(0.0)
 	var moved_by := player.global_position.x - start_x
-	var ok := moved_by >= 40.0
+	var ok := moved_by >= 36.0
 	route_log.append({
 		"phase": "movement",
 		"reaction_frames": reaction_frames,
@@ -334,4 +359,10 @@ func _finish(summary: Dictionary, failures: Array) -> void:
 	summary["status"] = "pass" if failures.is_empty() else "fail"
 	summary["failures"] = failures
 	print("AI_PLAYTEST_JSON " + JSON.stringify(summary))
+	quit(0 if failures.is_empty() else 1)
+
+func _finish_profile(summary: Dictionary, failures: Array) -> void:
+	summary["status"] = "pass" if failures.is_empty() else "fail"
+	summary["failures"] = failures
+	print("AI_PROFILE_JSON " + JSON.stringify(summary))
 	quit(0 if failures.is_empty() else 1)

@@ -154,6 +154,12 @@ npm run playtest:ai
 
 出力は `AI_PLAYTEST_JSON` で始まる 1 行 JSON です。`novice`、`casual`、`adept`、`expert`、`master` の各プロファイルについて、反応速度、入力間隔、判断ミス率、クリア可否、予測クリア試行回数、移動/分岐/近接/射撃/Boss/Goal の `route_log` を出します。
 
+既定では、実行マシンの `availableParallelism()`、空きメモリ、プロフィール数から worker 数を自動選定し、プロフィールごとに Godot headless を並列起動します。出力 JSON の `parallel` に選定された worker 数、CPU/メモリ情報、各プロフィールの実行時間が入ります。必要なら次のように上書きできます。
+
+```bash
+AI_PLAYTEST_WORKERS=2 npm run playtest:ai
+```
+
 現在の基準では、`adept` が 2 回前後でクリア、`expert` と `master` が 1 回でクリア、`novice` と `casual` は未クリアになることを期待値にしています。これは手動プレイの代替ではなく、ステージ調整時に「難易度がどの腕前層に寄ったか」を継続比較するための計器です。
 
 ## ディレクトリ

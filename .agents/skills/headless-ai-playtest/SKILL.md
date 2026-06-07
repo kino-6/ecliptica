@@ -28,7 +28,19 @@ Model playtest AI as a set of human-limited profiles rather than a perfect bot:
    - gate/win state through actual game methods
 4. Output one JSON line with a stable prefix such as `AI_PLAYTEST_JSON`.
 5. Include per-profile `route_log` entries so balance failures are explainable.
-6. Verify focused tests, then run the full test suite.
+6. Parallelize profile execution when the runner can launch independent Godot processes.
+7. Verify focused tests, then run the full test suite.
+
+## Parallel Runner Pattern
+
+For fastest iteration, run one Godot headless process per profile and aggregate in Node:
+
+- detect local machine capacity with `availableParallelism()`, total/free memory, and profile count
+- reserve at least one CPU core, two cores on larger machines
+- cap worker count by profile count, CPU allowance, and a memory-per-worker estimate
+- allow `AI_PLAYTEST_WORKERS=<n>` to override auto selection for debugging or thermal limits
+- emit a `parallel` object in `AI_PLAYTEST_JSON` with selected worker count, CPU/memory inputs, total elapsed time, and per-profile elapsed time
+- keep profile order stable in the final summary even when jobs finish out of order
 
 ## Balance Signals
 
