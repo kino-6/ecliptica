@@ -19,6 +19,8 @@ const ATTACK_HITBOX_OFFSET := Vector2(62, -36)
 const ATTACK_HITBOX_SIZE := Vector2(96, 72)
 const ATTACK_ARC_OFFSET := ATTACK_HITBOX_OFFSET
 const ATTACK_ARC_SCALE := Vector2(0.72, 0.56)
+const KNOCKBACK_DURATION := 0.24
+const KNOCKBACK_VELOCITY := Vector2(360, -260)
 const ATTACK_RECOVERY_SPEED_SCALE := 0.35
 const COMBO_RESET_TIME := 1.5
 const SHOOT_DURATION := 0.28
@@ -52,6 +54,8 @@ var combo_reset_timer := 0.0
 var current_attack_step := 0
 var shoot_timer := 0.0
 var shoot_focus := FOCUS_MAX
+var knockback_timer := 0.0
+var knockback_velocity := Vector2.ZERO
 var hit_targets := {}
 
 func _ready() -> void:
@@ -75,7 +79,6 @@ func _physics_process(delta: float) -> void:
 	force_shoot = false
 
 	var speed_scale := ATTACK_RECOVERY_SPEED_SCALE if is_attacking() else 1.0
-	velocity.x = axis * SPEED * speed_scale
 	if axis != 0.0:
 		facing_left = axis < 0.0
 
@@ -83,6 +86,9 @@ func _physics_process(delta: float) -> void:
 		velocity.y = JUMP_VELOCITY
 	force_jump = false
 
+	var knockback_factor := _update_knockback(delta)
+	var control_x := axis * SPEED * speed_scale
+	velocity.x = control_x + knockback_velocity.x * knockback_factor
 	velocity.y = minf(velocity.y + GRAVITY * delta, MAX_FALL)
 	move_and_slide()
 	_update_focus(delta)
@@ -104,6 +110,8 @@ func reset_to_spawn() -> void:
 	combo_reset_timer = 0.0
 	current_attack_step = 0
 	shoot_timer = 0.0
+	knockback_timer = 0.0
+	knockback_velocity = Vector2.ZERO
 	attack_hitbox.monitoring = false
 	attack_arc.visible = false
 	_update_animation()
@@ -150,6 +158,12 @@ func is_attacking() -> bool:
 
 func is_shooting() -> bool:
 	return shoot_timer > 0.0
+
+func apply_damage_knockback(source_position: Vector2) -> void:
+	var direction := -1.0 if global_position.x < source_position.x else 1.0
+	knockback_velocity = Vector2(KNOCKBACK_VELOCITY.x * direction, KNOCKBACK_VELOCITY.y)
+	knockback_timer = KNOCKBACK_DURATION
+	velocity = knockback_velocity
 
 func _setup_animations() -> void:
 	var sprite_frames := SpriteFrames.new()
@@ -217,6 +231,16 @@ func _sync_attack_geometry() -> void:
 	attack_arc.position = Vector2(ATTACK_ARC_OFFSET.x * direction, ATTACK_ARC_OFFSET.y)
 	attack_arc.scale = ATTACK_ARC_SCALE
 	attack_hitbox.position = Vector2(ATTACK_HITBOX_OFFSET.x * direction, ATTACK_HITBOX_OFFSET.y)
+
+func _update_knockback(delta: float) -> float:
+	if knockback_timer <= 0.0:
+		knockback_velocity = Vector2.ZERO
+		return 0.0
+	var factor := knockback_timer / KNOCKBACK_DURATION
+	knockback_timer = maxf(knockback_timer - delta, 0.0)
+	if knockback_timer <= 0.0:
+		knockback_velocity = Vector2.ZERO
+	return factor
 
 func _advance_combo_step() -> int:
 	if combo_reset_timer <= 0.0:

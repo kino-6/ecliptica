@@ -59,6 +59,7 @@ func _process(delta: float) -> void:
 	damage_invulnerability_timer = maxf(damage_invulnerability_timer - delta, 0.0)
 	if player.global_position.y > LEVEL_HEIGHT + 80.0:
 		damage_player()
+	_update_player_damage_feedback()
 	_update_camera()
 	_update_hud()
 
@@ -79,16 +80,28 @@ func open_gate() -> void:
 	gate_visual.color = GATE_OPEN_COLOR
 	_update_hud()
 
-func damage_player(_source: Node = null) -> void:
+func damage_player(source: Node = null) -> void:
 	if won or game_over or damage_invulnerability_timer > 0.0:
 		return
 	player_health = maxi(player_health - 1, 0)
 	damage_invulnerability_timer = DAMAGE_INVULNERABILITY
-	player.reset_to_spawn()
-	_update_camera()
+	if source == null:
+		_apply_fall_damage()
+	else:
+		_apply_contact_damage(source)
 	if player_health <= 0:
 		game_over = true
 	_update_hud()
+
+func _apply_contact_damage(source: Node) -> void:
+	if source is Node2D:
+		player.apply_damage_knockback((source as Node2D).global_position)
+	else:
+		player.apply_damage_knockback(player.global_position + Vector2(-1.0, 0.0))
+
+func _apply_fall_damage() -> void:
+	player.reset_to_spawn()
+	_update_camera()
 
 func win_game() -> void:
 	if not gate_open or game_over or won:
@@ -156,6 +169,13 @@ func _update_hud() -> void:
 	var win_text := " / WON%s / N TO DESCEND" % [reward_text] if won else ""
 	var state_text := " / GAME OVER / R TO RETRY" if game_over else win_text
 	state_label.text = "RUN %d / %s%s" % [run_stage_index, gate_text, state_text]
+
+func _update_player_damage_feedback() -> void:
+	if damage_invulnerability_timer <= 0.0 or game_over:
+		player.modulate = Color(1.0, 1.0, 1.0, 1.0)
+		return
+	var flash := int(damage_invulnerability_timer * 18.0) % 2 == 0
+	player.modulate = Color(1.0, 0.78, 0.78, 0.72 if flash else 1.0)
 
 func _update_hud_bars() -> void:
 	var health_ratio := clampf(float(player_health) / float(player_max_health), 0.0, 1.0)
