@@ -182,11 +182,16 @@ func _verify_player_movement(scene: Node, player: CharacterBody2D, summary: Dict
 	player.global_position = Vector2(1300.0, player.global_position.y)
 	game._update_camera()
 	var camera_followed := camera.global_position.x > 1000.0
+	var visible_world_width := float(ProjectSettings.get_setting("display/window/size/viewport_width")) / camera.zoom.x
 	summary["camera"] = {
 		"x": camera.global_position.x,
 		"followed_player": camera_followed,
+		"zoom": _vector_summary(camera.zoom),
+		"visible_world_width": snappedf(visible_world_width, 0.01),
 	}
 	_expect(camera_followed, "camera should follow the player across the stage", failures)
+	_expect(camera.zoom == Vector2(2.2, 2.2), "camera should use close gothic action framing", failures)
+	_expect(visible_world_width <= 900.0, "camera should keep the visible world width tight enough to read character detail", failures)
 
 func _verify_enemy_behavior(scene: Node, summary: Dictionary, failures: Array) -> void:
 	var enemies := get_nodes_in_group("enemies")

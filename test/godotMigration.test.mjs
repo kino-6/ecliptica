@@ -82,7 +82,7 @@ test('main scene wires gameplay, generated stage, player animation, and E2E runn
   assert.doesNotMatch(scene, /\[node name="Ground1"/);
   assert.doesNotMatch(scene, /\[node name="Collectible1"/);
   assert.match(scene, /CollisionShape2D/);
-  assert.match(scene, /zoom = Vector2\(1\.65, 1\.65\)/);
+  assert.match(scene, /zoom = Vector2\(2\.2, 2\.2\)/);
   assert.match(scene, /\[node name="HealthFill" type="ColorRect" parent="CanvasLayer\/HUDPanel\/HealthBar"\]/);
   assert.match(scene, /\[node name="FocusFill" type="ColorRect" parent="CanvasLayer\/HUDPanel\/FocusBar"\]/);
   assert.match(scene, /\[node name="SigilPips" type="HBoxContainer" parent="CanvasLayer\/HUDPanel"\]/);
@@ -126,7 +126,7 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(game, /KEY_N/);
   assert.match(game, /KEY_ENTER/);
   assert.match(game, /TARGET_WINDOW_SIZE := Vector2i\(1920, 1080\)/);
-  assert.match(game, /CAMERA_ZOOM := Vector2\(1\.65, 1\.65\)/);
+  assert.match(game, /CAMERA_ZOOM := Vector2\(2\.2, 2\.2\)/);
   assert.match(game, /DisplayServer\.WINDOW_MODE_FULLSCREEN/);
   assert.match(game, /func _update_hud_bars/);
   assert.match(game, /health_fill/);

@@ -65,6 +65,8 @@ test('LLM verify mode emits a machine-readable pass summary', async () => {
   assert.ok(summary.enemy.patrol_moved_by >= 6);
   assert.ok(['walk', 'attack'].includes(summary.enemy.animation_after_patrol));
   assert.equal(summary.camera.followed_player, true);
+  assert.deepEqual(summary.camera.zoom, { x: 2.2, y: 2.2 });
+  assert.ok(summary.camera.visible_world_width <= 900);
   assert.ok(summary.player.moved_right_by >= 40);
   assert.equal(summary.player.health_after_damage, 2);
   assert.equal(summary.player.stayed_in_place_after_damage, true);

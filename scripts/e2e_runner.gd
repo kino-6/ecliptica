@@ -27,7 +27,9 @@ func run_e2e() -> void:
 		return
 	if not _expect(scene.get_node_or_null("Background") != null, "background should exist"):
 		return
-	if not _expect(scene.get_node("Camera2D").zoom == Vector2(1.65, 1.65), "camera should zoom in enough for readable play"):
+	if not _expect(scene.get_node("Camera2D").zoom == Vector2(2.2, 2.2), "camera should use close gothic action framing"):
+		return
+	if not _expect(game.TARGET_WINDOW_SIZE.x / scene.get_node("Camera2D").zoom.x <= 900.0, "camera should keep the visible world width tight enough to read character detail"):
 		return
 	if not _expect(scene.get_node_or_null("CanvasLayer/HUDPanel/HealthBar/HealthFill") != null, "health should render as a HUD bar"):
 		return

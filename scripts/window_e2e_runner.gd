@@ -34,7 +34,9 @@ func run_window_e2e() -> void:
 		return
 	if not _expect(window.content_scale_size == TARGET_LOGICAL_WINDOW_SIZE, "fullscreen content scale should stay 1920x1080"):
 		return
-	if not _expect(camera.zoom == Vector2(1.65, 1.65), "camera should zoom in enough for readable play"):
+	if not _expect(camera.zoom == Vector2(2.2, 2.2), "camera should use close gothic action framing"):
+		return
+	if not _expect(TARGET_LOGICAL_WINDOW_SIZE.x / camera.zoom.x <= 900.0, "camera should keep the visible world width tight enough to read character detail"):
 		return
 
 	print("WINDOW_E2E_OK scale=%.2f physical=%s decorated=%s logical=%s decorated_logical=%s content_scale=%s" % [scale, physical_size, decorated_physical_size, logical_size, decorated_logical_size, window.content_scale_size])
