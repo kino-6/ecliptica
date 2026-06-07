@@ -1,0 +1,3 @@
+display_name: Headless AI Playtest
+short_description: Build Godot headless playtest bots with human reaction constraints.
+default_prompt: Use the headless-ai-playtest skill to add or tune AI playtest coverage for this stage.
