@@ -15,12 +15,13 @@ test('stage and ranged attack assets are production gothic sprites instead of fl
   assert.ok(countCrimsonPixels(platform) > 20, 'platform tile should include restrained crimson staining');
   assert.ok(longestFlatRun(platform) < 44, 'platform tile should not be a flat rectangle fill');
 
-  assert.equal(shot.width, 64, 'shot sprite should be 64px wide');
-  assert.equal(shot.height, 24, 'shot sprite should be 24px tall');
-  assert.ok(countVisiblePixels(shot) > 260, 'shot should have a readable silhouette');
-  assert.ok(countQuantizedColors(shot) > 12, 'shot should use a multi-tone brass/smoke palette');
-  assert.ok(countBrassPixels(shot) > 60, 'shot should include a bright brass muzzle core');
-  assert.ok(countSmokePixels(shot) > 100, 'shot should include dark smoke instead of a plain line');
+  assert.equal(shot.width, 96, 'shot sprite should be wide enough to read as a gothic gunshot trail');
+  assert.equal(shot.height, 40, 'shot sprite should have enough height for muzzle smoke and sparks');
+  assert.ok(countVisiblePixels(shot) > 980, 'shot should have a readable smoke-and-flash silhouette');
+  assert.ok(countQuantizedColors(shot) > 20, 'shot should use a multi-tone brass/smoke palette');
+  assert.ok(countBrassPixels(shot) > 130, 'shot should include a bright brass muzzle core');
+  assert.ok(countSmokePixels(shot) > 520, 'shot should include dark smoke instead of a plain line');
+  assert.ok(visibleHeight(shot) >= 22, 'shot should not collapse into a one-pixel laser line');
   assert.ok(longestFlatRun(shot) < 18, 'shot should not be a flat debug bar');
 });
 
@@ -143,6 +144,20 @@ function longestFlatRun(png) {
     }
   }
   return longest;
+}
+
+function visibleHeight(png) {
+  let minY = png.height;
+  let maxY = -1;
+  for (let y = 0; y < png.height; y += 1) {
+    for (let x = 0; x < png.width; x += 1) {
+      const i = (y * png.width + x) * 4;
+      if (png.pixels[i + 3] <= 24) continue;
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
+  }
+  return maxY < 0 ? 0 : maxY - minY + 1;
 }
 
 function forEachPixel(png, callback) {

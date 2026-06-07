@@ -198,6 +198,9 @@ func run_e2e() -> void:
 		return
 	if not _expect((spawned_projectile.get_node("Visual") as Sprite2D).texture != null, "player shot sprite should have a loaded gothic projectile texture"):
 		return
+	var shot_texture := (spawned_projectile.get_node("Visual") as Sprite2D).texture
+	if not _expect(shot_texture.get_width() >= 96 and shot_texture.get_height() >= 40, "player shot should use a readable smoke-and-flash sprite, not a tiny debug pellet"):
+		return
 	for frame in 30:
 		await process_frame
 	if not _expect(ranged_enemy.get_meta("destroyed", false), "shot should destroy an enemy at range"):

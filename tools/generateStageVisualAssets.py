@@ -13,7 +13,7 @@ SHOT_OUT = Path("assets/player-shot.png")
 def main() -> None:
     PLATFORM_OUT.parent.mkdir(parents=True, exist_ok=True)
     PLATFORM_OUT.write_bytes(encode_png(96, 64, platform_pixels()))
-    SHOT_OUT.write_bytes(encode_png(64, 24, shot_pixels()))
+    SHOT_OUT.write_bytes(encode_png(96, 40, shot_pixels()))
 
 
 def platform_pixels() -> bytearray:
@@ -72,27 +72,43 @@ def platform_pixels() -> bytearray:
 
 
 def shot_pixels() -> bytearray:
-    width = 64
-    height = 24
+    width = 96
+    height = 40
     pixels = bytearray(width * height * 4)
-    for i in range(14):
-        x = 10 + i * 3.0
-        y = 12 + math.sin(i * 0.9) * 2.2
-        radius = 6 - i * 0.18
-        color = (19 + i * 2, 24 + i * 2, 30 + i * 2, 86 - i * 2)
-        draw_ellipse(pixels, width, x, y, radius * 1.35, radius * 0.48, color)
-    draw_ellipse(pixels, width, 43, 12, 15, 4.6, (47, 41, 31, 172))
-    draw_ellipse(pixels, width, 48, 12, 13, 4.0, (142, 98, 45, 226))
-    draw_ellipse(pixels, width, 53, 12, 9, 3.0, (224, 184, 92, 242))
-    draw_ellipse(pixels, width, 57, 12, 4.6, 1.8, (248, 228, 148, 248))
-    for i in range(17):
-        x = 4 + hash_noise(i, 2, 17) % 38
-        y = 6 + hash_noise(i, 9, 23) % 12
-        blend_pixel(pixels, width, x, y, (63, 67, 69, 58))
-    for i in range(8):
-        x = 33 + i * 3
-        y = 10 + (i % 3)
-        blend_pixel(pixels, width, x, y, (115, 19, 24, 66))
+    cy = 20
+
+    for i in range(22):
+        x = 8 + i * 2.55
+        y = cy + math.sin(i * 0.62) * 4.2 + (hash_noise(i, 3, 11) % 5 - 2)
+        rx = 10.5 - i * 0.20
+        ry = 5.8 - i * 0.09
+        alpha = 118 - i * 2
+        draw_ellipse(pixels, width, x, y, rx, ry, (18 + i, 22 + i, 28 + i, alpha))
+
+    for i in range(16):
+        x = 6 + hash_noise(i, 2, 17) % 52
+        y = 8 + hash_noise(i, 9, 23) % 24
+        draw_ellipse(pixels, width, x, y, 3 + (i % 4), 1.5 + (i % 3), (58, 65, 70, 66))
+
+    for i in range(10):
+        x = 22 + i * 4.2
+        y = cy - 6 + (i % 4) * 3
+        draw_ellipse(pixels, width, x, y, 6, 2.0, (126, 16, 24, 78))
+
+    draw_ellipse(pixels, width, 52, cy, 29, 8.2, (44, 38, 30, 190))
+    draw_ellipse(pixels, width, 61, cy, 24, 6.5, (137, 91, 39, 228))
+    draw_ellipse(pixels, width, 71, cy, 17, 4.8, (224, 179, 77, 244))
+    draw_ellipse(pixels, width, 82, cy, 9, 3.0, (251, 226, 137, 250))
+    draw_ellipse(pixels, width, 88, cy, 4.2, 1.5, (255, 246, 186, 252))
+
+    for i in range(18):
+        x = 58 + hash_noise(i, 5, 31) % 30
+        y = 7 + hash_noise(i, 8, 47) % 26
+        color = (190, 42, 33, 90) if i % 3 == 0 else (196, 143, 72, 74)
+        draw_ellipse(pixels, width, x, y, 1.8 + (i % 2), 1.2, color)
+
+    draw_line(pixels, width, 34, cy - 8, 83, cy - 1, (78, 26, 24, 118))
+    draw_line(pixels, width, 36, cy + 7, 78, cy + 2, (30, 36, 42, 132))
     return pixels
 
 

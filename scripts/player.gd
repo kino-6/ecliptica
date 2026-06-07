@@ -30,7 +30,7 @@ const SHOT_COST := 1.0
 const SHOT_SPEED := 820.0
 const SHOT_LIFETIME := 0.85
 const SHOT_OFFSET := Vector2(56, -44)
-const SHOT_SIZE := Vector2(28, 8)
+const SHOT_SIZE := Vector2(42, 14)
 const IDLE_TEXTURE := preload("res://assets/player-idle-sheet-10.png")
 const WALK_TEXTURE := preload("res://assets/player-walk-sheet-24.png")
 const ATTACK_BODY_TEXTURE := preload("res://assets/player-attack-combo-sheet-18.png")
@@ -317,6 +317,7 @@ func _create_projectile() -> Area2D:
 	visual.name = "Visual"
 	visual.texture = shot_texture
 	visual.flip_h = direction < 0.0
+	visual.z_index = 8
 	projectile.add_child(visual)
 
 	var shape := RectangleShape2D.new()
