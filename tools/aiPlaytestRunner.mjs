@@ -18,23 +18,39 @@ if (!godot) {
   process.exit(1);
 }
 
-const allocation = chooseAllocation(profiles.length);
-const startedAt = performance.now();
-const { results, failures } = await runProfileQueue(profiles, allocation.selected_workers);
-const totalElapsedMs = Math.round(performance.now() - startedAt);
-const orderedProfiles = results
-  .sort((a, b) => profiles.indexOf(a.name) - profiles.indexOf(b.name))
-  .map((profile) => ({
-    ...profile,
-    elapsed_ms: Math.round(profile.elapsed_ms),
-  }));
-const stage = orderedProfiles[0]?.stage ?? {};
-const recommendation = recommend(orderedProfiles);
-const summary = {
-  mode: 'ai_headless_playtest',
-  status: failures.length === 0 ? 'pass' : 'fail',
-  stage,
-  parallel: {
+const summary = await main();
+console.log(`AI_PLAYTEST_JSON ${JSON.stringify(summary)}`);
+process.exit(summary.status === 'pass' ? 0 : 1);
+
+async function main() {
+  const allocation = chooseAllocation(profiles.length);
+  const startedAt = performance.now();
+  const { results, failures } = await runProfileQueue(profiles, allocation.selected_workers);
+  const totalElapsedMs = Math.round(performance.now() - startedAt);
+  const orderedProfiles = orderProfiles(results);
+
+  return buildSummary({
+    allocation,
+    failures,
+    orderedProfiles,
+    totalElapsedMs,
+  });
+}
+
+function buildSummary({ allocation, failures, orderedProfiles, totalElapsedMs }) {
+  return {
+    mode: 'ai_headless_playtest',
+    status: failures.length === 0 ? 'pass' : 'fail',
+    stage: orderedProfiles[0]?.stage ?? {},
+    parallel: buildParallelSummary(allocation, orderedProfiles, totalElapsedMs),
+    profiles: orderedProfiles,
+    recommendation: recommend(orderedProfiles),
+    failures,
+  };
+}
+
+function buildParallelSummary(allocation, orderedProfiles, totalElapsedMs) {
+  return {
     strategy: 'auto_machine_fit',
     enabled: allocation.selected_workers > 1,
     available_parallelism: allocation.available_parallelism,
@@ -45,19 +61,22 @@ const summary = {
     selected_workers: allocation.selected_workers,
     profile_count: profiles.length,
     total_elapsed_ms: totalElapsedMs,
-    profile_elapsed_ms: orderedProfiles.map((profile) => ({
-      name: profile.name,
-      elapsed_ms: profile.elapsed_ms,
-      worker_index: profile.worker_index,
+    profile_elapsed_ms: orderedProfiles.map(({ name, elapsed_ms, worker_index }) => ({
+      name,
+      elapsed_ms,
+      worker_index,
     })),
-  },
-  profiles: orderedProfiles,
-  recommendation,
-  failures,
-};
+  };
+}
 
-console.log(`AI_PLAYTEST_JSON ${JSON.stringify(summary)}`);
-process.exit(summary.status === 'pass' ? 0 : 1);
+function orderProfiles(profileResults) {
+  return profileResults
+    .sort((a, b) => profiles.indexOf(a.name) - profiles.indexOf(b.name))
+    .map((profile) => ({
+      ...profile,
+      elapsed_ms: Math.round(profile.elapsed_ms),
+    }));
+}
 
 function chooseAllocation(profileCount) {
   const available = Math.max(1, Number(availableParallelism?.() ?? 1));
@@ -154,12 +173,15 @@ function runProfile(profileName, workerIndex) {
         return;
       }
       const profile = summary.profile;
-      profile.elapsed_ms = performance.now() - startedAt;
-      profile.failures = summary.failures ?? [];
+      const profileFailures = [...(summary.failures ?? [])];
       if (code !== 0 || summary.status !== 'pass') {
-        profile.failures.push(filteredStderr.trim() || `profile exited with code ${code}`);
+        profileFailures.push(filteredStderr.trim() || `profile exited with code ${code}`);
       }
-      resolve(profile);
+      resolve({
+        ...profile,
+        elapsed_ms: performance.now() - startedAt,
+        failures: profileFailures,
+      });
     });
   });
 }
