@@ -110,6 +110,10 @@ const ROOM_LIBRARY := [
 ]
 
 @export var stage_seed := DEFAULT_STAGE_SEED
+@export var run_seed := DEFAULT_STAGE_SEED
+@export var run_stage_index := 1
+@export var curse_level := 0
+@export var run_reward_count := 0
 
 func generate_stage(game: Node2D) -> Dictionary:
 	var platforms: Node2D = game.get_node("Platforms")
@@ -140,8 +144,10 @@ func generate_stage(game: Node2D) -> Dictionary:
 			_create_sigil(collectibles, sigil_count + 1, sigil_position)
 			sigil_count += 1
 
+	var elite_enemy_count := _elite_enemy_count()
 	for enemy_position in ENEMY_LIBRARY:
-		_create_enemy(enemies, enemy_count + 1, enemy_position)
+		var is_elite := enemy_count < elite_enemy_count
+		_create_enemy(enemies, enemy_count + 1, enemy_position, is_elite)
 		enemy_count += 1
 	_create_boss(enemies, BOSS_POSITION)
 	enemy_count += 1
@@ -161,6 +167,12 @@ func generate_stage(game: Node2D) -> Dictionary:
 
 	return {
 		"seed": stage_seed,
+		"run_seed": run_seed,
+		"run_stage_index": run_stage_index,
+		"curse_level": curse_level,
+		"run_reward_count": run_reward_count,
+		"stage_variant": _stage_variant(),
+		"elite_enemy_count": elite_enemy_count,
 		"layout_style": CASTLE_LAYOUT_STYLE,
 		"vertical_room_count": _count_rooms_with_flag("vertical"),
 		"shortcut_count": _count_rooms_with_flag("shortcut"),
@@ -184,7 +196,7 @@ func _first_stage_balance(enemy_count: int) -> Dictionary:
 	return {
 		"target_clear_attempts": TARGET_CLEAR_ATTEMPTS,
 		"expected_clear_attempts": EXPECTED_CLEAR_ATTEMPTS,
-		"risk_score": BALANCE_RISK_SCORE,
+		"risk_score": BALANCE_RISK_SCORE + max(run_stage_index - 1, 0) + curse_level,
 		"health_buffer_hits": 2,
 		"focus_shots_available": 3,
 		"branch_challenge_count": BRANCH_CHALLENGE_COUNT,
@@ -193,6 +205,16 @@ func _first_stage_balance(enemy_count: int) -> Dictionary:
 		"recovery_window_count": RECOVERY_WINDOW_COUNT,
 		"pacing": STAGE_PACING,
 	}
+
+func _stage_variant() -> String:
+	if run_stage_index % 2 == 0:
+		return "moonlit_cloister"
+	return "cathedral_keep"
+
+func _elite_enemy_count() -> int:
+	if run_stage_index <= 1 and curse_level <= 0:
+		return 0
+	return 1
 
 func _count_rooms_with_flag(flag_name: String) -> int:
 	var count := 0
@@ -266,15 +288,19 @@ func _create_sigil(parent: Node2D, index: int, position: Vector2) -> void:
 	collision.shape = shape
 	sigil.add_child(collision)
 
-func _create_enemy(parent: Node2D, index: int, position: Vector2) -> void:
+func _create_enemy(parent: Node2D, index: int, position: Vector2, is_elite: bool) -> void:
 	var enemy: Area2D = ENEMY_SCRIPT.new()
 	enemy.name = "GeneratedEnemy%d" % index
 	enemy.position = position
 	enemy.add_to_group("enemies")
 	enemy.add_to_group("attack_targets")
-	enemy.set_meta("hit_points", 1)
-	enemy.set_meta("max_hit_points", 1)
+	var hit_points := 2 if is_elite else 1
+	enemy.set_meta("hit_points", hit_points)
+	enemy.set_meta("max_hit_points", hit_points)
+	enemy.set_meta("elite", is_elite)
 	enemy.configure_patrol(66.0 + index * 10.0, 30.0 + index * 3.0, 265.0, 96.0 + index * 8.0)
+	if is_elite:
+		enemy.modulate = Color(1.16, 0.78, 0.78, 1.0)
 
 	var sprite := _create_enemy_sprite()
 	sprite.position = Vector2(0, -8)

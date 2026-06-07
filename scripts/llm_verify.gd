@@ -62,6 +62,7 @@ func _base_summary() -> Dictionary:
 		"combat": {},
 		"balance": {},
 		"gameplay": {},
+		"roguelike": {},
 		"retry": {},
 		"failures": [],
 	}
@@ -94,6 +95,10 @@ func _record_stage(scene: Node, game: Node, summary: Dictionary, failures: Array
 	summary["stage"] = {
 		"seed": stage_summary.get("seed", null),
 		"theme": stage_summary.get("theme", ""),
+		"run_seed": int(stage_summary.get("run_seed", 0)),
+		"run_stage_index": int(stage_summary.get("run_stage_index", 0)),
+		"stage_variant": stage_summary.get("stage_variant", ""),
+		"elite_enemy_count": int(stage_summary.get("elite_enemy_count", 0)),
 		"layout_style": stage_summary.get("layout_style", ""),
 		"vertical_room_count": int(stage_summary.get("vertical_room_count", 0)),
 		"shortcut_count": int(stage_summary.get("shortcut_count", 0)),
@@ -402,6 +407,7 @@ func _verify_retry(scene: Node, game: Node, player: CharacterBody2D, summary: Di
 	_expect(is_equal_approx(focus_after_retry, player.FOCUS_MAX), "retry should restore focus", failures)
 
 func _verify_gameplay(scene: Node, game: Node, summary: Dictionary, failures: Array) -> void:
+	var initial_stage_index: int = int(game.get("run_stage_index"))
 	for sigil: Node in get_nodes_in_group("sigils"):
 		game.collect_sigil(sigil)
 
@@ -410,6 +416,9 @@ func _verify_gameplay(scene: Node, game: Node, summary: Dictionary, failures: Ar
 	player.global_position = scene.get_node("Goal").global_position
 	game.win_game()
 	var won: bool = bool(game.get("won"))
+	var selected_reward: Dictionary = game.get("selected_reward")
+	var reward_count_after_win: int = game.get("run_rewards").size()
+	var max_health_after_reward: int = int(game.get("player_max_health"))
 
 	summary["gameplay"] = {
 		"gate_open_after_collecting_sigils": gate_open,
@@ -417,9 +426,31 @@ func _verify_gameplay(scene: Node, game: Node, summary: Dictionary, failures: Ar
 		"stage_playable_path": gate_open and won and not bool(game.get("game_over")),
 	}
 
+	var advanced: bool = game.advance_to_next_stage()
+	var next_stage_summary: Dictionary = game.get("generated_stage_summary")
+	summary["roguelike"] = {
+		"initial_stage_index": initial_stage_index,
+		"reward_granted_after_win": reward_count_after_win == 1,
+		"selected_reward_id": String(selected_reward.get("id", "")),
+		"max_health_after_reward": max_health_after_reward,
+		"advanced_to_stage_index": int(game.get("run_stage_index")),
+		"next_stage_seed": int(next_stage_summary.get("seed", 0)),
+		"reward_count_after_advance": game.get("run_rewards").size(),
+		"next_stage_variant": String(next_stage_summary.get("stage_variant", "")),
+		"advanced": advanced,
+	}
+
 	_expect(gate_open, "gate should open after all sigils are collected", failures)
 	_expect(won, "game should enter won state", failures)
 	_expect(summary["gameplay"]["stage_playable_path"], "stage should have a playable path from start to win", failures)
+	_expect(initial_stage_index == 1, "run should begin at stage index one", failures)
+	_expect(reward_count_after_win == 1, "stage clear should grant one roguelike reward", failures)
+	_expect(String(selected_reward.get("id", "")) == "blood_vial", "first clear should grant deterministic blood vial reward", failures)
+	_expect(max_health_after_reward == 4, "blood vial should increase max health", failures)
+	_expect(advanced, "won run should advance to the next stage", failures)
+	_expect(int(game.get("run_stage_index")) == 2, "next stage should increment run stage index", failures)
+	_expect(int(next_stage_summary.get("seed", 0)) != 1337, "next stage should use a different seed", failures)
+	_expect(String(next_stage_summary.get("stage_variant", "")) == "moonlit_cloister", "second stage should use moonlit cloister variant", failures)
 
 func _expect(condition: bool, message: String, failures: Array) -> bool:
 	if condition:

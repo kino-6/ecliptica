@@ -202,6 +202,17 @@ func run_e2e() -> void:
 	game.win_game()
 	if not _expect(game.won, "game should enter won state"):
 		return
+	if not _expect(game.run_rewards.size() == 1 and game.selected_reward.get("id", "") == "blood_vial", "stage clear should grant the first roguelike reward"):
+		return
+	if not _expect(game.player_max_health == 4, "blood vial should increase max health"):
+		return
+	var first_stage_seed: int = int(game.generated_stage_summary["seed"])
+	if not _expect(game.advance_to_next_stage(), "won run should advance to the next roguelike stage"):
+		return
+	if not _expect(game.run_stage_index == 2 and int(game.generated_stage_summary["seed"]) != first_stage_seed, "next roguelike stage should increment index and change seed"):
+		return
+	if not _expect(game.generated_stage_summary.get("stage_variant", "") == "moonlit_cloister", "second roguelike stage should use moonlit cloister variant"):
+		return
 
 	print("E2E_OK")
 	quit(0)

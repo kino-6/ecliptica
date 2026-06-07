@@ -9,6 +9,8 @@ const DAMAGE_INVULNERABILITY := 0.75
 const CAMERA_Y := 500.0
 const GATE_SEALED_COLOR := Color(0.08, 0.09, 0.13, 0.82)
 const GATE_OPEN_COLOR := Color(0.55, 0.08, 0.13, 0.82)
+const BASE_RUN_SEED := 1337
+const ROGUELIKE_RUN_SCRIPT := preload("res://scripts/roguelike_run.gd")
 
 @onready var player: CharacterBody2D = $Player
 @onready var camera: Camera2D = $Camera2D
@@ -26,8 +28,16 @@ var gate_open := false
 var won := false
 var game_over := false
 var player_health := PLAYER_MAX_HEALTH
+var player_max_health := PLAYER_MAX_HEALTH
 var damage_invulnerability_timer := 0.0
 var generated_stage_summary := {}
+var run_model: RefCounted = ROGUELIKE_RUN_SCRIPT.new()
+var run_seed := BASE_RUN_SEED
+var run_stage_index := 1
+var run_curse_level := 0
+var run_rewards := []
+var pending_reward_choices := []
+var selected_reward := {}
 
 func _ready() -> void:
 	_apply_window_size()
@@ -42,6 +52,9 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if game_over and Input.is_action_just_pressed("retry"):
 		retry_game()
+		return
+	if won and Input.is_action_just_pressed("next_stage"):
+		advance_to_next_stage()
 		return
 	damage_invulnerability_timer = maxf(damage_invulnerability_timer - delta, 0.0)
 	if player.global_position.y > LEVEL_HEIGHT + 80.0:
@@ -78,10 +91,29 @@ func damage_player(_source: Node = null) -> void:
 	_update_hud()
 
 func win_game() -> void:
-	if not gate_open or game_over:
+	if not gate_open or game_over or won:
 		return
 	won = true
+	_complete_roguelike_stage()
 	_update_hud()
+
+func advance_to_next_stage() -> bool:
+	if not won:
+		return false
+	run_stage_index += 1
+	pending_reward_choices = []
+	selected_reward = {}
+	_reset_run_state()
+	_clear_projectiles()
+	_generate_stage()
+	_connect_collectibles()
+	_connect_enemies()
+	player.reset_to_spawn()
+	player.shoot_focus = player.FOCUS_MAX
+	gate_visual.color = GATE_SEALED_COLOR
+	_update_camera()
+	_update_hud()
+	return true
 
 func retry_game() -> void:
 	_reset_run_state()
@@ -126,12 +158,15 @@ func _update_hud() -> void:
 	_update_hud_bars()
 	_update_sigil_pips()
 	var gate_text := "OPEN" if gate_open else "SEALED"
-	var win_text := " / WON" if won else ""
+	var reward_text := ""
+	if won and not selected_reward.is_empty():
+		reward_text = " / %s" % [String(selected_reward.get("label", ""))]
+	var win_text := " / WON%s / N TO DESCEND" % [reward_text] if won else ""
 	var state_text := " / GAME OVER / R TO RETRY" if game_over else win_text
-	state_label.text = "%s%s" % [gate_text, state_text]
+	state_label.text = "RUN %d / %s%s" % [run_stage_index, gate_text, state_text]
 
 func _update_hud_bars() -> void:
-	var health_ratio := clampf(float(player_health) / float(PLAYER_MAX_HEALTH), 0.0, 1.0)
+	var health_ratio := clampf(float(player_health) / float(player_max_health), 0.0, 1.0)
 	var focus_ratio := clampf(player.shoot_focus / player.FOCUS_MAX, 0.0, 1.0)
 	health_fill.offset_right = HUD_BAR_WIDTH * health_ratio
 	focus_fill.offset_right = HUD_BAR_WIDTH * focus_ratio
@@ -153,6 +188,7 @@ func _ensure_input_actions() -> void:
 	_add_key_action("attack", [KEY_J, KEY_K, KEY_X])
 	_add_key_action("shoot", [KEY_L, KEY_C, KEY_V])
 	_add_key_action("retry", [KEY_R, KEY_ENTER])
+	_add_key_action("next_stage", [KEY_N, KEY_ENTER])
 
 func _add_key_action(action_name: StringName, keys: Array) -> void:
 	if not InputMap.has_action(action_name):
@@ -188,6 +224,11 @@ func _target_physical_window_size() -> Vector2i:
 	return Vector2i(ceili(TARGET_WINDOW_SIZE.x * scale), ceili(TARGET_WINDOW_SIZE.y * scale))
 
 func _generate_stage() -> void:
+	stage_generator.stage_seed = run_model.stage_seed_for(run_seed, run_stage_index)
+	stage_generator.run_seed = run_seed
+	stage_generator.run_stage_index = run_stage_index
+	stage_generator.curse_level = run_curse_level
+	stage_generator.run_reward_count = run_rewards.size()
 	generated_stage_summary = stage_generator.generate_stage(self)
 	player.spawn_position = player.global_position
 
@@ -197,7 +238,7 @@ func _reset_run_state() -> void:
 	gate_open = false
 	won = false
 	game_over = false
-	player_health = PLAYER_MAX_HEALTH
+	player_health = player_max_health
 	damage_invulnerability_timer = 0.0
 
 func _clear_projectiles() -> void:
@@ -206,6 +247,17 @@ func _clear_projectiles() -> void:
 		return
 	for projectile in projectiles.get_children():
 		projectile.free()
+
+func _complete_roguelike_stage() -> void:
+	pending_reward_choices = run_model.reward_choices_for(run_stage_index, run_seed)
+	selected_reward = run_model.select_reward(pending_reward_choices)
+	if selected_reward.is_empty():
+		return
+	run_rewards.append(String(selected_reward.get("id", "")))
+	player_max_health += int(selected_reward.get("max_health_bonus", 0))
+	run_curse_level += int(selected_reward.get("curse", 0))
+	player_health = player_max_health
+	player.shoot_focus = player.FOCUS_MAX
 
 func _update_camera() -> void:
 	var half_width := TARGET_WINDOW_SIZE.x / (2.0 * CAMERA_ZOOM.x)
