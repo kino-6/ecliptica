@@ -7,15 +7,21 @@ const SIGIL_COLOR := Color(0.72, 0.08, 0.13, 0.92)
 const ENEMY_FRAME_SIZE := Vector2i(96, 96)
 const BOSS_FRAME_SIZE := Vector2i(192, 160)
 const ACTOR_FRAME_COUNT := 8
-const BOSS_HIT_POINTS := 4
+const BOSS_HIT_POINTS := 3
+const TARGET_CLEAR_ATTEMPTS := 2
+const EXPECTED_CLEAR_ATTEMPTS := 2
+const BALANCE_RISK_SCORE := 8
+const BRANCH_CHALLENGE_COUNT := 2
+const RECOVERY_WINDOW_COUNT := 2
+const STAGE_PACING := "first_stage_two_try"
 const ENEMY_TEXTURE := preload("res://assets/enemy-idle-sheet-8.png")
 const BOSS_TEXTURE := preload("res://assets/boss-idle-sheet-8.png")
 const ENEMY_LIBRARY := [
-	Vector2(690, 410),
-	Vector2(1660, 390),
-	Vector2(2280, 400),
+	Vector2(730, 410),
+	Vector2(1585, 390),
+	Vector2(2045, 390),
 ]
-const BOSS_POSITION := Vector2(2190, 394)
+const BOSS_POSITION := Vector2(2260, 394)
 const ROOM_LIBRARY := [
 	{
 		"name": "entrance",
@@ -122,6 +128,7 @@ func generate_stage(game: Node2D) -> Dictionary:
 		"enemy_count": enemy_count,
 		"boss_count": boss_count,
 		"goal_position": goal.global_position,
+		"balance": _first_stage_balance(enemy_count),
 		"theme": "cathedral_forest",
 	}
 
@@ -129,6 +136,20 @@ func _room_jitter(rng: RandomNumberGenerator, index: int) -> Vector2:
 	if index == 0 or index == ROOM_LIBRARY.size() - 1:
 		return Vector2.ZERO
 	return Vector2(rng.randf_range(-8.0, 8.0), rng.randf_range(-4.0, 4.0))
+
+func _first_stage_balance(enemy_count: int) -> Dictionary:
+	return {
+		"target_clear_attempts": TARGET_CLEAR_ATTEMPTS,
+		"expected_clear_attempts": EXPECTED_CLEAR_ATTEMPTS,
+		"risk_score": BALANCE_RISK_SCORE,
+		"health_buffer_hits": 2,
+		"focus_shots_available": 3,
+		"branch_challenge_count": BRANCH_CHALLENGE_COUNT,
+		"combat_encounter_count": enemy_count,
+		"boss_hit_points": BOSS_HIT_POINTS,
+		"recovery_window_count": RECOVERY_WINDOW_COUNT,
+		"pacing": STAGE_PACING,
+	}
 
 func _clear_children(container: Node) -> void:
 	for child in container.get_children():

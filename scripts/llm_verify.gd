@@ -57,6 +57,7 @@ func _base_summary() -> Dictionary:
 		"attack": {},
 		"ranged": {},
 		"combat": {},
+		"balance": {},
 		"gameplay": {},
 		"failures": [],
 	}
@@ -104,6 +105,40 @@ func _record_stage(scene: Node, game: Node, summary: Dictionary, failures: Array
 	_expect(platform_count == stage_summary.get("platform_count", -1), "platform count should match generated summary", failures)
 	_expect(sigil_count == stage_summary.get("sigil_count", -1), "sigil count should match generated summary", failures)
 	_expect(enemy_count == stage_summary.get("enemy_count", -1), "enemy count should match generated summary", failures)
+	_record_balance(scene, stage_summary, summary, failures)
+
+func _record_balance(scene: Node, stage_summary: Dictionary, summary: Dictionary, failures: Array) -> void:
+	var balance: Dictionary = stage_summary.get("balance", {})
+	var bosses := get_nodes_in_group("bosses")
+	var boss_hit_points := 0
+	if not bosses.is_empty():
+		boss_hit_points = int(bosses[0].get_meta("max_hit_points", 0))
+	var combat_encounters := get_nodes_in_group("enemies").size()
+	var reported_balance := {
+		"target_clear_attempts": int(balance.get("target_clear_attempts", 0)),
+		"expected_clear_attempts": int(balance.get("expected_clear_attempts", 0)),
+		"risk_score": int(balance.get("risk_score", 0)),
+		"health_buffer_hits": int(balance.get("health_buffer_hits", 0)),
+		"focus_shots_available": int(balance.get("focus_shots_available", 0)),
+		"branch_challenge_count": int(balance.get("branch_challenge_count", 0)),
+		"combat_encounter_count": combat_encounters,
+		"boss_hit_points": boss_hit_points,
+		"recovery_window_count": int(balance.get("recovery_window_count", 0)),
+		"pacing": String(balance.get("pacing", "")),
+	}
+	summary["balance"] = reported_balance
+
+	_expect(reported_balance["target_clear_attempts"] == 2, "first stage should target a two-attempt clear", failures)
+	_expect(reported_balance["expected_clear_attempts"] == 2, "first stage balance should estimate two clear attempts", failures)
+	_expect(reported_balance["risk_score"] >= 7 and reported_balance["risk_score"] <= 10, "first stage risk score should be moderate", failures)
+	_expect(reported_balance["health_buffer_hits"] == 2, "player should have two mistakes of health buffer", failures)
+	_expect(reported_balance["focus_shots_available"] == 3, "player should start with three focus shots available", failures)
+	_expect(reported_balance["branch_challenge_count"] == 2, "first stage should have two branch challenges", failures)
+	_expect(reported_balance["combat_encounter_count"] == int(stage_summary.get("enemy_count", -1)), "combat encounter count should match generated enemies", failures)
+	_expect(reported_balance["combat_encounter_count"] == 4, "first stage should have three enemies and one boss", failures)
+	_expect(reported_balance["boss_hit_points"] == 3, "first stage boss should take three hits", failures)
+	_expect(reported_balance["recovery_window_count"] >= 2, "first stage should include recovery windows", failures)
+	_expect(reported_balance["pacing"] == "first_stage_two_try", "first stage pacing label should match two-try target", failures)
 
 func _verify_player_movement(scene: Node, player: CharacterBody2D, summary: Dictionary, failures: Array) -> void:
 	var start_x: float = player.global_position.x
