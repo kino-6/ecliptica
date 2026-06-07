@@ -5,7 +5,7 @@ import { inflateSync } from 'node:zlib';
 const FRAME_WIDTH = 192;
 const FRAME_HEIGHT = 384;
 const GUTTER = 8;
-const MAX_BAKED_AXE_HEAD_PIXELS = 260;
+const MAX_BAKED_AXE_PIXELS = 1100;
 
 const contracts = [
   { file: 'assets/player-attack-combo-sheet-18.png', frameCount: 18, minVisible: 12500, minFrameDiff: 900, heavyAttack: true },
@@ -32,7 +32,7 @@ for (const contract of contracts) {
       const base = combo * 6;
       assert.ok(centerOfMassX(png, base + 1) < centerOfMassX(png, base + 4), `${contract.file} combo ${combo + 1} should shift body weight into the hit`);
       assert.ok(frameDifference(png, base + 1, base + 3) > frameDifference(png, base, base + 1) * 1.12, `${contract.file} combo ${combo + 1} should accelerate after anticipation`);
-      assert.ok(countBakedAxeHeadPixels(png, base + 3) < MAX_BAKED_AXE_HEAD_PIXELS, `${contract.file} combo ${combo + 1} should keep the axe head out of the body sheet`);
+      assert.ok(countBakedAxePixels(png, base + 3) < MAX_BAKED_AXE_PIXELS, `${contract.file} combo ${combo + 1} should keep the axe out of the body sheet`);
     }
   }
 }
@@ -142,16 +142,16 @@ function centerOfMassX(png, frame) {
   return weighted / total;
 }
 
-function countBakedAxeHeadPixels(png, frame) {
+function countBakedAxePixels(png, frame) {
   let count = 0;
   const x0 = frame * FRAME_WIDTH;
-  for (let y = 24; y < 250; y += 1) {
+  for (let y = 40; y < 240; y += 1) {
     for (let x = GUTTER; x < FRAME_WIDTH - GUTTER; x += 1) {
-      const likelyWeaponZone = x < 70 || x > 142 || y < 96;
+      const likelyWeaponZone = x > 95 && x < 185 && y > 70 && y < 220;
       if (!likelyWeaponZone) continue;
       const i = (y * png.width + x0 + x) * 4;
       const [r, g, b, a] = [png.pixels[i], png.pixels[i + 1], png.pixels[i + 2], png.pixels[i + 3]];
-      if (a > 80 && r > 145 && g > 135 && b > 105 && Math.abs(r - g) < 80) count += 1;
+      if (a > 70 && r >= 70 && r <= 175 && g <= 70 && b <= 75 && r > g * 1.3 && r > b * 1.2) count += 1;
     }
   }
   return count;

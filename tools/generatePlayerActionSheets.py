@@ -68,29 +68,13 @@ def make_attack_frame(source: bytearray, step: int, local_frame: int) -> bytearr
 
     x0 = 94 + step * 3 + timing * 17 + impact * 8
     y0 = 174 - step * 12 - windup * 15 + follow * 5
-    reach = 50 + step * 10 + snap * 24 + impact * 10
     angle = step_biases["start"] + timing * (step_biases["end"] - step_biases["start"])
-    x1 = x0 + math.cos(angle) * reach
-    y1 = y0 + math.sin(angle) * reach
-
-    draw_line(dest, x0 - 12, y0 + 23, x1, y1, 7, (17, 12, 12, 238))
-    draw_line(dest, x0 - 9, y0 + 20, x1, y1, 4, (97, 69, 46, 236))
-    draw_line(dest, x0 - 7, y0 + 18, x1, y1, 2, (168, 120, 72, 218))
-    blade_x = x1 + math.cos(angle) * (17 + impact * 4)
-    blade_y = y1 + math.sin(angle) * (17 + impact * 4)
-    blade_scale = 1.28 if impact else 1.0
-    draw_rotated_ellipse(dest, blade_x, blade_y, 27 * blade_scale, 12 * blade_scale, angle + math.pi / 2, (29, 36, 40, 244))
-    draw_rotated_ellipse(dest, blade_x + math.cos(angle) * 3, blade_y + math.sin(angle) * 3, 21 * blade_scale, 8 * blade_scale, angle + math.pi / 2, (132, 138, 134, 238))
-    draw_rotated_ellipse(dest, blade_x + math.cos(angle) * 7, blade_y + math.sin(angle) * 7, 15 * blade_scale, 5 * blade_scale, angle + math.pi / 2, (229, 222, 186, 236))
-    if impact:
-        draw_rotated_ellipse(dest, blade_x + 7, blade_y - 1, 25, 5, angle + math.pi / 2, (241, 232, 184, 150))
-
-    arc_start = angle - 0.48 - step * 0.08
-    arc_end = angle + 0.34 + impact * 0.30
-    draw_arc(dest, x0, y0 + 16, 54 + step * 8 + impact * 8, arc_start, arc_end, 8, (83, 17, 23, 86 + int(impact * 36)))
-    draw_arc(dest, x0, y0 + 18, 63 + step * 8 + impact * 10, arc_start + 0.1, arc_end - 0.04, 5, (185, 145, 86, 66 + int(impact * 50)))
-    if local_frame == 2:
-        draw_arc(dest, x0, y0 + 18, 60 + step * 7, angle - 0.94, angle + 0.18, 11, (57, 15, 20, 88))
+    hand_reach = 24 + step * 3 + snap * 8 + impact * 3
+    hand_x = x0 + math.cos(angle) * hand_reach
+    hand_y = y0 + math.sin(angle) * hand_reach
+    draw_line(dest, x0 - 12, y0 + 23, hand_x, hand_y, 7, (17, 12, 12, 228))
+    draw_line(dest, x0 - 10, y0 + 20, hand_x - 1, hand_y - 1, 4, (81, 48, 43, 190))
+    draw_circle(dest, hand_x, hand_y, 5, (96, 67, 55, 186))
     draw_cloth_pull(dest, step, progress)
     clear_gutters(dest)
     return dest
