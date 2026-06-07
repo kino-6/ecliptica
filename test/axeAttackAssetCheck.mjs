@@ -30,7 +30,7 @@ assert.ok(countCrimsonPixels(png) > 900, 'axe swing should include dark crimson 
 assert.ok(countQuantizedColors(png) > 20, 'axe swing should use a painterly multi-tone palette instead of flat debug colors');
 assert.ok(frameDifference(png, 1, 2) > frameDifference(png, 0, 1) * 1.35, 'axe swing should accelerate sharply after the wind-up frame');
 assert.ok(frameDifference(png, 2, 3) > 520, 'axe swing should include a heavy impact transition');
-assert.ok(countBrightMetalPixels(png, 3) > 180, 'impact frame should expose a readable axe blade highlight');
+assert.ok(countBrightMetalPixels(png, 3) < 120, 'attack VFX should not draw a second readable axe blade over the player body animation');
 
 for (const frame of ACTIVE_FRAMES) {
   const bounds = visibleBounds(png, frame);

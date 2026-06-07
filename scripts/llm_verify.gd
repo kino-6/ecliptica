@@ -263,11 +263,11 @@ func _verify_attack(scene: Node, player: CharacterBody2D, summary: Dictionary, f
 	await process_frame
 	await process_frame
 
-	var animation_seen := attack_arc.visible
+	var animation_seen := String(player.get_node("PlayerSprite").animation).begins_with("attack")
 	var hitbox_enabled := false
 	for frame in 16:
 		await process_frame
-		animation_seen = animation_seen or attack_arc.visible
+		animation_seen = animation_seen or String(player.get_node("PlayerSprite").animation).begins_with("attack")
 		hitbox_enabled = hitbox_enabled or attack_hitbox.monitoring
 
 	var destroyed := bool(dummy.get_meta("destroyed", false))
@@ -286,7 +286,7 @@ func _verify_attack(scene: Node, player: CharacterBody2D, summary: Dictionary, f
 	}
 
 	_expect(player.has_method("attack"), "player should expose attack action", failures)
-	_expect(animation_seen, "attack arc should become visible during attack", failures)
+	_expect(animation_seen, "attack should use the player body axe animation instead of drawing a second axe arc", failures)
 	_expect(hitbox_enabled, "attack hitbox should enable during active attack frames", failures)
 	_expect(arc_hitbox_aligned_right, "right-facing attack arc should share the attack hitbox center", failures)
 	_expect(arc_hitbox_aligned_left, "left-facing attack arc should share the attack hitbox center", failures)

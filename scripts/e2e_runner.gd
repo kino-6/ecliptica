@@ -109,7 +109,9 @@ func run_e2e() -> void:
 	player.attack()
 	await process_frame
 	await process_frame
-	if not _expect(scene.get_node("Player/AttackArc").visible, "attack arc should become visible"):
+	if not _expect(String(player_sprite.animation).begins_with("attack"), "attack should use the player body axe animation instead of drawing a second axe arc"):
+		return
+	if not _expect(not scene.get_node("Player/AttackArc").visible, "attack arc should stay hidden so the axe is not rendered twice"):
 		return
 	var hitbox_enabled := false
 	for frame in 16:

@@ -141,8 +141,7 @@ func attack() -> void:
 	hit_targets = {}
 	_play_attack_body_animation(current_attack_step)
 	_sync_attack_geometry()
-	attack_arc.visible = true
-	attack_arc.play("swing")
+	attack_arc.visible = false
 
 func shoot() -> bool:
 	if not can_shoot():
