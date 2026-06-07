@@ -61,6 +61,9 @@ test('LLM verify mode emits a machine-readable pass summary', async () => {
   assert.equal(summary.balance.boss_hit_points, 3);
   assert.equal(summary.balance.recovery_window_count >= 2, true);
   assert.equal(summary.balance.pacing, 'first_stage_two_try');
+  assert.equal(summary.enemy.has_ai_script, true);
+  assert.ok(summary.enemy.patrol_moved_by >= 6);
+  assert.ok(['walk', 'attack'].includes(summary.enemy.animation_after_patrol));
   assert.equal(summary.camera.followed_player, true);
   assert.ok(summary.player.moved_right_by >= 40);
   assert.equal(summary.player.health_after_damage, 2);

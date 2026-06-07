@@ -10,6 +10,25 @@ const contracts = [
     frameCount: 8,
     minVisible: 1600,
     minCrimson: 550,
+    minBone: 120,
+  },
+  {
+    file: 'assets/enemy-walk-sheet-12.png',
+    frameWidth: 96,
+    frameHeight: 96,
+    frameCount: 12,
+    minVisible: 1650,
+    minCrimson: 620,
+    minBone: 130,
+  },
+  {
+    file: 'assets/enemy-attack-sheet-8.png',
+    frameWidth: 96,
+    frameHeight: 96,
+    frameCount: 8,
+    minVisible: 1700,
+    minCrimson: 680,
+    minBone: 140,
   },
   {
     file: 'assets/boss-idle-sheet-8.png',
@@ -18,6 +37,7 @@ const contracts = [
     frameCount: 8,
     minVisible: 5200,
     minCrimson: 1800,
+    minBone: 300,
   },
 ];
 
@@ -26,6 +46,7 @@ for (const contract of contracts) {
   assert.equal(png.width, contract.frameWidth * contract.frameCount, `${contract.file} should use 8 horizontal frames`);
   assert.equal(png.height, contract.frameHeight, `${contract.file} should have the expected frame height`);
   assert.ok(countCrimsonPixels(png) > contract.minCrimson, `${contract.file} should include gothic crimson forms`);
+  assert.ok(countBonePixels(png) > contract.minBone, `${contract.file} should include bone or aged brass highlights`);
   assert.ok(countQuantizedColors(png) > 16, `${contract.file} should use a multi-tone painterly palette`);
 
   for (let frame = 0; frame < contract.frameCount; frame += 1) {
@@ -119,6 +140,18 @@ function countCrimsonPixels(png) {
       const i = (yy * png.width + xx) * 4;
       const [r, g, b, a] = [png.pixels[i], png.pixels[i + 1], png.pixels[i + 2], png.pixels[i + 3]];
       if (a > 24 && r > 55 && r > g * 1.35 && r > b * 1.15) count += 1;
+    }
+  }
+  return count;
+}
+
+function countBonePixels(png) {
+  let count = 0;
+  for (let yy = 0; yy < png.height; yy += 1) {
+    for (let xx = 0; xx < png.width; xx += 1) {
+      const i = (yy * png.width + xx) * 4;
+      const [r, g, b, a] = [png.pixels[i], png.pixels[i + 1], png.pixels[i + 2], png.pixels[i + 3]];
+      if (a > 24 && r > 110 && g > 88 && b > 50 && r > b * 1.35) count += 1;
     }
   }
   return count;

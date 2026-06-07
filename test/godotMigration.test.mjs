@@ -11,6 +11,7 @@ const requiredFiles = [
   'scenes/collectible.tscn',
   'scripts/game.gd',
   'scripts/stage_generator.gd',
+  'scripts/enemy.gd',
   'scripts/player.gd',
   'scripts/e2e_runner.gd',
   'scripts/window_e2e_runner.gd',
@@ -18,11 +19,14 @@ const requiredFiles = [
   'assets/background-city.png',
   'assets/axe-swing-sheet-8.png',
   'assets/enemy-idle-sheet-8.png',
+  'assets/enemy-walk-sheet-12.png',
+  'assets/enemy-attack-sheet-8.png',
   'assets/boss-idle-sheet-8.png',
   'assets/player-idle-sheet-10.png',
   'assets/player-walk-sheet-24.png',
   'assets/player-attack-combo-sheet-18.png',
   'assets/player-shoot-sheet-8.png',
+  'docs/enemy-ideas.md',
 ];
 
 test('Godot migration includes the required project files and imported assets', () => {
@@ -84,7 +88,9 @@ test('main scene wires gameplay, generated stage, player animation, and E2E runn
 test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   const game = await readFile('scripts/game.gd', 'utf8');
   const generator = await readFile('scripts/stage_generator.gd', 'utf8');
+  const enemy = await readFile('scripts/enemy.gd', 'utf8');
   const player = await readFile('scripts/player.gd', 'utf8');
+  const enemyIdeas = await readFile('docs/enemy-ideas.md', 'utf8');
   const e2e = await readFile('scripts/e2e_runner.gd', 'utf8');
   const windowE2e = await readFile('scripts/window_e2e_runner.gd', 'utf8');
   const llmVerify = await readFile('scripts/llm_verify.gd', 'utf8');
@@ -130,12 +136,23 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(generator, /enemy_count/);
   assert.match(generator, /boss_count/);
   assert.match(generator, /func _create_enemy/);
+  assert.match(generator, /ENEMY_SCRIPT/);
+  assert.match(generator, /enemy-walk-sheet-12\.png/);
+  assert.match(generator, /enemy-attack-sheet-8\.png/);
+  assert.match(generator, /configure_patrol/);
   assert.match(generator, /func _create_boss/);
   assert.match(generator, /enemy-idle-sheet-8\.png/);
   assert.match(generator, /boss-idle-sheet-8\.png/);
   assert.match(generator, /AnimatedSprite2D/);
   assert.match(generator, /hit_points/);
+  assert.match(enemy, /extends Area2D/);
+  assert.match(enemy, /func configure_patrol/);
+  assert.match(enemy, /func _process/);
+  assert.match(enemy, /PATROL_STATE := "walk"/);
+  assert.match(enemy, /ATTACK_STATE := "attack"/);
+  assert.match(enemy, /get_first_node_in_group\("player"\)/);
   assert.match(player, /func _physics_process/);
+  assert.match(player, /add_to_group\("player"\)/);
   assert.match(player, /func _update_animation/);
   assert.match(player, /IDLE_FRAME_COUNT := 10/);
   assert.match(player, /WALK_FRAME_COUNT := 24/);
@@ -163,6 +180,10 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(player, /func e2e_attack/);
   assert.match(player, /func is_attacking/);
   assert.match(game, /shoot_focus/);
+  assert.match(enemyIdeas, /Cathedral Ghoul/);
+  assert.match(enemyIdeas, /巡回/);
+  assert.match(enemyIdeas, /突進/);
+  assert.match(enemyIdeas, /Bloodborne を直接コピーしない/);
   assert.match(e2e, /func run_e2e/);
   assert.match(e2e, /shoot should consume focus/);
   assert.match(e2e, /combo should advance through three attack body animations/);
