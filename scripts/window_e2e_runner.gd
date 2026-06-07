@@ -30,13 +30,11 @@ func run_window_e2e() -> void:
 
 	print("WINDOW_E2E_PROBE scale=%.2f physical=%s decorated=%s logical=%s decorated_logical=%s root=%s content_scale=%s" % [scale, physical_size, decorated_physical_size, logical_size, decorated_logical_size, root.size, window.content_scale_size])
 
-	if not _expect(decorated_logical_size.x >= TARGET_LOGICAL_WINDOW_SIZE.x - 1, "runtime decorated window logical width should be 1920"):
+	if not _expect(DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN, "runtime window should start fullscreen"):
 		return
-	if not _expect(decorated_logical_size.y >= TARGET_LOGICAL_WINDOW_SIZE.y - 1, "runtime decorated window logical height should be 1080"):
+	if not _expect(window.content_scale_size == TARGET_LOGICAL_WINDOW_SIZE, "fullscreen content scale should stay 1920x1080"):
 		return
-	if not _expect(window.content_scale_size == TARGET_LOGICAL_WINDOW_SIZE, "window content scale should stay 1920x1080"):
-		return
-	if not _expect(camera.zoom == Vector2.ONE, "camera should stay at 1x zoom"):
+	if not _expect(camera.zoom == Vector2(1.65, 1.65), "camera should zoom in enough for readable play"):
 		return
 
 	print("WINDOW_E2E_OK scale=%.2f physical=%s decorated=%s logical=%s decorated_logical=%s content_scale=%s" % [scale, physical_size, decorated_physical_size, logical_size, decorated_logical_size, window.content_scale_size])

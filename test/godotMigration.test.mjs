@@ -48,9 +48,9 @@ test('Godot project launches and renders at 1920x1080', async () => {
   assert.equal(readSetting('window/size/window_width_override'), 1920);
   assert.equal(readSetting('window/size/window_height_override'), 1080);
   assert.match(readme, /```bash\ngodot --path \.\n```/);
-  assert.match(readme, /カメラは 1 倍/);
+  assert.match(readme, /起動時は全画面/);
+  assert.match(readme, /HP と FOCUS はバー/);
   assert.doesNotMatch(readme, /--resolution 1920x1080/);
-  assert.doesNotMatch(readme, /カメラを 2 倍ズーム/);
 });
 
 test('main scene wires gameplay, generated stage, player animation, and E2E runner', async () => {
@@ -69,8 +69,10 @@ test('main scene wires gameplay, generated stage, player animation, and E2E runn
   assert.doesNotMatch(scene, /\[node name="Ground1"/);
   assert.doesNotMatch(scene, /\[node name="Collectible1"/);
   assert.match(scene, /CollisionShape2D/);
-  assert.match(scene, /zoom = Vector2\(1, 1\)/);
-  assert.doesNotMatch(scene, /zoom = Vector2\(2, 2\)/);
+  assert.match(scene, /zoom = Vector2\(1\.65, 1\.65\)/);
+  assert.match(scene, /\[node name="HealthFill" type="ColorRect" parent="CanvasLayer\/HUDPanel\/HealthBar"\]/);
+  assert.match(scene, /\[node name="FocusFill" type="ColorRect" parent="CanvasLayer\/HUDPanel\/FocusBar"\]/);
+  assert.match(scene, /\[node name="SigilPips" type="HBoxContainer" parent="CanvasLayer\/HUDPanel"\]/);
   assert.match(scene, /position = Vector2\(-2, -68\)/);
   assert.match(scene, /scale = Vector2\(0\.3, 0\.3\)/);
 });
@@ -92,8 +94,12 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(game, /player_health/);
   assert.match(game, /PLAYER_MAX_HEALTH := 3/);
   assert.match(game, /TARGET_WINDOW_SIZE := Vector2i\(1920, 1080\)/);
-  assert.match(game, /CAMERA_MIN_X := 960\.0/);
-  assert.match(game, /CAMERA_Y := 540\.0/);
+  assert.match(game, /CAMERA_ZOOM := Vector2\(1\.65, 1\.65\)/);
+  assert.match(game, /DisplayServer\.WINDOW_MODE_FULLSCREEN/);
+  assert.match(game, /func _update_hud_bars/);
+  assert.match(game, /health_fill/);
+  assert.match(game, /focus_fill/);
+  assert.match(game, /sigil_pips/);
   assert.match(game, /DisplayServer\.window_set_size\(/);
   assert.match(game, /DisplayServer\.screen_get_scale/);
   assert.match(game, /generated_stage_summary/);

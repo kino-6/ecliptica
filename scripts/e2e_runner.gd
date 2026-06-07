@@ -26,7 +26,13 @@ func run_e2e() -> void:
 		return
 	if not _expect(scene.get_node_or_null("Background") != null, "background should exist"):
 		return
-	if not _expect(scene.get_node("Camera2D").zoom == Vector2.ONE, "camera should render the 1920x1080 viewport at 1x zoom"):
+	if not _expect(scene.get_node("Camera2D").zoom == Vector2(1.65, 1.65), "camera should zoom in enough for readable play"):
+		return
+	if not _expect(scene.get_node_or_null("CanvasLayer/HUDPanel/HealthBar/HealthFill") != null, "health should render as a HUD bar"):
+		return
+	if not _expect(scene.get_node_or_null("CanvasLayer/HUDPanel/FocusBar/FocusFill") != null, "focus should render as a HUD bar"):
+		return
+	if not _expect(scene.get_node_or_null("CanvasLayer/HUDPanel/SigilPips") != null, "sigils should render as pips"):
 		return
 	if not _expect(scene.get_node_or_null("Player/PlayerSprite") != null, "player sprite should exist"):
 		return
