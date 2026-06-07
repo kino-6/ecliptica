@@ -15,6 +15,10 @@ const SHOOT_FRAME_COUNT := 8
 const ATTACK_DURATION := 0.34
 const ATTACK_ACTIVE_START := 0.08
 const ATTACK_ACTIVE_END := 0.22
+const ATTACK_HITBOX_OFFSET := Vector2(62, -36)
+const ATTACK_HITBOX_SIZE := Vector2(96, 72)
+const ATTACK_ARC_OFFSET := ATTACK_HITBOX_OFFSET
+const ATTACK_ARC_SCALE := Vector2(0.72, 0.56)
 const ATTACK_RECOVERY_SPEED_SCALE := 0.35
 const COMBO_RESET_TIME := 1.5
 const SHOOT_DURATION := 0.28
@@ -55,6 +59,7 @@ func _ready() -> void:
 	spawn_position = global_position
 	_setup_animations()
 	_setup_attack_animation()
+	_configure_attack_hitbox_shape()
 	attack_hitbox.area_entered.connect(_on_attack_area_entered)
 	_update_animation()
 
@@ -124,6 +129,7 @@ func attack() -> void:
 	combo_reset_timer = COMBO_RESET_TIME
 	hit_targets = {}
 	_play_attack_body_animation(current_attack_step)
+	_sync_attack_geometry()
 	attack_arc.visible = true
 	attack_arc.play("swing")
 
@@ -179,9 +185,7 @@ func _setup_attack_animation() -> void:
 func _update_animation() -> void:
 	var walking := absf(velocity.x) > 1.0 and is_on_floor()
 	player_sprite.flip_h = facing_left
-	attack_arc.flip_h = facing_left
-	attack_arc.position.x = -44.0 if facing_left else 44.0
-	attack_hitbox.position.x = -62.0 if facing_left else 62.0
+	_sync_attack_geometry()
 	if is_attacking():
 		player_sprite.speed_scale = 1.0
 		return
@@ -198,6 +202,21 @@ func _update_animation() -> void:
 		player_sprite.speed_scale = 1.0
 		if player_sprite.animation != "idle":
 			player_sprite.play("idle")
+
+func _configure_attack_hitbox_shape() -> void:
+	var collision_shape := attack_hitbox.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if collision_shape == null:
+		return
+	var rectangle := collision_shape.shape as RectangleShape2D
+	if rectangle != null:
+		rectangle.size = ATTACK_HITBOX_SIZE
+
+func _sync_attack_geometry() -> void:
+	var direction := -1.0 if facing_left else 1.0
+	attack_arc.flip_h = facing_left
+	attack_arc.position = Vector2(ATTACK_ARC_OFFSET.x * direction, ATTACK_ARC_OFFSET.y)
+	attack_arc.scale = ATTACK_ARC_SCALE
+	attack_hitbox.position = Vector2(ATTACK_HITBOX_OFFSET.x * direction, ATTACK_HITBOX_OFFSET.y)
 
 func _advance_combo_step() -> int:
 	if combo_reset_timer <= 0.0:

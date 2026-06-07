@@ -229,9 +229,24 @@ func _verify_attack(scene: Node, player: CharacterBody2D, summary: Dictionary, f
 			"available": player.has_method("attack"),
 			"animation_seen": false,
 			"hitbox_enabled_during_attack": false,
+			"arc_hitbox_aligned_right": false,
+			"arc_hitbox_aligned_left": false,
 			"training_dummy_destroyed": false,
 		}
 		return
+
+	player.facing_left = false
+	player._sync_attack_geometry()
+	var arc_position_right := _vector_summary(attack_arc.position)
+	var hitbox_position_right := _vector_summary(attack_hitbox.position)
+	var arc_hitbox_aligned_right := attack_arc.position.distance_to(attack_hitbox.position) <= 0.5
+	player.facing_left = true
+	player._sync_attack_geometry()
+	var arc_position_left := _vector_summary(attack_arc.position)
+	var hitbox_position_left := _vector_summary(attack_hitbox.position)
+	var arc_hitbox_aligned_left := attack_arc.position.distance_to(attack_hitbox.position) <= 0.5
+	player.facing_left = false
+	player._sync_attack_geometry()
 
 	dummy.visible = true
 	dummy.monitoring = true
@@ -255,12 +270,21 @@ func _verify_attack(scene: Node, player: CharacterBody2D, summary: Dictionary, f
 		"available": player.has_method("attack"),
 		"animation_seen": animation_seen,
 		"hitbox_enabled_during_attack": hitbox_enabled,
+		"arc_hitbox_aligned_right": arc_hitbox_aligned_right,
+		"arc_hitbox_aligned_left": arc_hitbox_aligned_left,
+		"arc_position_right": arc_position_right,
+		"hitbox_position_right": hitbox_position_right,
+		"arc_position_left": arc_position_left,
+		"hitbox_position_left": hitbox_position_left,
+		"arc_scale": _vector_summary(attack_arc.scale),
 		"training_dummy_destroyed": destroyed,
 	}
 
 	_expect(player.has_method("attack"), "player should expose attack action", failures)
 	_expect(animation_seen, "attack arc should become visible during attack", failures)
 	_expect(hitbox_enabled, "attack hitbox should enable during active attack frames", failures)
+	_expect(arc_hitbox_aligned_right, "right-facing attack arc should share the attack hitbox center", failures)
+	_expect(arc_hitbox_aligned_left, "left-facing attack arc should share the attack hitbox center", failures)
 	_expect(destroyed, "attack should destroy training dummy", failures)
 
 func _verify_ranged_attack(scene: Node, player: CharacterBody2D, summary: Dictionary, failures: Array) -> void:
@@ -457,6 +481,12 @@ func _expect(condition: bool, message: String, failures: Array) -> bool:
 		return true
 	failures.append(message)
 	return false
+
+func _vector_summary(vector: Vector2) -> Dictionary:
+	return {
+		"x": snappedf(vector.x, 0.01),
+		"y": snappedf(vector.y, 0.01),
+	}
 
 func _finish(summary: Dictionary, failures: Array) -> void:
 	summary["status"] = "pass" if failures.is_empty() else "fail"
