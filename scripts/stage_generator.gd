@@ -24,10 +24,10 @@ const BRANCH_CHALLENGE_COUNT := 2
 const RECOVERY_WINDOW_COUNT := 2
 const STAGE_PACING := "first_stage_two_try"
 const ENEMY_SCRIPT := preload("res://scripts/enemy.gd")
-const ENEMY_IDLE_TEXTURE := preload("res://assets/enemy-idle-sheet-8.png")
-const ENEMY_WALK_TEXTURE := preload("res://assets/enemy-walk-sheet-12.png")
-const ENEMY_ATTACK_TEXTURE := preload("res://assets/enemy-attack-sheet-8.png")
-const BOSS_TEXTURE := preload("res://assets/boss-idle-sheet-8.png")
+const ENEMY_IDLE_TEXTURE_PATH := "res://assets/enemy-idle-sheet-8.png"
+const ENEMY_WALK_TEXTURE_PATH := "res://assets/enemy-walk-sheet-12.png"
+const ENEMY_ATTACK_TEXTURE_PATH := "res://assets/enemy-attack-sheet-8.png"
+const BOSS_TEXTURE_PATH := "res://assets/boss-idle-sheet-8.png"
 const PLATFORM_TILE_TEXTURE_PATH := "res://assets/platform-stone-tile.png"
 const ENEMY_LIBRARY := [
 	Vector2(960, 432),
@@ -117,6 +117,10 @@ const ROOM_LIBRARY := [
 @export var run_reward_count := 0
 
 var platform_tile_texture: Texture2D
+var enemy_idle_texture: Texture2D
+var enemy_walk_texture: Texture2D
+var enemy_attack_texture: Texture2D
+var boss_texture: Texture2D
 
 func generate_stage(game: Node2D) -> Dictionary:
 	var platforms: Node2D = game.get_node("Platforms")
@@ -127,6 +131,10 @@ func generate_stage(game: Node2D) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = stage_seed
 	platform_tile_texture = _load_png_texture(PLATFORM_TILE_TEXTURE_PATH)
+	enemy_idle_texture = _load_png_texture(ENEMY_IDLE_TEXTURE_PATH)
+	enemy_walk_texture = _load_png_texture(ENEMY_WALK_TEXTURE_PATH)
+	enemy_attack_texture = _load_png_texture(ENEMY_ATTACK_TEXTURE_PATH)
+	boss_texture = _load_png_texture(BOSS_TEXTURE_PATH)
 
 	_clear_children(platforms)
 	_clear_children(collectibles)
@@ -135,6 +143,7 @@ func generate_stage(game: Node2D) -> Dictionary:
 	var platform_count := 0
 	var sigil_count := 0
 	var enemy_count := 0
+	var standard_enemy_count := 0
 	var boss_count := 0
 	for index in range(ROOM_LIBRARY.size()):
 		var room: Dictionary = ROOM_LIBRARY[index]
@@ -153,6 +162,7 @@ func generate_stage(game: Node2D) -> Dictionary:
 		var is_elite := enemy_count < elite_enemy_count
 		_create_enemy(enemies, enemy_count + 1, enemy_position, is_elite)
 		enemy_count += 1
+		standard_enemy_count += 1
 	_create_boss(enemies, BOSS_POSITION)
 	enemy_count += 1
 	boss_count += 1
@@ -185,6 +195,7 @@ func generate_stage(game: Node2D) -> Dictionary:
 		"platform_count": platform_count,
 		"sigil_count": sigil_count,
 		"enemy_count": enemy_count,
+		"standard_enemy_count": standard_enemy_count,
 		"boss_count": boss_count,
 		"goal_position": goal.global_position,
 		"balance": _first_stage_balance(enemy_count),
@@ -348,6 +359,7 @@ func _create_enemy(parent: Node2D, index: int, position: Vector2, is_elite: bool
 
 	var sprite := _create_enemy_sprite()
 	sprite.position = Vector2(0, -8)
+	sprite.z_index = 4
 	enemy.add_child(sprite)
 
 	var shape := RectangleShape2D.new()
@@ -369,8 +381,10 @@ func _create_boss(parent: Node2D, position: Vector2) -> void:
 	boss.set_meta("max_hit_points", BOSS_HIT_POINTS)
 	parent.add_child(boss)
 
-	var sprite := _create_actor_sprite("BossSprite", BOSS_TEXTURE, BOSS_FRAME_SIZE, 5.5)
-	sprite.position = Vector2(0, -22)
+	var sprite := _create_actor_sprite("BossSprite", boss_texture, BOSS_FRAME_SIZE, 5.5)
+	sprite.position = Vector2(0, -16)
+	sprite.scale = Vector2(0.74, 0.74)
+	sprite.z_index = 3
 	boss.add_child(sprite)
 
 	var shape := RectangleShape2D.new()
@@ -393,9 +407,9 @@ func _create_enemy_sprite() -> AnimatedSprite2D:
 	var sprite := AnimatedSprite2D.new()
 	sprite.name = "EnemySprite"
 	var frames := SpriteFrames.new()
-	_add_texture_animation(frames, "idle", ENEMY_IDLE_TEXTURE, ENEMY_FRAME_SIZE, ENEMY_IDLE_FRAME_COUNT, 7.0, true)
-	_add_texture_animation(frames, "walk", ENEMY_WALK_TEXTURE, ENEMY_FRAME_SIZE, ENEMY_WALK_FRAME_COUNT, 12.0, true)
-	_add_texture_animation(frames, "attack", ENEMY_ATTACK_TEXTURE, ENEMY_FRAME_SIZE, ENEMY_ATTACK_FRAME_COUNT, 16.0, true)
+	_add_texture_animation(frames, "idle", enemy_idle_texture, ENEMY_FRAME_SIZE, ENEMY_IDLE_FRAME_COUNT, 7.0, true)
+	_add_texture_animation(frames, "walk", enemy_walk_texture, ENEMY_FRAME_SIZE, ENEMY_WALK_FRAME_COUNT, 12.0, true)
+	_add_texture_animation(frames, "attack", enemy_attack_texture, ENEMY_FRAME_SIZE, ENEMY_ATTACK_FRAME_COUNT, 16.0, true)
 	sprite.sprite_frames = frames
 	sprite.play("walk")
 	return sprite

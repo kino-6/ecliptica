@@ -188,9 +188,27 @@ def draw_boss_frame(pixels: bytearray, sheet_width: int, x_offset: int, fw: int,
         (cx - 76, cy + 47),
     ]
     draw_polygon(pixels, sheet_width, x_offset, back_robe, (6, 7, 10, 248), fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx, cy + 8, 58, 64, -0.03, COAT, fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx - 31, cy + 14, 25, 52, 0.32, (8, 10, 13, 240), fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx + 35, cy + 13, 25, 52, -0.34, (8, 10, 13, 240), fw, fh)
+    draw_polygon(
+        pixels,
+        sheet_width,
+        x_offset,
+        [
+            (cx - 38, cy - 34),
+            (cx - 18, cy - 47),
+            (cx + 18, cy - 46),
+            (cx + 39, cy - 32),
+            (cx + 45, cy + 42),
+            (cx + 22, cy + 65),
+            (cx - 5, cy + 58),
+            (cx - 23, cy + 68),
+            (cx - 47, cy + 40),
+        ],
+        COAT,
+        fw,
+        fh,
+    )
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx - 31, cy + 12, 19, 50, 0.26, (8, 10, 13, 236), fw, fh)
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx + 33, cy + 12, 19, 50, -0.28, (8, 10, 13, 236), fw, fh)
 
     crimson_fold = [
         (cx - 16, cy - 33),
@@ -235,10 +253,10 @@ def draw_boss_frame(pixels: bytearray, sheet_width: int, x_offset: int, fw: int,
     ]
     draw_polygon(pixels, sheet_width, x_offset, hood, INK, fw, fh)
     mask_y = cy - 46 + pulse * 0.35
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx + 2, mask_y, 18, 11, -0.06, BONE, fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx + 9, mask_y - 1, 8, 4, -0.08, (218, 192, 126, 202), fw, fh)
-    draw_circle(pixels, sheet_width, x_offset, cx + 8, mask_y - 1, 2, (122, 11, 18, 230), fw, fh)
-    draw_limb(pixels, sheet_width, x_offset, cx + 13, mask_y + 3, cx + 27, mask_y + 8, 2, BONE_DARK, fw, fh)
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx + 2, mask_y, 13, 8, -0.06, BONE, fw, fh)
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx + 8, mask_y - 1, 6, 3, -0.08, (218, 192, 126, 202), fw, fh)
+    draw_circle(pixels, sheet_width, x_offset, cx + 7, mask_y - 1, 1, (122, 11, 18, 230), fw, fh)
+    draw_limb(pixels, sheet_width, x_offset, cx + 10, mask_y + 3, cx + 22, mask_y + 7, 1, BONE_DARK, fw, fh)
     draw_limb(pixels, sheet_width, x_offset, cx - 26, mask_y + 17, cx - 6, mask_y + 23, 2, BONE_DARK, fw, fh)
     draw_limb(pixels, sheet_width, x_offset, cx + 3, mask_y + 23, cx + 31, mask_y + 18, 2, BRASS, fw, fh)
     for bead in range(6):

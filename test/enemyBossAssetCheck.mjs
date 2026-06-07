@@ -57,7 +57,7 @@ const contracts = [
     minDark: 7200,
     maxTopNoise: 120,
     maxMaskArea: 950,
-    maxHorizontalRedBar: 640,
+    maxHorizontalRedBar: 220,
   },
 ];
 

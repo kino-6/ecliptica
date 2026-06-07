@@ -83,6 +83,8 @@ func run_e2e() -> void:
 		return
 	if not _expect(get_nodes_in_group("bosses").size() == game.generated_stage_summary["boss_count"], "boss group should match generated summary"):
 		return
+	if not _expect(game.generated_stage_summary.get("standard_enemy_count", 0) >= 3, "stage summary should report standard enemies separately from the boss"):
+		return
 
 	var start_x: float = player.global_position.x
 	player.e2e_set_axis(1.0)
@@ -142,11 +144,23 @@ func run_e2e() -> void:
 	var bosses := get_nodes_in_group("bosses")
 	if not _expect(bosses.size() == 1, "generated stage should include one boss"):
 		return
+	var standard_enemy_count := 0
+	for enemy_node in enemies:
+		if enemy_node.is_in_group("bosses"):
+			continue
+		standard_enemy_count += 1
+		var enemy_sprite := enemy_node.get_node_or_null("EnemySprite") as AnimatedSprite2D
+		if not _expect(enemy_node.visible and enemy_sprite != null and enemy_sprite.sprite_frames.get_frame_texture("walk", 0) != null, "standard enemies should spawn as visible gothic sprites"):
+			return
+	if not _expect(standard_enemy_count >= 3, "stage should spawn visible standard enemies before the boss"):
+		return
 	var boss: Area2D = bosses[0]
 	if not _expect(boss.get_node_or_null("BossSprite") != null, "boss should use a dedicated sprite asset"):
 		return
 	var boss_sprite := boss.get_node("BossSprite") as AnimatedSprite2D
 	if not _expect(boss_sprite.sprite_frames.get_frame_texture("idle", 0) != null, "boss sprite should have a loaded gothic boss texture"):
+		return
+	if not _expect(boss_sprite.scale.x <= 0.82 and boss_sprite.scale.y <= 0.82, "boss should be scaled into the scene instead of reading as an oversized placeholder"):
 		return
 	if not _expect(boss.get_meta("hit_points", 0) > 1, "boss should require multiple hits"):
 		return
