@@ -33,9 +33,8 @@ def main() -> None:
     for step in range(COMBO_STEP_COUNT):
         for local_frame in range(ATTACK_BODY_FRAME_COUNT):
             sheet_frame = step * ATTACK_BODY_FRAME_COUNT + local_frame
-            progress = local_frame / (ATTACK_BODY_FRAME_COUNT - 1)
             source = idle_frames[(2 + local_frame) % IDLE_FRAME_COUNT]
-            action = make_attack_frame(source, step, progress)
+            action = make_attack_frame(source, step, local_frame)
             paste_frame(attack_pixels, FRAME_WIDTH * COMBO_STEP_COUNT * ATTACK_BODY_FRAME_COUNT, sheet_frame, action)
 
     shoot_pixels = bytearray(FRAME_WIDTH * SHOOT_FRAME_COUNT * FRAME_HEIGHT * 4)
@@ -49,38 +48,49 @@ def main() -> None:
     SHOOT_OUT.write_bytes(encode_png(FRAME_WIDTH * SHOOT_FRAME_COUNT, FRAME_HEIGHT, shoot_pixels))
 
 
-def make_attack_frame(source: bytearray, step: int, progress: float) -> bytearray:
-    windup = math.sin(progress * math.pi)
-    snap = math.sin(min(progress * 1.25, 1.0) * math.pi)
+def make_attack_frame(source: bytearray, step: int, local_frame: int) -> bytearray:
+    progress = local_frame / (ATTACK_BODY_FRAME_COUNT - 1)
+    timing = [0.00, 0.08, 0.46, 0.82, 1.00, 0.90][local_frame]
+    windup = 1.0 if local_frame in [1, 2] else max(0.0, 1.0 - timing)
+    snap = 1.0 if local_frame in [3, 4] else math.sin(min(timing * 1.3, 1.0) * math.pi)
+    impact = 1.0 if local_frame == 3 else 0.0
+    follow = 1.0 if local_frame >= 4 else 0.0
     step_biases = [
-        {"lean": 8.0, "shear": 7.0, "lift": 0.0, "blade_angle": -0.52},
-        {"lean": 12.0, "shear": 10.0, "lift": -4.0, "blade_angle": -0.92},
-        {"lean": 15.0, "shear": 12.0, "lift": -7.0, "blade_angle": -1.32},
+        {"lean": 14.0, "shear": 9.0, "lift": -1.0, "start": -1.28, "end": 0.28},
+        {"lean": 18.0, "shear": 12.0, "lift": -5.0, "start": -1.68, "end": 0.12},
+        {"lean": 22.0, "shear": 14.0, "lift": -8.0, "start": -2.02, "end": -0.06},
     ][step]
 
-    lean = (progress - 0.28) * step_biases["lean"] + windup * 5.0
-    shear = (progress - 0.36) * step_biases["shear"]
-    upper_lift = step_biases["lift"] * windup
+    lean = -8.0 * windup + step_biases["lean"] * timing + impact * 8.0 + follow * 3.0
+    shear = -5.0 * windup + (timing - 0.32) * step_biases["shear"] + impact * 5.0
+    upper_lift = step_biases["lift"] * (windup * 0.8 + impact * 0.35)
     dest = warp_body(source, lean, upper_lift, shear)
 
-    x0 = 101 + step * 2 + snap * 8
-    y0 = 171 - step * 12 - windup * 8
-    reach = 48 + step * 9 + snap * 16
-    angle = step_biases["blade_angle"] + progress * (1.55 + step * 0.12)
+    x0 = 94 + step * 3 + timing * 17 + impact * 8
+    y0 = 174 - step * 12 - windup * 15 + follow * 5
+    reach = 50 + step * 10 + snap * 24 + impact * 10
+    angle = step_biases["start"] + timing * (step_biases["end"] - step_biases["start"])
     x1 = x0 + math.cos(angle) * reach
     y1 = y0 + math.sin(angle) * reach
 
-    draw_line(dest, x0 - 10, y0 + 22, x1, y1, 6, (18, 13, 13, 232))
-    draw_line(dest, x0 - 8, y0 + 20, x1, y1, 3, (101, 74, 51, 232))
-    blade_x = x1 + math.cos(angle) * 14
-    blade_y = y1 + math.sin(angle) * 14
-    draw_rotated_ellipse(dest, blade_x, blade_y, 21, 9, angle + math.pi / 2, (33, 38, 42, 234))
-    draw_rotated_ellipse(dest, blade_x + math.cos(angle) * 4, blade_y + math.sin(angle) * 4, 14, 5, angle + math.pi / 2, (155, 149, 124, 204))
+    draw_line(dest, x0 - 12, y0 + 23, x1, y1, 7, (17, 12, 12, 238))
+    draw_line(dest, x0 - 9, y0 + 20, x1, y1, 4, (97, 69, 46, 236))
+    draw_line(dest, x0 - 7, y0 + 18, x1, y1, 2, (168, 120, 72, 218))
+    blade_x = x1 + math.cos(angle) * (17 + impact * 4)
+    blade_y = y1 + math.sin(angle) * (17 + impact * 4)
+    blade_scale = 1.28 if impact else 1.0
+    draw_rotated_ellipse(dest, blade_x, blade_y, 27 * blade_scale, 12 * blade_scale, angle + math.pi / 2, (29, 36, 40, 244))
+    draw_rotated_ellipse(dest, blade_x + math.cos(angle) * 3, blade_y + math.sin(angle) * 3, 21 * blade_scale, 8 * blade_scale, angle + math.pi / 2, (132, 138, 134, 238))
+    draw_rotated_ellipse(dest, blade_x + math.cos(angle) * 7, blade_y + math.sin(angle) * 7, 15 * blade_scale, 5 * blade_scale, angle + math.pi / 2, (229, 222, 186, 236))
+    if impact:
+        draw_rotated_ellipse(dest, blade_x + 7, blade_y - 1, 25, 5, angle + math.pi / 2, (241, 232, 184, 150))
 
     arc_start = angle - 0.48 - step * 0.08
-    arc_end = angle + 0.34
-    draw_arc(dest, x0, y0 + 16, 54 + step * 8, arc_start, arc_end, 7, (83, 17, 23, 76))
-    draw_arc(dest, x0, y0 + 18, 63 + step * 8, arc_start + 0.1, arc_end - 0.04, 4, (175, 137, 79, 58))
+    arc_end = angle + 0.34 + impact * 0.30
+    draw_arc(dest, x0, y0 + 16, 54 + step * 8 + impact * 8, arc_start, arc_end, 8, (83, 17, 23, 86 + int(impact * 36)))
+    draw_arc(dest, x0, y0 + 18, 63 + step * 8 + impact * 10, arc_start + 0.1, arc_end - 0.04, 5, (185, 145, 86, 66 + int(impact * 50)))
+    if local_frame == 2:
+        draw_arc(dest, x0, y0 + 18, 60 + step * 7, angle - 0.94, angle + 0.18, 11, (57, 15, 20, 88))
     draw_cloth_pull(dest, step, progress)
     clear_gutters(dest)
     return dest

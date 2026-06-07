@@ -19,44 +19,81 @@ def main() -> None:
 
     for frame in range(FRAME_COUNT):
         x_offset = frame * FRAME_WIDTH
-        progress = frame / (FRAME_COUNT - 1)
-        start = math.radians(-58 + progress * 92)
-        draw_swing_frame(pixels, width, x_offset, start)
+        draw_swing_frame(pixels, width, x_offset, frame)
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_bytes(encode_png(width, height, pixels))
 
 
-def draw_swing_frame(pixels: bytearray, sheet_width: int, x_offset: int, angle: float) -> None:
+def draw_swing_frame(pixels: bytearray, sheet_width: int, x_offset: int, frame: int) -> None:
     cx = 42
     cy = 72
-    handle_length = 58
-    blade_distance = 74
+    angle_degrees = [-76, -72, -18, 31, 67, 84, 73, 58]
+    arc_widths = [0.46, 0.50, 0.92, 1.10, 0.84, 0.68, 0.56, 0.48]
+    intensity = [0.72, 0.74, 1.0, 1.25, 1.02, 0.88, 0.76, 0.68][frame]
+    angle = math.radians(angle_degrees[frame])
+    handle_length = 60
+    blade_distance = 76
     blade_angle = angle - 0.26
-    arc_start = angle - 0.72
-    arc_end = angle + 0.46
+    arc_start = angle - arc_widths[frame]
+    arc_end = angle + arc_widths[frame] * (0.58 if frame < 4 else 0.42)
 
-    draw_arc(pixels, sheet_width, x_offset, cx, cy, 50, arc_start, arc_end, 13, (43, 16, 22, 112))
-    draw_arc(pixels, sheet_width, x_offset, cx, cy, 58, arc_start - 0.06, arc_end + 0.04, 12, (91, 18, 25, 136))
-    draw_arc(pixels, sheet_width, x_offset, cx, cy, 68, arc_start + 0.08, arc_end - 0.02, 9, (30, 39, 45, 108))
-    draw_arc(pixels, sheet_width, x_offset, cx, cy, 74, arc_start + 0.18, arc_end - 0.16, 5, (168, 150, 105, 118))
-    draw_arc(pixels, sheet_width, x_offset, cx, cy, 80, arc_start + 0.26, arc_end - 0.26, 3, (224, 215, 176, 92))
-    draw_sparks(pixels, sheet_width, x_offset, cx, cy, arc_start, arc_end, frame_seed=int(angle * 1000))
+    draw_arc(pixels, sheet_width, x_offset, cx, cy, 47, arc_start, arc_end, 15, scale_color((33, 12, 17, 132), intensity))
+    draw_arc(pixels, sheet_width, x_offset, cx, cy, 58, arc_start - 0.03, arc_end + 0.04, 14, scale_color((86, 16, 24, 156), intensity))
+    draw_arc(pixels, sheet_width, x_offset, cx, cy, 69, arc_start + 0.06, arc_end - 0.01, 10, scale_color((22, 32, 38, 124), intensity))
+    draw_arc(pixels, sheet_width, x_offset, cx, cy, 76, arc_start + 0.12, arc_end - 0.10, 6, scale_color((166, 143, 92, 132), intensity))
+    draw_arc(pixels, sheet_width, x_offset, cx, cy, 84, arc_start + 0.20, arc_end - 0.20, 4, scale_color((224, 217, 176, 108), intensity))
+    if frame in [2, 3, 4]:
+        draw_impact_smear(pixels, sheet_width, x_offset, cx, cy, arc_start, arc_end, frame)
+    draw_sparks(pixels, sheet_width, x_offset, cx, cy, arc_start, arc_end, frame_seed=frame * 271)
 
     hx0 = cx + math.cos(angle + math.pi) * 8
     hy0 = cy + math.sin(angle + math.pi) * 8
     hx1 = cx + math.cos(angle) * handle_length
     hy1 = cy + math.sin(angle) * handle_length
-    draw_line(pixels, sheet_width, x_offset, hx0, hy0, hx1, hy1, 7, (24, 17, 16, 230))
+    draw_line(pixels, sheet_width, x_offset, hx0, hy0, hx1, hy1, 7, (20, 14, 13, 236))
     draw_line(pixels, sheet_width, x_offset, hx0, hy0, hx1, hy1, 4, (61, 42, 31, 248))
-    draw_line(pixels, sheet_width, x_offset, hx0, hy0, hx1, hy1, 2, (145, 103, 67, 236))
+    draw_line(pixels, sheet_width, x_offset, hx0, hy0, hx1, hy1, 2, (151, 108, 69, 238))
 
     bx = cx + math.cos(blade_angle) * blade_distance
     by = cy + math.sin(blade_angle) * blade_distance
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, bx, by, 24, 11, blade_angle + math.pi / 2, (35, 42, 46, 238))
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, bx + math.cos(blade_angle) * 1, by + math.sin(blade_angle) * 1, 20, 8, blade_angle + math.pi / 2, (126, 133, 132, 244))
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, bx + math.cos(blade_angle) * 5, by + math.sin(blade_angle) * 5, 13, 4, blade_angle + math.pi / 2, (223, 218, 193, 248))
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, bx - math.cos(blade_angle) * 8, by - math.sin(blade_angle) * 8, 15, 5, blade_angle + math.pi / 2, (83, 13, 19, 132))
+    blade_scale = 1.18 if frame == 3 else 1.0
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, bx, by, 29 * blade_scale, 13 * blade_scale, blade_angle + math.pi / 2, (29, 36, 40, 246))
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, bx + math.cos(blade_angle) * 1, by + math.sin(blade_angle) * 1, 24 * blade_scale, 9 * blade_scale, blade_angle + math.pi / 2, (130, 137, 134, 248))
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, bx + math.cos(blade_angle) * 6, by + math.sin(blade_angle) * 6, 17 * blade_scale, 5 * blade_scale, blade_angle + math.pi / 2, (226, 221, 188, 252))
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, bx - math.cos(blade_angle) * 9, by - math.sin(blade_angle) * 9, 18, 6, blade_angle + math.pi / 2, (89, 15, 21, 146))
+    if frame == 3:
+        draw_rotated_ellipse(pixels, sheet_width, x_offset, bx + 5, by - 2, 24, 6, blade_angle + math.pi / 2, (239, 229, 184, 172))
+
+
+def draw_impact_smear(
+    pixels: bytearray,
+    sheet_width: int,
+    x_offset: int,
+    cx: float,
+    cy: float,
+    start: float,
+    end: float,
+    frame: int,
+) -> None:
+    colors = [
+        (111, 20, 26, 98),
+        (29, 38, 44, 104),
+        (192, 158, 91, 94),
+    ]
+    for band in range(3):
+        radius = 50 + band * 13 + frame * 2
+        thickness = 8 - band
+        draw_arc(pixels, sheet_width, x_offset, cx, cy, radius, start + band * 0.07, end - band * 0.04, thickness, colors[band])
+
+
+def scale_color(color: tuple[int, int, int, int], intensity: float) -> tuple[int, int, int, int]:
+    return (
+        min(255, int(color[0] * intensity)),
+        min(255, int(color[1] * intensity)),
+        min(255, int(color[2] * intensity)),
+        min(255, int(color[3] * min(1.25, intensity))),
+    )
 
 
 def draw_sparks(
