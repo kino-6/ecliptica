@@ -13,6 +13,7 @@ const requiredFiles = [
   'scripts/stage_generator.gd',
   'scripts/player.gd',
   'scripts/e2e_runner.gd',
+  'scripts/window_e2e_runner.gd',
   'scripts/llm_verify.gd',
   'assets/background-city.png',
   'assets/axe-swing-sheet-8.png',
@@ -79,7 +80,9 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   const generator = await readFile('scripts/stage_generator.gd', 'utf8');
   const player = await readFile('scripts/player.gd', 'utf8');
   const e2e = await readFile('scripts/e2e_runner.gd', 'utf8');
+  const windowE2e = await readFile('scripts/window_e2e_runner.gd', 'utf8');
   const llmVerify = await readFile('scripts/llm_verify.gd', 'utf8');
+  const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
 
   assert.match(game, /func collect_sigil/);
   assert.match(game, /func damage_player/);
@@ -91,7 +94,8 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(game, /TARGET_WINDOW_SIZE := Vector2i\(1920, 1080\)/);
   assert.match(game, /CAMERA_MIN_X := 960\.0/);
   assert.match(game, /CAMERA_Y := 540\.0/);
-  assert.match(game, /DisplayServer\.window_set_size\(TARGET_WINDOW_SIZE\)/);
+  assert.match(game, /DisplayServer\.window_set_size\(/);
+  assert.match(game, /DisplayServer\.screen_get_scale/);
   assert.match(game, /generated_stage_summary/);
   assert.match(generator, /func generate_stage/);
   assert.match(generator, /ROOM_LIBRARY/);
@@ -123,6 +127,10 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(e2e, /shoot should consume focus/);
   assert.match(e2e, /focus should regenerate over time/);
   assert.match(e2e, /E2E_OK/);
+  assert.equal(packageJson.scripts['test:window'], 'node --test test/godotWindowE2E.test.mjs');
+  assert.match(windowE2e, /func run_window_e2e/);
+  assert.match(windowE2e, /DisplayServer\.screen_get_scale/);
+  assert.match(windowE2e, /WINDOW_E2E_OK/);
   assert.match(llmVerify, /LLM_VERIFY_JSON/);
   assert.match(llmVerify, /llm_headless_verify/);
   assert.match(llmVerify, /ranged/);
