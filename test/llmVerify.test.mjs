@@ -67,7 +67,10 @@ test('LLM verify mode emits a machine-readable pass summary', async () => {
   assert.equal(summary.camera.followed_player, true);
   assert.ok(summary.player.moved_right_by >= 40);
   assert.equal(summary.player.health_after_damage, 2);
-  assert.equal(summary.player.respawned_after_damage, true);
+  assert.equal(summary.player.stayed_in_place_after_damage, true);
+  assert.equal(summary.player.damage_invulnerability_started, true);
+  assert.equal(summary.player.knockback_applied, true);
+  assert.equal(summary.player.health_after_invulnerable_hit, 2);
   assert.equal(summary.attack.available, true);
   assert.equal(summary.attack.animation_seen, true);
   assert.equal(summary.attack.hitbox_enabled_during_attack, true);

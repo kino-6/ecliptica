@@ -378,20 +378,30 @@ func _verify_combat_and_damage(scene: Node, game: Node, player: CharacterBody2D,
 	_expect(enemy_destroyed, "player attack should destroy an enemy", failures)
 
 	var health_before: int = int(game.get("player_health"))
-	var old_spawn: Vector2 = player.spawn_position
 	player.global_position = Vector2(1600.0, 400.0)
+	var position_before_damage: Vector2 = player.global_position
 	game.damage_invulnerability_timer = 0.0
 	game.damage_player(enemy)
 	var health_after: int = int(game.get("player_health"))
-	var respawned := player.global_position.distance_to(old_spawn) < 1.0
+	var stayed_in_place := player.global_position.distance_to(position_before_damage) < 1.0
+	var invulnerability_started := float(game.get("damage_invulnerability_timer")) > 0.0
+	var knockback_applied := absf(player.velocity.x) > 120.0 and player.velocity.y < 0.0
+	game.damage_player(enemy)
+	var health_after_invulnerable_hit: int = int(game.get("player_health"))
 	var player_summary: Dictionary = summary["player"]
 	player_summary["health_after_damage"] = health_after
-	player_summary["respawned_after_damage"] = respawned
+	player_summary["stayed_in_place_after_damage"] = stayed_in_place
+	player_summary["damage_invulnerability_started"] = invulnerability_started
+	player_summary["knockback_applied"] = knockback_applied
+	player_summary["health_after_invulnerable_hit"] = health_after_invulnerable_hit
 	summary["player"] = player_summary
 
 	_expect(health_before == 3, "player should start with full health", failures)
 	_expect(health_after == 2, "enemy damage should reduce player health", failures)
-	_expect(respawned, "enemy damage should return player to spawn", failures)
+	_expect(stayed_in_place, "enemy damage should not return player to spawn", failures)
+	_expect(invulnerability_started, "enemy damage should start invulnerability", failures)
+	_expect(knockback_applied, "enemy damage should apply knockback", failures)
+	_expect(health_after_invulnerable_hit == health_after, "invulnerability should block repeated enemy contact damage", failures)
 
 func _verify_retry(scene: Node, game: Node, player: CharacterBody2D, summary: Dictionary, failures: Array) -> void:
 	var enemies_before_retry := get_nodes_in_group("enemies")

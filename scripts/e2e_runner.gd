@@ -174,10 +174,19 @@ func run_e2e() -> void:
 
 	game.damage_invulnerability_timer = 0.0
 	var health_before: int = game.player_health
+	var position_before_damage: Vector2 = player.global_position
 	game.damage_player(enemies[0])
 	if not _expect(game.player_health == health_before - 1, "enemy contact should damage player"):
 		return
-	if not _expect(player.global_position.distance_to(player.spawn_position) < 1.0, "damage should return player to spawn"):
+	if not _expect(player.global_position.distance_to(position_before_damage) < 1.0, "enemy contact damage should not return player to spawn"):
+		return
+	if not _expect(game.damage_invulnerability_timer > 0.0, "enemy contact damage should start invulnerability"):
+		return
+	if not _expect(absf(player.velocity.x) > 120.0 and player.velocity.y < 0.0, "enemy contact damage should apply knockback"):
+		return
+	var health_after_first_hit: int = game.player_health
+	game.damage_player(enemies[0])
+	if not _expect(game.player_health == health_after_first_hit, "invulnerability should block repeated enemy contact damage"):
 		return
 
 	game.player_health = 1

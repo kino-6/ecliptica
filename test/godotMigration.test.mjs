@@ -104,6 +104,8 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
 
   assert.match(game, /func collect_sigil/);
   assert.match(game, /func damage_player/);
+  assert.match(game, /func _apply_contact_damage/);
+  assert.match(game, /func _apply_fall_damage/);
   assert.match(game, /func retry_game/);
   assert.match(game, /func advance_to_next_stage/);
   assert.match(game, /func _complete_roguelike_stage/);
@@ -206,6 +208,9 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(player, /func can_shoot/);
   assert.match(player, /func _create_projectile/);
   assert.match(player, /func _damage_attack_target/);
+  assert.match(player, /func apply_damage_knockback/);
+  assert.match(player, /KNOCKBACK_DURATION := 0\.24/);
+  assert.match(player, /KNOCKBACK_VELOCITY := Vector2\(360, -260\)/);
   assert.match(player, /func e2e_attack/);
   assert.match(player, /func is_attacking/);
   assert.match(game, /shoot_focus/);
