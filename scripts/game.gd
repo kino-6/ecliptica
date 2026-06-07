@@ -7,6 +7,8 @@ const HUD_BAR_WIDTH := 240.0
 const PLAYER_MAX_HEALTH := 3
 const DAMAGE_INVULNERABILITY := 0.75
 const CAMERA_Y := 500.0
+const GATE_SEALED_COLOR := Color(0.08, 0.09, 0.13, 0.82)
+const GATE_OPEN_COLOR := Color(0.55, 0.08, 0.13, 0.82)
 
 @onready var player: CharacterBody2D = $Player
 @onready var camera: Camera2D = $Camera2D
@@ -38,6 +40,9 @@ func _ready() -> void:
 	_update_hud()
 
 func _process(delta: float) -> void:
+	if game_over and Input.is_action_just_pressed("retry"):
+		retry_game()
+		return
 	damage_invulnerability_timer = maxf(damage_invulnerability_timer - delta, 0.0)
 	if player.global_position.y > LEVEL_HEIGHT + 80.0:
 		damage_player()
@@ -58,7 +63,7 @@ func collect_sigil(sigil: Area2D) -> void:
 
 func open_gate() -> void:
 	gate_open = true
-	gate_visual.color = Color(0.55, 0.08, 0.13, 0.82)
+	gate_visual.color = GATE_OPEN_COLOR
 	_update_hud()
 
 func damage_player(_source: Node = null) -> void:
@@ -78,13 +83,27 @@ func win_game() -> void:
 	won = true
 	_update_hud()
 
+func retry_game() -> void:
+	_reset_run_state()
+	_clear_projectiles()
+	_generate_stage()
+	_connect_collectibles()
+	_connect_enemies()
+	player.reset_to_spawn()
+	player.shoot_focus = player.FOCUS_MAX
+	gate_visual.color = GATE_SEALED_COLOR
+	_update_camera()
+	_update_hud()
+
 func _connect_collectibles() -> void:
 	var sigils := get_tree().get_nodes_in_group("sigils")
 	sigils_total = sigils.size()
 	for sigil in sigils:
 		sigil.set_meta("collected", false)
 		sigil.body_entered.connect(_on_sigil_body_entered.bind(sigil))
-	gate.body_entered.connect(_on_goal_body_entered)
+	var goal_callback := Callable(self, "_on_goal_body_entered")
+	if not gate.body_entered.is_connected(goal_callback):
+		gate.body_entered.connect(goal_callback)
 
 func _connect_enemies() -> void:
 	for enemy: Area2D in get_tree().get_nodes_in_group("enemies"):
@@ -108,7 +127,7 @@ func _update_hud() -> void:
 	_update_sigil_pips()
 	var gate_text := "OPEN" if gate_open else "SEALED"
 	var win_text := " / WON" if won else ""
-	var state_text := " / GAME OVER" if game_over else win_text
+	var state_text := " / GAME OVER / R TO RETRY" if game_over else win_text
 	state_label.text = "%s%s" % [gate_text, state_text]
 
 func _update_hud_bars() -> void:
@@ -133,6 +152,7 @@ func _ensure_input_actions() -> void:
 	_add_key_action("jump", [KEY_W, KEY_UP, KEY_SPACE])
 	_add_key_action("attack", [KEY_J, KEY_K, KEY_X])
 	_add_key_action("shoot", [KEY_L, KEY_C, KEY_V])
+	_add_key_action("retry", [KEY_R, KEY_ENTER])
 
 func _add_key_action(action_name: StringName, keys: Array) -> void:
 	if not InputMap.has_action(action_name):
@@ -170,6 +190,22 @@ func _target_physical_window_size() -> Vector2i:
 func _generate_stage() -> void:
 	generated_stage_summary = stage_generator.generate_stage(self)
 	player.spawn_position = player.global_position
+
+func _reset_run_state() -> void:
+	sigils_total = 0
+	sigils_collected = 0
+	gate_open = false
+	won = false
+	game_over = false
+	player_health = PLAYER_MAX_HEALTH
+	damage_invulnerability_timer = 0.0
+
+func _clear_projectiles() -> void:
+	var projectiles := get_node_or_null("Projectiles")
+	if projectiles == null:
+		return
+	for projectile in projectiles.get_children():
+		projectile.free()
 
 func _update_camera() -> void:
 	var half_width := TARGET_WINDOW_SIZE.x / (2.0 * CAMERA_ZOOM.x)

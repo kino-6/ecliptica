@@ -43,6 +43,7 @@ func run_verify() -> void:
 	await _verify_attack(scene, player, summary, failures)
 	await _verify_ranged_attack(scene, player, summary, failures)
 	await _verify_combat_and_damage(scene, game, player, summary, failures)
+	_verify_retry(scene, game, player, summary, failures)
 	_verify_gameplay(scene, game, summary, failures)
 
 	_finish(summary, failures)
@@ -61,6 +62,7 @@ func _base_summary() -> Dictionary:
 		"combat": {},
 		"balance": {},
 		"gameplay": {},
+		"retry": {},
 		"failures": [],
 	}
 
@@ -361,6 +363,43 @@ func _verify_combat_and_damage(scene: Node, game: Node, player: CharacterBody2D,
 	_expect(health_before == 3, "player should start with full health", failures)
 	_expect(health_after == 2, "enemy damage should reduce player health", failures)
 	_expect(respawned, "enemy damage should return player to spawn", failures)
+
+func _verify_retry(scene: Node, game: Node, player: CharacterBody2D, summary: Dictionary, failures: Array) -> void:
+	var enemies_before_retry := get_nodes_in_group("enemies")
+	if enemies_before_retry.is_empty():
+		_expect(false, "retry verify needs at least one enemy", failures)
+		return
+
+	game.player_health = 1
+	game.damage_invulnerability_timer = 0.0
+	game.damage_player(enemies_before_retry[0])
+	var game_over_before_retry: bool = bool(game.get("game_over"))
+
+	game.retry_game()
+	var game_over_after_retry: bool = bool(game.get("game_over"))
+	var gate_open_after_retry: bool = bool(game.get("gate_open"))
+	var health_after_retry: int = int(game.get("player_health"))
+	var sigils_after_retry: int = int(game.get("sigils_collected"))
+	var enemy_count_after_retry := get_nodes_in_group("enemies").size()
+	var focus_after_retry: float = player.shoot_focus
+
+	summary["retry"] = {
+		"game_over_before_retry": game_over_before_retry,
+		"game_over_after_retry": game_over_after_retry,
+		"health_after_retry": health_after_retry,
+		"sigils_after_retry": sigils_after_retry,
+		"gate_open_after_retry": gate_open_after_retry,
+		"enemy_count_after_retry": enemy_count_after_retry,
+		"focus_after_retry": focus_after_retry,
+	}
+
+	_expect(game_over_before_retry, "damage at one health should enter game over", failures)
+	_expect(not game_over_after_retry, "retry should clear game over", failures)
+	_expect(health_after_retry == 3, "retry should restore full health", failures)
+	_expect(sigils_after_retry == 0, "retry should reset sigil progress", failures)
+	_expect(not gate_open_after_retry, "retry should reseal the gate", failures)
+	_expect(enemy_count_after_retry == 4, "retry should regenerate enemies", failures)
+	_expect(is_equal_approx(focus_after_retry, player.FOCUS_MAX), "retry should restore focus", failures)
 
 func _verify_gameplay(scene: Node, game: Node, summary: Dictionary, failures: Array) -> void:
 	for sigil: Node in get_nodes_in_group("sigils"):

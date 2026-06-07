@@ -180,6 +180,19 @@ func run_e2e() -> void:
 	if not _expect(player.global_position.distance_to(player.spawn_position) < 1.0, "damage should return player to spawn"):
 		return
 
+	game.player_health = 1
+	game.damage_invulnerability_timer = 0.0
+	game.damage_player(enemies[0])
+	if not _expect(game.game_over, "damage at one health should enter game over"):
+		return
+	game.retry_game()
+	if not _expect(not game.game_over and game.player_health == game.PLAYER_MAX_HEALTH, "retry should clear game over and restore health"):
+		return
+	if not _expect(game.sigils_collected == 0 and not game.gate_open, "retry should reset sigils and reseal the gate"):
+		return
+	if not _expect(get_nodes_in_group("enemies").size() == game.generated_stage_summary["enemy_count"], "retry should regenerate enemies"):
+		return
+
 	for sigil: Node in get_nodes_in_group("sigils"):
 		game.collect_sigil(sigil)
 	if not _expect(game.gate_open, "gate should open after all sigils are collected"):
