@@ -8,8 +8,6 @@ func run_e2e() -> void:
 		return
 	if not _expect(ProjectSettings.get_setting("display/window/size/viewport_height") == 1080, "viewport height should be 1080"):
 		return
-	if not _expect(root.size == Vector2i(1920, 1080), "runtime root viewport should be 1920x1080"):
-		return
 
 	var packed: PackedScene = load("res://scenes/main.tscn")
 	if not _expect(packed != null, "main scene should load"):
@@ -22,6 +20,8 @@ func run_e2e() -> void:
 
 	var player: CharacterBody2D = scene.get_node("Player")
 	var game: Node = scene
+	if not _expect(root.size == Vector2i(1920, 1080), "runtime root viewport should be 1920x1080"):
+		return
 	if not _expect(player != null, "player should exist"):
 		return
 	if not _expect(scene.get_node_or_null("Background") != null, "background should exist"):

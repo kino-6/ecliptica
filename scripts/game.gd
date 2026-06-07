@@ -4,8 +4,8 @@ const LEVEL_HEIGHT := 540.0
 const TARGET_WINDOW_SIZE := Vector2i(1920, 1080)
 const PLAYER_MAX_HEALTH := 3
 const DAMAGE_INVULNERABILITY := 0.75
-const CAMERA_MIN_X := 480.0
-const CAMERA_Y := 270.0
+const CAMERA_MIN_X := 960.0
+const CAMERA_Y := 540.0
 
 @onready var player: CharacterBody2D = $Player
 @onready var camera: Camera2D = $Camera2D
@@ -126,6 +126,9 @@ func _add_key_action(action_name: StringName, keys: Array) -> void:
 			InputMap.action_add_event(action_name, event)
 
 func _apply_window_size() -> void:
+	var window := get_window()
+	window.size = TARGET_WINDOW_SIZE
+	window.content_scale_size = TARGET_WINDOW_SIZE
 	if DisplayServer.get_name() == "headless":
 		return
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
