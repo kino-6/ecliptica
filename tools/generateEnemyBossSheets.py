@@ -82,169 +82,157 @@ def draw_cathedral_ghoul(
     smear: float,
     crouch: float = 0.0,
 ) -> None:
-    bob = math.sin(phase) * 1.2 + crouch
-    cx = fw * 0.5 + attack_reach * 3.0
-    cy = fh * 0.60 + bob
-    shoulder_x = cx - 1.0
-    shoulder_y = cy - 20.0
-
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx - 1, cy + 31, 34, 8, 0.0, SHADOW, fw, fh)
-
+    bob = math.sin(phase) * 0.7 + crouch
+    cx = fw * 0.5 + attack_reach * 1.2
+    cy = fh * 0.58 + bob
     fixed_cx = fw * 0.5
-    back_cloak_points = [
-        (fixed_cx - 25, cy - 25),
-        (fixed_cx + 25, cy - 25),
-        (fixed_cx + 34, cy + 15),
-        (fixed_cx + 29, cy + 38),
-        (fixed_cx + 10, cy + 34),
-        (fixed_cx - 5, cy + 43),
-        (fixed_cx - 22, cy + 37),
-        (fixed_cx - 35, cy + 14),
+    cloth_sway = math.sin(phase + 0.5) * 1.2 + stride * 1.4
+
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, fixed_cx, cy + 34, 32, 8, 0.0, SHADOW, fw, fh)
+
+    back_cloak = [
+        (fixed_cx - 30, cy - 24),
+        (fixed_cx - 18, cy - 37),
+        (fixed_cx + 18, cy - 37),
+        (fixed_cx + 31, cy - 23),
+        (fixed_cx + 35, cy + 30),
+        (fixed_cx + 22, cy + 43),
+        (fixed_cx + 5, cy + 38),
+        (fixed_cx - 7, cy + 44),
+        (fixed_cx - 24, cy + 40),
+        (fixed_cx - 36, cy + 29),
     ]
-    draw_polygon(pixels, sheet_width, x_offset, back_cloak_points, (10, 12, 16, 238), fw, fh)
+    draw_polygon(pixels, sheet_width, x_offset, back_cloak, (7, 8, 11, 246), fw, fh)
 
-    mantle_points = [
-        (cx - 25, cy - 24),
-        (cx + 25, cy - 24),
-        (cx + 36, cy + 17),
-        (cx + 26, cy + 43),
-        (cx + 3, cy + 41),
-        (cx - 13, cy + 45),
-        (cx - 31, cy + 40),
-        (cx - 38, cy + 16),
+    hood = [
+        (cx - 23, cy - 29),
+        (cx - 9, cy - 43),
+        (cx + 14, cy - 42),
+        (cx + 25, cy - 28),
+        (cx + 17, cy - 12),
+        (cx - 15, cy - 12),
     ]
-    draw_polygon(pixels, sheet_width, x_offset, mantle_points, (13, 16, 20, 236), fw, fh)
+    draw_polygon(pixels, sheet_width, x_offset, hood, INK, fw, fh)
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx, cy + 1, 30, 39, -0.05, COAT, fw, fh)
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx - 12, cy + 8, 15, 33, 0.12, (8, 10, 13, 238), fw, fh)
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx + 10, cy + 11, 15, 31, -0.18, (30, 14, 18, 228), fw, fh)
 
-    rear_leg = stride * -8.0
-    front_leg = stride * 8.0
-    draw_limb(pixels, sheet_width, x_offset, cx - 10, cy + 20, cx - 19 + rear_leg, cy + 36, 5, COAT_EDGE, fw, fh)
-    draw_limb(pixels, sheet_width, x_offset, cx + 7, cy + 20, cx + 15 + front_leg, cy + 36, 5, INK, fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx - 21 + rear_leg, cy + 37, 8, 3, -0.2, BONE_DARK, fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx + 17 + front_leg, cy + 37, 8, 3, 0.1, BONE_DARK, fw, fh)
-
-    cloak_points = [
-        (cx - 27, cy - 17),
-        (cx + 24, cy - 18),
-        (cx + 31 + stride * 2, cy + 20),
-        (cx + 20, cy + 39),
-        (cx + 5, cy + 35),
-        (cx - 7, cy + 42),
-        (cx - 22, cy + 37),
-        (cx - 34 - stride * 2, cy + 21),
+    crimson_fold = [
+        (cx + 5, cy - 12),
+        (cx + 18, cy - 8),
+        (cx + 14 + cloth_sway, cy + 34),
+        (cx + 3 + cloth_sway * 0.5, cy + 40),
+        (cx - 2, cy + 1),
     ]
-    draw_polygon(pixels, sheet_width, x_offset, cloak_points, INK, fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx - 2, cy + 4, 29, 38, -0.06, COAT, fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx + 5, cy + 11, 18, 32, -0.17, DEEP_CRIMSON, fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx - 13, cy + 6, 14, 30, 0.16, INK, fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx + 16, cy - 2, 10, 22, -0.28, CRIMSON, fw, fh)
+    draw_polygon(pixels, sheet_width, x_offset, crimson_fold, DEEP_CRIMSON, fw, fh)
+    draw_limb(pixels, sheet_width, x_offset, cx + 9, cy - 5, cx + 8 + cloth_sway, cy + 35, 2, (127, 28, 33, 124), fw, fh)
 
-    for i in range(10):
-        tail_x = cx - 31 + i * 7 + math.sin(phase + i) * 1.1
-        tail_y = cy + 17 + (i % 4) * 4
-        draw_limb(pixels, sheet_width, x_offset, tail_x, tail_y, tail_x - 4 + stride * 1.2, tail_y + 20, 3, (24, 27, 31, 178), fw, fh)
+    for i in range(12):
+        tail_x = cx - 28 + i * 5.2 + math.sin(phase + i * 0.7) * 0.9
+        tail_y = cy + 15 + (i % 5) * 4
+        tail_len = 18 + (i % 4) * 4
+        color = (13, 15, 19, 186) if i % 2 else (23, 26, 30, 154)
+        draw_limb(pixels, sheet_width, x_offset, tail_x, tail_y, tail_x - 3 + cloth_sway * 0.7, tail_y + tail_len, 2 + (i % 3 == 0), color, fw, fh)
 
-    head_x = shoulder_x - 1 + attack_reach * 1.5
-    head_y = shoulder_y - 6 + math.sin(phase + 0.6) * 0.7
-    hood_points = [
-        (head_x - 21, head_y - 4),
-        (head_x - 10, head_y - 17),
-        (head_x + 14, head_y - 16),
-        (head_x + 25, head_y - 2),
-        (head_x + 17, head_y + 13),
-        (head_x - 15, head_y + 14),
-    ]
-    draw_polygon(pixels, sheet_width, x_offset, hood_points, INK, fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, head_x + 2, head_y, 17, 13, -0.12, COAT, fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, head_x + 4, head_y + 1, 13, 9, -0.14, BONE, fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, head_x + 7, head_y, 8, 5, -0.12, (206, 184, 126, 204), fw, fh)
-    draw_limb(pixels, sheet_width, x_offset, head_x + 9, head_y + 2, head_x + 23, head_y + 4, 3, BONE_DARK, fw, fh)
-    draw_circle(pixels, sheet_width, x_offset, head_x + 8, head_y - 2, 2, (126, 11, 18, 230), fw, fh)
+    mask_x = cx + 3 + attack_reach * 0.8
+    mask_y = cy - 25 + math.sin(phase + 0.2) * 0.35
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, mask_x, mask_y, 9, 7, -0.08, BONE, fw, fh)
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, mask_x + 3, mask_y - 1, 5, 3, -0.1, (214, 192, 134, 196), fw, fh)
+    draw_circle(pixels, sheet_width, x_offset, mask_x + 3, mask_y - 1, 1, (118, 9, 15, 224), fw, fh)
+    draw_limb(pixels, sheet_width, x_offset, mask_x + 6, mask_y + 2, mask_x + 14, mask_y + 4, 1, BONE_DARK, fw, fh)
 
-    arm_swing = stride * 5.0
-    reach = attack_reach * 24.0
-    draw_limb(pixels, sheet_width, x_offset, shoulder_x - 15, shoulder_y + 8, shoulder_x - 32 - arm_swing, shoulder_y + 23, 6, COAT_EDGE, fw, fh)
-    draw_claw(pixels, sheet_width, x_offset, shoulder_x - 35 - arm_swing, shoulder_y + 25, -1.0, fw, fh)
-    draw_limb(pixels, sheet_width, x_offset, shoulder_x + 14, shoulder_y + 5, shoulder_x + 31 + arm_swing + reach, shoulder_y + 15 - abs(attack_reach) * 4, 6, COAT_EDGE, fw, fh)
-    draw_claw(pixels, sheet_width, x_offset, shoulder_x + 34 + arm_swing + reach, shoulder_y + 17 - abs(attack_reach) * 4, 1.0, fw, fh)
+    arm_sway = stride * 4.0
+    draw_limb(pixels, sheet_width, x_offset, cx - 14, cy - 5, cx - 24 - arm_sway * 0.2, cy + 16, 4, COAT_EDGE, fw, fh)
+    draw_claw(pixels, sheet_width, x_offset, cx - 25 - arm_sway * 0.2, cy + 18, -1.0, fw, fh)
+    reach = max(0.0, attack_reach) * 18.0
+    draw_limb(pixels, sheet_width, x_offset, cx + 13, cy - 4, cx + 22 + arm_sway * 0.25 + reach, cy + 14 - reach * 0.18, 4, COAT_EDGE, fw, fh)
+    draw_claw(pixels, sheet_width, x_offset, cx + 24 + arm_sway * 0.25 + reach, cy + 16 - reach * 0.18, 1.0, fw, fh)
 
     if smear > 0.0:
-        draw_limb(pixels, sheet_width, x_offset, shoulder_x + 23, shoulder_y + 12, shoulder_x + 62, shoulder_y + 6, 7, (SMEAR[0], SMEAR[1], SMEAR[2], int(SMEAR[3] * smear)), fw, fh)
-        draw_limb(pixels, sheet_width, x_offset, shoulder_x + 31, shoulder_y + 21, shoulder_x + 72, shoulder_y + 16, 4, (BONE[0], BONE[1], BONE[2], int(170 * smear)), fw, fh)
+        draw_limb(pixels, sheet_width, x_offset, cx + 19, cy + 3, cx + 48, cy + 20, 6, (30, 12, 16, int(142 * smear)), fw, fh)
+        draw_limb(pixels, sheet_width, x_offset, cx + 27, cy + 10, cx + 56, cy + 31, 3, (132, 29, 34, int(96 * smear)), fw, fh)
+        draw_limb(pixels, sheet_width, x_offset, cx + 36, cy + 15, cx + 58, cy + 23, 2, (BONE[0], BONE[1], BONE[2], int(142 * smear)), fw, fh)
 
-    for i in range(18):
-        angle = -2.5 + i * 0.28 + phase * 0.04
-        radius = 22 + (i % 4) * 4
-        color = (106, 15, 24, 58) if i % 2 == 0 else (42, 48, 52, 46)
-        draw_circle(
-            pixels,
-            sheet_width,
-            x_offset,
-            cx + math.cos(angle) * radius,
-            cy - 4 + math.sin(angle) * radius * 0.60,
-            1 + (i % 3 == 0),
-            color,
-            fw,
-            fh,
-        )
+    for i in range(14):
+        angle = -2.5 + i * 0.32 + phase * 0.03
+        radius = 20 + (i % 4) * 4
+        color = (92, 17, 24, 44) if i % 2 == 0 else (44, 49, 52, 44)
+        draw_circle(pixels, sheet_width, x_offset, cx + math.cos(angle) * radius, cy + 5 + math.sin(angle) * radius * 0.58, 1 + (i % 5 == 0), color, fw, fh)
 
-    draw_limb(pixels, sheet_width, x_offset, cx - 10, cy - 14, cx + 14, cy - 15, 2, BRASS, fw, fh)
-    draw_circle(pixels, sheet_width, x_offset, cx + 18, cy - 16, 3, BRASS, fw, fh)
+    draw_limb(pixels, sheet_width, x_offset, cx - 8, cy - 17, cx + 12, cy - 18, 1, BRASS, fw, fh)
 
 
 def draw_claw(pixels: bytearray, sheet_width: int, x_offset: int, cx: float, cy: float, sign: float, fw: int, fh: int) -> None:
-    draw_circle(pixels, sheet_width, x_offset, cx, cy, 4, BONE_DARK, fw, fh)
+    draw_circle(pixels, sheet_width, x_offset, cx, cy, 2, BONE_DARK, fw, fh)
     for i in range(3):
-        draw_limb(pixels, sheet_width, x_offset, cx + sign * 2, cy - 2 + i * 3, cx + sign * (11 + i * 2), cy - 6 + i * 2, 2, BONE, fw, fh)
+        draw_limb(pixels, sheet_width, x_offset, cx + sign * 1, cy - 1 + i * 2, cx + sign * (7 + i), cy - 4 + i * 2, 1, BONE, fw, fh)
 
 
 def draw_boss_frame(pixels: bytearray, sheet_width: int, x_offset: int, fw: int, fh: int, frame: int) -> None:
     pulse = math.sin(frame / BOSS_FRAMES * math.tau)
     cx = fw * 0.5
-    cy = fh * 0.58 + pulse * 1.6
+    cy = fh * 0.58 + pulse * 1.0
+    sway = math.sin(frame / BOSS_FRAMES * math.tau + 0.7) * 2.0
 
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx, cy + 39, 66, 18, 0.0, (10, 11, 13, 160), fw, fh)
-    robe_points = [
-        (cx - 55, cy - 39),
-        (cx - 35, cy - 58),
-        (cx + 34, cy - 59),
-        (cx + 58, cy - 37),
-        (cx + 70, cy + 51),
-        (cx + 38, cy + 68),
-        (cx + 12, cy + 58),
-        (cx - 15, cy + 70),
-        (cx - 43, cy + 58),
-        (cx - 72, cy + 49),
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx, cy + 44, 66, 18, 0.0, (7, 8, 10, 172), fw, fh)
+    back_robe = [
+        (cx - 62, cy - 45),
+        (cx - 40, cy - 67),
+        (cx + 36, cy - 68),
+        (cx + 62, cy - 45),
+        (cx + 73, cy + 49),
+        (cx + 45, cy + 70),
+        (cx + 10, cy + 60),
+        (cx - 14, cy + 72),
+        (cx - 48, cy + 66),
+        (cx - 76, cy + 47),
     ]
-    draw_polygon(pixels, sheet_width, x_offset, robe_points, INK, fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx, cy + 8, 58, 63, -0.04, (22, 14, 19, 244), fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx - 12, cy + 1, 42, 54, 0.08, DEEP_CRIMSON, fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx + 20, cy - 5, 26, 48, -0.22, CRIMSON, fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx - 42, cy + 10, 22, 50, 0.42, COAT, fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx + 47, cy + 8, 21, 48, -0.46, COAT, fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx, cy - 44, 35, 25, 0.0, INK, fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx - 2, cy - 39, 25, 15, -0.08, BONE, fw, fh)
-    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx + 13, cy - 43, 12, 7, 0.0, (210, 181, 112, 214), fw, fh)
+    draw_polygon(pixels, sheet_width, x_offset, back_robe, (6, 7, 10, 248), fw, fh)
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx, cy + 8, 58, 64, -0.03, COAT, fw, fh)
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx - 31, cy + 14, 25, 52, 0.32, (8, 10, 13, 240), fw, fh)
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx + 35, cy + 13, 25, 52, -0.34, (8, 10, 13, 240), fw, fh)
 
-    draw_limb(pixels, sheet_width, x_offset, cx - 31, cy - 49, cx - 64, cy - 47, 5, (31, 35, 37, 218), fw, fh)
-    draw_limb(pixels, sheet_width, x_offset, cx + 31, cy - 49, cx + 64, cy - 47, 5, (31, 35, 37, 218), fw, fh)
-    draw_limb(pixels, sheet_width, x_offset, cx - 45, cy - 41, cx - 83, cy - 40, 5, (92, 18, 26, 176), fw, fh)
-    draw_limb(pixels, sheet_width, x_offset, cx + 45, cy - 41, cx + 83, cy - 40, 5, (92, 18, 26, 176), fw, fh)
+    crimson_fold = [
+        (cx - 8, cy - 33),
+        (cx + 24, cy - 20),
+        (cx + 20 + sway, cy + 57),
+        (cx + 4, cy + 66),
+        (cx - 10, cy + 10),
+    ]
+    draw_polygon(pixels, sheet_width, x_offset, crimson_fold, DEEP_CRIMSON, fw, fh)
+    draw_limb(pixels, sheet_width, x_offset, cx + 11, cy - 15, cx + 9 + sway, cy + 55, 3, (128, 28, 34, 128), fw, fh)
 
-    for i in range(26):
-        angle = -2.8 + i * 0.22 + frame * 0.035
-        radius = 58 + (i * 7 % 31)
-        color = (126, 19, 29, 92) if i % 3 == 0 else (42, 51, 56, 78)
-        draw_circle(
-            pixels,
-            sheet_width,
-            x_offset,
-            cx + math.cos(angle) * radius,
-            cy + math.sin(angle) * radius * 0.62,
-            3 + (i % 3),
-            color,
-            fw,
-            fh,
-        )
+    hood = [
+        (cx - 35, cy - 47),
+        (cx - 16, cy - 67),
+        (cx + 18, cy - 67),
+        (cx + 37, cy - 47),
+        (cx + 26, cy - 25),
+        (cx - 25, cy - 25),
+    ]
+    draw_polygon(pixels, sheet_width, x_offset, hood, INK, fw, fh)
+    mask_y = cy - 46 + pulse * 0.35
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx + 2, mask_y, 18, 11, -0.06, BONE, fw, fh)
+    draw_rotated_ellipse(pixels, sheet_width, x_offset, cx + 9, mask_y - 1, 8, 4, -0.08, (218, 192, 126, 202), fw, fh)
+    draw_circle(pixels, sheet_width, x_offset, cx + 8, mask_y - 1, 2, (122, 11, 18, 230), fw, fh)
+    draw_limb(pixels, sheet_width, x_offset, cx + 13, mask_y + 3, cx + 27, mask_y + 8, 2, BONE_DARK, fw, fh)
+
+    for i in range(24):
+        tail_x = cx - 58 + i * 5.0 + math.sin(frame * 0.4 + i) * 1.4
+        tail_y = cy + 20 + (i % 6) * 5
+        color = (13, 16, 19, 168) if i % 2 else (33, 38, 40, 112)
+        draw_limb(pixels, sheet_width, x_offset, tail_x, tail_y, tail_x - 4 + sway * 0.7, tail_y + 27 + (i % 4) * 4, 3, color, fw, fh)
+
+    draw_limb(pixels, sheet_width, x_offset, cx - 33, cy - 28, cx - 55, cy - 2, 5, COAT_EDGE, fw, fh)
+    draw_limb(pixels, sheet_width, x_offset, cx + 33, cy - 28, cx + 55, cy - 2, 5, COAT_EDGE, fw, fh)
+    draw_claw(pixels, sheet_width, x_offset, cx - 58, cy + 1, -1.0, fw, fh)
+    draw_claw(pixels, sheet_width, x_offset, cx + 58, cy + 1, 1.0, fw, fh)
+
+    for i in range(28):
+        angle = -2.7 + i * 0.22 + frame * 0.035
+        radius = 55 + (i * 7 % 29)
+        color = (96, 18, 27, 74) if i % 3 == 0 else (44, 51, 56, 62)
+        draw_circle(pixels, sheet_width, x_offset, cx + math.cos(angle) * radius, cy + 7 + math.sin(angle) * radius * 0.62, 2 + (i % 3), color, fw, fh)
 
 
 def draw_limb(
