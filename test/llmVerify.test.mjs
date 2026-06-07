@@ -81,6 +81,12 @@ test('LLM verify mode emits a machine-readable pass summary', async () => {
   assert.equal(summary.gameplay.gate_open_after_collecting_sigils, true);
   assert.equal(summary.gameplay.win_state_reached, true);
   assert.equal(summary.gameplay.stage_playable_path, true);
+  assert.equal(summary.retry.game_over_before_retry, true);
+  assert.equal(summary.retry.game_over_after_retry, false);
+  assert.equal(summary.retry.health_after_retry, 3);
+  assert.equal(summary.retry.sigils_after_retry, 0);
+  assert.equal(summary.retry.gate_open_after_retry, false);
+  assert.equal(summary.retry.enemy_count_after_retry, 4);
   assert.deepEqual(summary.failures, []);
 });
 

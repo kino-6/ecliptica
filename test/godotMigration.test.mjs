@@ -98,11 +98,16 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
 
   assert.match(game, /func collect_sigil/);
   assert.match(game, /func damage_player/);
+  assert.match(game, /func retry_game/);
   assert.match(game, /func _update_camera/);
   assert.match(game, /func open_gate/);
   assert.match(game, /func win_game/);
   assert.match(game, /player_health/);
   assert.match(game, /PLAYER_MAX_HEALTH := 3/);
+  assert.match(game, /GATE_SEALED_COLOR/);
+  assert.match(game, /Input\.is_action_just_pressed\("retry"\)/);
+  assert.match(game, /KEY_R/);
+  assert.match(game, /KEY_ENTER/);
   assert.match(game, /TARGET_WINDOW_SIZE := Vector2i\(1920, 1080\)/);
   assert.match(game, /CAMERA_ZOOM := Vector2\(1\.65, 1\.65\)/);
   assert.match(game, /DisplayServer\.WINDOW_MODE_FULLSCREEN/);
@@ -185,6 +190,8 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(enemyIdeas, /突進/);
   assert.match(enemyIdeas, /Bloodborne を直接コピーしない/);
   assert.match(e2e, /func run_e2e/);
+  assert.match(e2e, /retry should clear game over and restore health/);
+  assert.match(e2e, /retry should regenerate enemies/);
   assert.match(e2e, /shoot should consume focus/);
   assert.match(e2e, /combo should advance through three attack body animations/);
   assert.match(e2e, /shoot body animation should become active/);
