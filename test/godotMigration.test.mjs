@@ -21,6 +21,8 @@ const requiredFiles = [
   'assets/boss-idle-sheet-8.png',
   'assets/player-idle-sheet-10.png',
   'assets/player-walk-sheet-24.png',
+  'assets/player-attack-combo-sheet-18.png',
+  'assets/player-shoot-sheet-8.png',
 ];
 
 test('Godot migration includes the required project files and imported assets', () => {
@@ -123,10 +125,18 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(player, /IDLE_FRAME_COUNT := 10/);
   assert.match(player, /WALK_FRAME_COUNT := 24/);
   assert.match(player, /ATTACK_FRAME_COUNT := 8/);
+  assert.match(player, /ATTACK_BODY_FRAME_COUNT := 6/);
+  assert.match(player, /COMBO_STEP_COUNT := 3/);
+  assert.match(player, /SHOOT_FRAME_COUNT := 8/);
   assert.match(player, /player-idle-sheet-10\.png/);
   assert.match(player, /player-walk-sheet-24\.png/);
+  assert.match(player, /player-attack-combo-sheet-18\.png/);
+  assert.match(player, /player-shoot-sheet-8\.png/);
   assert.match(player, /axe-swing-sheet-8\.png/);
   assert.match(player, /func attack/);
+  assert.match(player, /func _advance_combo_step/);
+  assert.match(player, /func _play_attack_body_animation/);
+  assert.match(player, /func is_shooting/);
   assert.match(player, /FOCUS_MAX := 3\.0/);
   assert.match(player, /FOCUS_REGEN_PER_SECOND/);
   assert.match(player, /SHOT_COST := 1\.0/);
@@ -140,6 +150,8 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(game, /shoot_focus/);
   assert.match(e2e, /func run_e2e/);
   assert.match(e2e, /shoot should consume focus/);
+  assert.match(e2e, /combo should advance through three attack body animations/);
+  assert.match(e2e, /shoot body animation should become active/);
   assert.match(e2e, /focus should regenerate over time/);
   assert.match(e2e, /E2E_OK/);
   assert.equal(packageJson.scripts['test:window'], 'RUN_GODOT_WINDOW_E2E=1 node --test test/godotWindowE2E.test.mjs');
@@ -178,6 +190,15 @@ test('axe swing atlas follows the accessory animation contract', () => {
 
 test('enemy and boss atlases follow the actor animation contract', () => {
   const result = spawnSync(process.execPath, ['test/enemyBossAssetCheck.mjs'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+});
+
+test('player action atlases follow the body animation contract', () => {
+  const result = spawnSync(process.execPath, ['test/playerActionAssetCheck.mjs'], {
     cwd: process.cwd(),
     encoding: 'utf8',
   });
