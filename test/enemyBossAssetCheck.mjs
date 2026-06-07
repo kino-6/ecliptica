@@ -14,6 +14,8 @@ const contracts = [
     minCentralMass: 3580,
     minDark: 2100,
     maxTopNoise: 8,
+    maxMaskArea: 360,
+    maxHorizontalRedBar: 24,
   },
   {
     file: 'assets/enemy-walk-sheet-12.png',
@@ -26,6 +28,8 @@ const contracts = [
     minCentralMass: 3580,
     minDark: 2100,
     maxTopNoise: 8,
+    maxMaskArea: 360,
+    maxHorizontalRedBar: 24,
   },
   {
     file: 'assets/enemy-attack-sheet-8.png',
@@ -38,6 +42,8 @@ const contracts = [
     minCentralMass: 3400,
     minDark: 2050,
     maxTopNoise: 8,
+    maxMaskArea: 390,
+    maxHorizontalRedBar: 170,
   },
   {
     file: 'assets/boss-idle-sheet-8.png',
@@ -50,6 +56,8 @@ const contracts = [
     minCentralMass: 7800,
     minDark: 7200,
     maxTopNoise: 120,
+    maxMaskArea: 950,
+    maxHorizontalRedBar: 640,
   },
 ];
 
@@ -71,6 +79,8 @@ for (const contract of contracts) {
     assert.ok(countVisiblePixels(png, x0 + contract.frameWidth * 0.22, contract.frameHeight * 0.18, contract.frameWidth * 0.56, contract.frameHeight * 0.76) > contract.minCentralMass, `${contract.file} frame ${frame} should carry a readable central gothic silhouette`);
     assert.ok(countDarkPixels(png, x0, 0, contract.frameWidth, contract.frameHeight) > contract.minDark, `${contract.file} frame ${frame} should have enough dark cloak mass to read against the stage`);
     assert.ok(countVisiblePixels(png, x0, 0, contract.frameWidth, contract.frameHeight * 0.08) <= contract.maxTopNoise, `${contract.file} frame ${frame} should avoid toy-like antenna pixels at the top edge`);
+    assert.ok(countMaskFocalPixels(png, x0, contract.frameWidth, contract.frameHeight) <= contract.maxMaskArea, `${contract.file} frame ${frame} should use a mask focal point, not a toy-like oversized face`);
+    assert.ok(countHorizontalRedBarPixels(png, x0, contract.frameWidth, contract.frameHeight) <= contract.maxHorizontalRedBar, `${contract.file} frame ${frame} should avoid flat horizontal red placeholder limbs`);
   }
 }
 
@@ -185,6 +195,37 @@ function countDarkPixels(png, x, y, width, height) {
       const i = (yy * png.width + xx) * 4;
       const [r, g, b, a] = [png.pixels[i], png.pixels[i + 1], png.pixels[i + 2], png.pixels[i + 3]];
       if (a > 80 && r < 42 && g < 48 && b < 54) count += 1;
+    }
+  }
+  return count;
+}
+
+function countMaskFocalPixels(png, x, width, height) {
+  let count = 0;
+  const minX = x + Math.floor(width * 0.22);
+  const maxX = x + Math.floor(width * 0.78);
+  const minY = Math.floor(height * 0.10);
+  const maxY = Math.floor(height * 0.46);
+  for (let yy = minY; yy < maxY; yy += 1) {
+    for (let xx = minX; xx < maxX; xx += 1) {
+      const i = (yy * png.width + xx) * 4;
+      const [r, g, b, a] = [png.pixels[i], png.pixels[i + 1], png.pixels[i + 2], png.pixels[i + 3]];
+      if (a > 24 && r > 110 && g > 88 && b > 50 && r > b * 1.35) count += 1;
+    }
+  }
+  return count;
+}
+
+function countHorizontalRedBarPixels(png, x, width, height) {
+  let count = 0;
+  const minY = Math.floor(height * 0.28);
+  const maxY = Math.floor(height * 0.48);
+  for (let yy = minY; yy < maxY; yy += 1) {
+    for (let localX = 0; localX < width; localX += 1) {
+      if (localX >= width * 0.20 && localX <= width * 0.80) continue;
+      const i = (yy * png.width + x + localX) * 4;
+      const [r, g, b, a] = [png.pixels[i], png.pixels[i + 1], png.pixels[i + 2], png.pixels[i + 3]];
+      if (a > 40 && r > 85 && r > g * 1.5 && r > b * 1.2) count += 1;
     }
   }
   return count;
