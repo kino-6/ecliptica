@@ -18,7 +18,11 @@ for (let frame = 0; frame < FRAME_COUNT; frame += 1) {
   assert.equal(maxAlphaInRect(png, x0, 0, FRAME_WIDTH, GUTTER), 0, `frame ${frame} top gutter should be transparent`);
   assert.equal(maxAlphaInRect(png, x0, FRAME_HEIGHT - GUTTER, FRAME_WIDTH, GUTTER), 0, `frame ${frame} bottom gutter should be transparent`);
   assert.ok(maxAlphaInRect(png, x0, 0, FRAME_WIDTH, FRAME_HEIGHT) > 160, `frame ${frame} should contain visible swing pixels`);
+  assert.ok(countVisiblePixels(png, x0, 0, FRAME_WIDTH, FRAME_HEIGHT) > 2400, `frame ${frame} should have enough painted mass for a readable attack`);
 }
+
+assert.ok(countCrimsonPixels(png) > 900, 'axe swing should include dark crimson afterimage pixels');
+assert.ok(countQuantizedColors(png) > 20, 'axe swing should use a painterly multi-tone palette instead of flat debug colors');
 
 function parsePng(buffer) {
   assert.equal(buffer.toString('ascii', 1, 4), 'PNG', 'expected PNG');
@@ -83,6 +87,41 @@ function maxAlphaInRect(png, x, y, width, height) {
     }
   }
   return max;
+}
+
+function countVisiblePixels(png, x, y, width, height) {
+  let count = 0;
+  for (let yy = y; yy < y + height; yy += 1) {
+    for (let xx = x; xx < x + width; xx += 1) {
+      if (png.pixels[(yy * png.width + xx) * 4 + 3] > 16) count += 1;
+    }
+  }
+  return count;
+}
+
+function countCrimsonPixels(png) {
+  let count = 0;
+  for (let yy = 0; yy < png.height; yy += 1) {
+    for (let xx = 0; xx < png.width; xx += 1) {
+      const i = (yy * png.width + xx) * 4;
+      const [r, g, b, a] = [png.pixels[i], png.pixels[i + 1], png.pixels[i + 2], png.pixels[i + 3]];
+      if (a > 24 && r > 70 && r > g * 1.45 && r > b * 1.2) count += 1;
+    }
+  }
+  return count;
+}
+
+function countQuantizedColors(png) {
+  const colors = new Set();
+  for (let yy = 0; yy < png.height; yy += 1) {
+    for (let xx = 0; xx < png.width; xx += 1) {
+      const i = (yy * png.width + xx) * 4;
+      const alpha = png.pixels[i + 3];
+      if (alpha <= 24) continue;
+      colors.add(`${png.pixels[i] >> 4},${png.pixels[i + 1] >> 4},${png.pixels[i + 2] >> 4}`);
+    }
+  }
+  return colors.size;
 }
 
 function paeth(a, b, c) {
