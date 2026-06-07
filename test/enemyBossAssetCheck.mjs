@@ -11,6 +11,9 @@ const contracts = [
     minVisible: 1600,
     minCrimson: 550,
     minBone: 120,
+    minCentralMass: 3600,
+    minDark: 2100,
+    maxTopNoise: 8,
   },
   {
     file: 'assets/enemy-walk-sheet-12.png',
@@ -20,6 +23,9 @@ const contracts = [
     minVisible: 1650,
     minCrimson: 620,
     minBone: 130,
+    minCentralMass: 3600,
+    minDark: 2100,
+    maxTopNoise: 8,
   },
   {
     file: 'assets/enemy-attack-sheet-8.png',
@@ -29,6 +35,9 @@ const contracts = [
     minVisible: 1700,
     minCrimson: 680,
     minBone: 140,
+    minCentralMass: 3500,
+    minDark: 2050,
+    maxTopNoise: 8,
   },
   {
     file: 'assets/boss-idle-sheet-8.png',
@@ -38,6 +47,9 @@ const contracts = [
     minVisible: 5200,
     minCrimson: 1800,
     minBone: 300,
+    minCentralMass: 7800,
+    minDark: 7200,
+    maxTopNoise: 120,
   },
 ];
 
@@ -56,6 +68,9 @@ for (const contract of contracts) {
     assert.equal(maxAlphaInRect(png, x0, 0, contract.frameWidth, 4), 0, `${contract.file} frame ${frame} top gutter should be transparent`);
     assert.equal(maxAlphaInRect(png, x0, contract.frameHeight - 4, contract.frameWidth, 4), 0, `${contract.file} frame ${frame} bottom gutter should be transparent`);
     assert.ok(countVisiblePixels(png, x0, 0, contract.frameWidth, contract.frameHeight) > contract.minVisible, `${contract.file} frame ${frame} should have readable mass`);
+    assert.ok(countVisiblePixels(png, x0 + contract.frameWidth * 0.22, contract.frameHeight * 0.18, contract.frameWidth * 0.56, contract.frameHeight * 0.76) > contract.minCentralMass, `${contract.file} frame ${frame} should carry a readable central gothic silhouette`);
+    assert.ok(countDarkPixels(png, x0, 0, contract.frameWidth, contract.frameHeight) > contract.minDark, `${contract.file} frame ${frame} should have enough dark cloak mass to read against the stage`);
+    assert.ok(countVisiblePixels(png, x0, 0, contract.frameWidth, contract.frameHeight * 0.08) <= contract.maxTopNoise, `${contract.file} frame ${frame} should avoid toy-like antenna pixels at the top edge`);
   }
 }
 
@@ -125,8 +140,12 @@ function maxAlphaInRect(png, x, y, width, height) {
 
 function countVisiblePixels(png, x, y, width, height) {
   let count = 0;
-  for (let yy = y; yy < y + height; yy += 1) {
-    for (let xx = x; xx < x + width; xx += 1) {
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const x1 = Math.floor(x + width);
+  const y1 = Math.floor(y + height);
+  for (let yy = y0; yy < y1; yy += 1) {
+    for (let xx = x0; xx < x1; xx += 1) {
       if (png.pixels[(yy * png.width + xx) * 4 + 3] > 16) count += 1;
     }
   }
@@ -152,6 +171,20 @@ function countBonePixels(png) {
       const i = (yy * png.width + xx) * 4;
       const [r, g, b, a] = [png.pixels[i], png.pixels[i + 1], png.pixels[i + 2], png.pixels[i + 3]];
       if (a > 24 && r > 110 && g > 88 && b > 50 && r > b * 1.35) count += 1;
+    }
+  }
+  return count;
+}
+
+function countDarkPixels(png, x, y, width, height) {
+  let count = 0;
+  const x1 = Math.floor(x + width);
+  const y1 = Math.floor(y + height);
+  for (let yy = Math.floor(y); yy < y1; yy += 1) {
+    for (let xx = Math.floor(x); xx < x1; xx += 1) {
+      const i = (yy * png.width + xx) * 4;
+      const [r, g, b, a] = [png.pixels[i], png.pixels[i + 1], png.pixels[i + 2], png.pixels[i + 3]];
+      if (a > 80 && r < 42 && g < 48 && b < 54) count += 1;
     }
   }
   return count;
