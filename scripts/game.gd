@@ -2,16 +2,20 @@ extends Node2D
 
 const LEVEL_HEIGHT := 540.0
 const TARGET_WINDOW_SIZE := Vector2i(1920, 1080)
+const CAMERA_ZOOM := Vector2(1.65, 1.65)
+const HUD_BAR_WIDTH := 240.0
 const PLAYER_MAX_HEALTH := 3
 const DAMAGE_INVULNERABILITY := 0.75
-const CAMERA_MIN_X := 960.0
-const CAMERA_Y := 540.0
+const CAMERA_Y := 500.0
 
 @onready var player: CharacterBody2D = $Player
 @onready var camera: Camera2D = $Camera2D
 @onready var gate: Area2D = $Goal
 @onready var gate_visual: ColorRect = $Goal/GateVisual
-@onready var hud_label: Label = $CanvasLayer/HUD
+@onready var health_fill: ColorRect = $CanvasLayer/HUDPanel/HealthBar/HealthFill
+@onready var focus_fill: ColorRect = $CanvasLayer/HUDPanel/FocusBar/FocusFill
+@onready var sigil_pips: HBoxContainer = $CanvasLayer/HUDPanel/SigilPips
+@onready var state_label: Label = $CanvasLayer/HUDPanel/StateLabel
 @onready var stage_generator: Node = $StageGenerator
 
 var sigils_total := 0
@@ -25,6 +29,7 @@ var generated_stage_summary := {}
 
 func _ready() -> void:
 	_apply_window_size()
+	camera.zoom = CAMERA_ZOOM
 	_ensure_input_actions()
 	_generate_stage()
 	_connect_collectibles()
@@ -99,11 +104,28 @@ func _on_goal_body_entered(body: Node) -> void:
 		win_game()
 
 func _update_hud() -> void:
+	_update_hud_bars()
+	_update_sigil_pips()
 	var gate_text := "OPEN" if gate_open else "SEALED"
 	var win_text := " / WON" if won else ""
 	var state_text := " / GAME OVER" if game_over else win_text
-	var shoot_focus: float = player.shoot_focus
-	hud_label.text = "HP %d/%d / FOCUS %.1f/%.0f / SIGILS %d/%d / %s%s" % [player_health, PLAYER_MAX_HEALTH, shoot_focus, player.FOCUS_MAX, sigils_collected, sigils_total, gate_text, state_text]
+	state_label.text = "%s%s" % [gate_text, state_text]
+
+func _update_hud_bars() -> void:
+	var health_ratio := clampf(float(player_health) / float(PLAYER_MAX_HEALTH), 0.0, 1.0)
+	var focus_ratio := clampf(player.shoot_focus / player.FOCUS_MAX, 0.0, 1.0)
+	health_fill.offset_right = HUD_BAR_WIDTH * health_ratio
+	focus_fill.offset_right = HUD_BAR_WIDTH * focus_ratio
+
+func _update_sigil_pips() -> void:
+	while sigil_pips.get_child_count() < sigils_total:
+		var pip := ColorRect.new()
+		pip.custom_minimum_size = Vector2(16.0, 16.0)
+		sigil_pips.add_child(pip)
+	for index in range(sigil_pips.get_child_count()):
+		var pip: ColorRect = sigil_pips.get_child(index)
+		pip.visible = index < sigils_total
+		pip.color = Color(0.72, 0.08, 0.13, 0.96) if index < sigils_collected else Color(0.10, 0.08, 0.09, 0.78)
 
 func _ensure_input_actions() -> void:
 	_add_key_action("move_left", [KEY_A, KEY_LEFT])
@@ -134,6 +156,7 @@ func _apply_window_size() -> void:
 	var physical_window_size := _target_physical_window_size()
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 	DisplayServer.window_set_size(physical_window_size)
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 	window.size = physical_window_size
 	window.content_scale_size = TARGET_WINDOW_SIZE
 
@@ -149,5 +172,6 @@ func _generate_stage() -> void:
 	player.spawn_position = player.global_position
 
 func _update_camera() -> void:
-	var max_x := maxf(CAMERA_MIN_X, gate.global_position.x - CAMERA_MIN_X)
-	camera.global_position = Vector2(clampf(player.global_position.x, CAMERA_MIN_X, max_x), CAMERA_Y)
+	var half_width := TARGET_WINDOW_SIZE.x / (2.0 * CAMERA_ZOOM.x)
+	var max_x := maxf(half_width, gate.global_position.x - half_width)
+	camera.global_position = Vector2(clampf(player.global_position.x, half_width, max_x), CAMERA_Y)

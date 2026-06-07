@@ -27,7 +27,7 @@ scale = Vector2(1.148, 1.148)
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position = Vector2(960, 540)
-zoom = Vector2(1, 1)
+zoom = Vector2(1.65, 1.65)
 enabled = true
 position_smoothing_enabled = true
 position_smoothing_speed = 6.0
@@ -96,11 +96,56 @@ shape = SubResource("RectangleShape2D_goal")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
-[node name="HUD" type="Label" parent="CanvasLayer"]
+[node name="HUDPanel" type="Control" parent="CanvasLayer"]
 offset_left = 16.0
 offset_top = 14.0
+offset_right = 396.0
+offset_bottom = 118.0
+
+[node name="HealthLabel" type="Label" parent="CanvasLayer/HUDPanel"]
+offset_right = 72.0
+offset_bottom = 18.0
+text = "HP"
+
+[node name="HealthBar" type="ColorRect" parent="CanvasLayer/HUDPanel"]
+offset_left = 64.0
+offset_top = 2.0
+offset_right = 304.0
+offset_bottom = 16.0
+color = Color(0.05, 0.04, 0.05, 0.76)
+
+[node name="HealthFill" type="ColorRect" parent="CanvasLayer/HUDPanel/HealthBar"]
+offset_right = 240.0
+offset_bottom = 14.0
+color = Color(0.58, 0.05, 0.09, 0.95)
+
+[node name="FocusLabel" type="Label" parent="CanvasLayer/HUDPanel"]
+offset_top = 28.0
+offset_right = 72.0
+offset_bottom = 46.0
+text = "FOCUS"
+
+[node name="FocusBar" type="ColorRect" parent="CanvasLayer/HUDPanel"]
+offset_left = 64.0
+offset_top = 30.0
+offset_right = 304.0
+offset_bottom = 44.0
+color = Color(0.05, 0.04, 0.05, 0.76)
+
+[node name="FocusFill" type="ColorRect" parent="CanvasLayer/HUDPanel/FocusBar"]
+offset_right = 240.0
+offset_bottom = 14.0
+color = Color(0.72, 0.61, 0.34, 0.95)
+
+[node name="SigilPips" type="HBoxContainer" parent="CanvasLayer/HUDPanel"]
+offset_top = 60.0
+offset_right = 220.0
+offset_bottom = 80.0
+
+[node name="StateLabel" type="Label" parent="CanvasLayer/HUDPanel"]
+offset_top = 84.0
 offset_right = 360.0
-offset_bottom = 48.0
-text = "SIGILS 0/6 / SEALED"
+offset_bottom = 104.0
+text = "SEALED"
 
 [node name="E2ERunner" type="Node" parent="."]
