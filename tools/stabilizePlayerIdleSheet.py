@@ -11,12 +11,22 @@ FRAME_HEIGHT = 384
 FRAME_COUNT = 10
 IDLE_SHEET = Path("assets/player-idle-sheet-10.png")
 
-STABLE_PLANTED_BODY = {
-    "x0": 84,
-    "x1": 145,
-    "y0": 178,
-    "y1": 346,
-}
+STABLE_REGIONS = [
+    {
+        "name": "planted_body",
+        "x0": 84,
+        "x1": 145,
+        "y0": 178,
+        "y1": 346,
+    },
+    {
+        "name": "rear_leg_and_boot",
+        "x0": 54,
+        "x1": 108,
+        "y0": 226,
+        "y1": 350,
+    },
+]
 
 
 def main() -> None:
@@ -26,16 +36,17 @@ def main() -> None:
         raise ValueError(f"{IDLE_SHEET} must be {expected_width}x{FRAME_HEIGHT}, got {width}x{height}")
 
     for frame in range(1, FRAME_COUNT):
-        stabilize_planted_body(pixels, width, frame)
+        for region in STABLE_REGIONS:
+            stabilize_region(pixels, width, frame, region)
 
     IDLE_SHEET.write_bytes(encode_png(width, height, pixels))
 
 
-def stabilize_planted_body(pixels: bytearray, sheet_width: int, frame: int) -> None:
+def stabilize_region(pixels: bytearray, sheet_width: int, frame: int, region: dict[str, int | str]) -> None:
     source_x0 = 0
     target_x0 = frame * FRAME_WIDTH
-    for y in range(STABLE_PLANTED_BODY["y0"], STABLE_PLANTED_BODY["y1"]):
-        for x in range(STABLE_PLANTED_BODY["x0"], STABLE_PLANTED_BODY["x1"]):
+    for y in range(int(region["y0"]), int(region["y1"])):
+        for x in range(int(region["x0"]), int(region["x1"])):
             source = (y * sheet_width + source_x0 + x) * 4
             target = (y * sheet_width + target_x0 + x) * 4
             pixels[target : target + 4] = pixels[source : source + 4]

@@ -5,59 +5,63 @@ import { inflateSync } from 'node:zlib';
 const contracts = [
   {
     file: 'assets/enemy-idle-sheet-8.png',
-    frameWidth: 96,
-    frameHeight: 96,
+    frameWidth: 192,
+    frameHeight: 384,
     frameCount: 8,
-    minVisible: 1600,
-    minCrimson: 550,
-    minBone: 120,
-    minCentralMass: 3580,
-    minDark: 2100,
-    maxTopNoise: 8,
-    maxMaskArea: 360,
+    minVisible: 12000,
+    minCrimson: 1500,
+    minBone: 70,
+    minCentralMass: 12000,
+    minDark: 8000,
+    maxTopNoise: 10,
+    maxMaskArea: 140,
     maxHorizontalRedBar: 24,
+    maxGreenSpill: 0,
   },
   {
     file: 'assets/enemy-walk-sheet-12.png',
-    frameWidth: 96,
-    frameHeight: 96,
+    frameWidth: 192,
+    frameHeight: 384,
     frameCount: 12,
-    minVisible: 1650,
-    minCrimson: 620,
-    minBone: 130,
-    minCentralMass: 3580,
-    minDark: 2100,
-    maxTopNoise: 8,
-    maxMaskArea: 360,
+    minVisible: 12000,
+    minCrimson: 1500,
+    minBone: 70,
+    minCentralMass: 12000,
+    minDark: 8000,
+    maxTopNoise: 10,
+    maxMaskArea: 140,
     maxHorizontalRedBar: 24,
+    maxGreenSpill: 0,
   },
   {
     file: 'assets/enemy-attack-sheet-8.png',
-    frameWidth: 96,
-    frameHeight: 96,
+    frameWidth: 192,
+    frameHeight: 384,
     frameCount: 8,
-    minVisible: 1700,
-    minCrimson: 680,
-    minBone: 140,
-    minCentralMass: 3400,
-    minDark: 2050,
-    maxTopNoise: 8,
-    maxMaskArea: 390,
+    minVisible: 12000,
+    minCrimson: 1500,
+    minBone: 70,
+    minCentralMass: 12000,
+    minDark: 8000,
+    maxTopNoise: 10,
+    maxMaskArea: 140,
     maxHorizontalRedBar: 170,
+    maxGreenSpill: 0,
   },
   {
     file: 'assets/boss-idle-sheet-8.png',
-    frameWidth: 192,
-    frameHeight: 160,
+    frameWidth: 256,
+    frameHeight: 384,
     frameCount: 8,
-    minVisible: 5200,
-    minCrimson: 1800,
-    minBone: 300,
-    minCentralMass: 7800,
-    minDark: 7200,
-    maxTopNoise: 120,
-    maxMaskArea: 950,
+    minVisible: 18000,
+    minCrimson: 900,
+    minBone: 180,
+    minCentralMass: 17000,
+    minDark: 13000,
+    maxTopNoise: 80,
+    maxMaskArea: 360,
     maxHorizontalRedBar: 220,
+    maxGreenSpill: 0,
   },
 ];
 
@@ -81,6 +85,7 @@ for (const contract of contracts) {
     assert.ok(countVisiblePixels(png, x0, 0, contract.frameWidth, contract.frameHeight * 0.08) <= contract.maxTopNoise, `${contract.file} frame ${frame} should avoid toy-like antenna pixels at the top edge`);
     assert.ok(countMaskFocalPixels(png, x0, contract.frameWidth, contract.frameHeight) <= contract.maxMaskArea, `${contract.file} frame ${frame} should use a mask focal point, not a toy-like oversized face`);
     assert.ok(countHorizontalRedBarPixels(png, x0, contract.frameWidth, contract.frameHeight) <= contract.maxHorizontalRedBar, `${contract.file} frame ${frame} should avoid flat horizontal red placeholder limbs`);
+    assert.ok(countGreenSpillPixels(png, x0, contract.frameWidth, contract.frameHeight) <= contract.maxGreenSpill, `${contract.file} frame ${frame} should not retain chroma-key green spill`);
   }
 }
 
@@ -226,6 +231,18 @@ function countHorizontalRedBarPixels(png, x, width, height) {
       const i = (yy * png.width + x + localX) * 4;
       const [r, g, b, a] = [png.pixels[i], png.pixels[i + 1], png.pixels[i + 2], png.pixels[i + 3]];
       if (a > 40 && r > 85 && r > g * 1.5 && r > b * 1.2) count += 1;
+    }
+  }
+  return count;
+}
+
+function countGreenSpillPixels(png, x, width, height) {
+  let count = 0;
+  for (let yy = 0; yy < height; yy += 1) {
+    for (let localX = 0; localX < width; localX += 1) {
+      const i = (yy * png.width + x + localX) * 4;
+      const [r, g, b, a] = [png.pixels[i], png.pixels[i + 1], png.pixels[i + 2], png.pixels[i + 3]];
+      if (a > 20 && g > r + 6 && g > b + 6) count += 1;
     }
   }
   return count;

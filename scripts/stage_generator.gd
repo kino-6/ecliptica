@@ -5,8 +5,8 @@ const FLOOR_COLOR := Color(0.10, 0.10, 0.13, 0.92)
 const BRANCH_COLOR := Color(0.08, 0.09, 0.12, 0.94)
 const GATE_COLOR := Color(0.14, 0.11, 0.12, 0.96)
 const SIGIL_COLOR := Color(0.72, 0.08, 0.13, 0.92)
-const ENEMY_FRAME_SIZE := Vector2i(96, 96)
-const BOSS_FRAME_SIZE := Vector2i(192, 160)
+const ENEMY_FRAME_SIZE := Vector2i(192, 384)
+const BOSS_FRAME_SIZE := Vector2i(256, 384)
 const ENEMY_IDLE_FRAME_COUNT := 8
 const ENEMY_WALK_FRAME_COUNT := 12
 const ENEMY_ATTACK_FRAME_COUNT := 8
@@ -358,7 +358,8 @@ func _create_enemy(parent: Node2D, index: int, position: Vector2, is_elite: bool
 		enemy.modulate = Color(1.16, 0.78, 0.78, 1.0)
 
 	var sprite := _create_enemy_sprite()
-	sprite.position = Vector2(0, -8)
+	sprite.position = Vector2(0, -55)
+	sprite.scale = Vector2(0.35, 0.35)
 	sprite.z_index = 4
 	enemy.add_child(sprite)
 
@@ -382,8 +383,8 @@ func _create_boss(parent: Node2D, position: Vector2) -> void:
 	parent.add_child(boss)
 
 	var sprite := _create_actor_sprite("BossSprite", boss_texture, BOSS_FRAME_SIZE, 5.5)
-	sprite.position = Vector2(0, -16)
-	sprite.scale = Vector2(0.74, 0.74)
+	sprite.position = Vector2(0, -81)
+	sprite.scale = Vector2(0.48, 0.48)
 	sprite.z_index = 3
 	boss.add_child(sprite)
 

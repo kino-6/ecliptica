@@ -52,6 +52,8 @@ for (const sheet of sheets) {
     assert.ok(coreDrift <= 0.02, `idle core pixels should stay mostly fixed, got ${(coreDrift * 100).toFixed(2)}% changed pixels`);
     const plantedLegDrift = maxIdlePlantedLegDrift(png, sheet.frames);
     assert.ok(plantedLegDrift <= 0.04, `idle planted legs and feet should stay fixed, got ${(plantedLegDrift * 100).toFixed(2)}% changed pixels`);
+    const rearLegDrift = maxIdleRearLegDrift(png, sheet.frames);
+    assert.ok(rearLegDrift <= 0.01, `idle rear leg and back foot should stay fixed, got ${(rearLegDrift * 100).toFixed(2)}% changed pixels`);
   } else if (sheet.label === 'walk') {
     const coreDrift = maxWalkCorePixelDrift(png, sheet.frames);
     assert.ok(coreDrift <= 0.12, `walk upper-body core should not vibrate, got ${(coreDrift * 100).toFixed(2)}% changed pixels`);
@@ -237,6 +239,41 @@ function maxIdlePlantedLegDrift(png, frameCount) {
       }
     }
     maxDrift = Math.max(maxDrift, changed / measured);
+  }
+  return maxDrift;
+}
+
+function maxIdleRearLegDrift(png, frameCount) {
+  return maxRegionPixelDrift(png, frameCount, {
+    x0: 54,
+    x1: 108,
+    y0: 226,
+    y1: 350,
+  });
+}
+
+function maxRegionPixelDrift(png, frameCount, region) {
+  const baseX = 0;
+  let maxDrift = 0;
+  for (let frame = 1; frame < frameCount; frame += 1) {
+    const x0 = frame * FRAME_WIDTH;
+    let changed = 0;
+    let measured = 0;
+    for (let yy = region.y0; yy < region.y1; yy += 1) {
+      for (let xx = region.x0; xx < region.x1; xx += 1) {
+        const base = (yy * png.width + baseX + xx) * 4;
+        const current = (yy * png.width + x0 + xx) * 4;
+        if (png.pixels[base + 3] <= 8 && png.pixels[current + 3] <= 8) continue;
+        measured += 1;
+        const delta =
+          Math.abs(png.pixels[base] - png.pixels[current]) +
+          Math.abs(png.pixels[base + 1] - png.pixels[current + 1]) +
+          Math.abs(png.pixels[base + 2] - png.pixels[current + 2]) +
+          Math.abs(png.pixels[base + 3] - png.pixels[current + 3]);
+        if (delta > 28) changed += 1;
+      }
+    }
+    maxDrift = Math.max(maxDrift, changed / Math.max(measured, 1));
   }
   return maxDrift;
 }
