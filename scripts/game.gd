@@ -103,29 +103,21 @@ func advance_to_next_stage() -> bool:
 	run_stage_index += 1
 	pending_reward_choices = []
 	selected_reward = {}
-	_reset_run_state()
-	_clear_projectiles()
-	_generate_stage()
-	_connect_collectibles()
-	_connect_enemies()
-	player.reset_to_spawn()
-	player.shoot_focus = player.FOCUS_MAX
-	gate_visual.color = GATE_SEALED_COLOR
-	_update_camera()
-	_update_hud()
+	_start_stage()
 	return true
 
 func retry_game() -> void:
+	_start_stage()
+
+func _start_stage() -> void:
 	_reset_run_state()
 	_clear_projectiles()
 	_generate_stage()
 	_connect_collectibles()
 	_connect_enemies()
-	player.reset_to_spawn()
-	player.shoot_focus = player.FOCUS_MAX
-	gate_visual.color = GATE_SEALED_COLOR
-	_update_camera()
-	_update_hud()
+	_reset_player_for_stage()
+	_reset_gate_visual()
+	_refresh_stage_view()
 
 func _connect_collectibles() -> void:
 	var sigils := get_tree().get_nodes_in_group("sigils")
@@ -247,6 +239,17 @@ func _clear_projectiles() -> void:
 		return
 	for projectile in projectiles.get_children():
 		projectile.free()
+
+func _reset_player_for_stage() -> void:
+	player.reset_to_spawn()
+	player.shoot_focus = player.FOCUS_MAX
+
+func _reset_gate_visual() -> void:
+	gate_visual.color = GATE_SEALED_COLOR
+
+func _refresh_stage_view() -> void:
+	_update_camera()
+	_update_hud()
 
 func _complete_roguelike_stage() -> void:
 	pending_reward_choices = run_model.reward_choices_for(run_stage_index, run_seed)
