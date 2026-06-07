@@ -193,14 +193,37 @@ def draw_boss_frame(pixels: bytearray, sheet_width: int, x_offset: int, fw: int,
     draw_rotated_ellipse(pixels, sheet_width, x_offset, cx + 35, cy + 13, 25, 52, -0.34, (8, 10, 13, 240), fw, fh)
 
     crimson_fold = [
-        (cx - 8, cy - 33),
-        (cx + 24, cy - 20),
-        (cx + 20 + sway, cy + 57),
-        (cx + 4, cy + 66),
-        (cx - 10, cy + 10),
+        (cx - 16, cy - 33),
+        (cx + 21, cy - 22),
+        (cx + 16 + sway, cy + 42),
+        (cx + 8, cy + 64),
+        (cx - 8, cy + 50),
+        (cx - 13, cy + 8),
     ]
     draw_polygon(pixels, sheet_width, x_offset, crimson_fold, DEEP_CRIMSON, fw, fh)
-    draw_limb(pixels, sheet_width, x_offset, cx + 11, cy - 15, cx + 9 + sway, cy + 55, 3, (128, 28, 34, 128), fw, fh)
+    draw_polygon(
+        pixels,
+        sheet_width,
+        x_offset,
+        [(cx - 28, cy - 17), (cx - 15, cy - 10), (cx - 20 + sway * 0.3, cy + 45), (cx - 30, cy + 54)],
+        (46, 7, 15, 190),
+        fw,
+        fh,
+    )
+    draw_polygon(
+        pixels,
+        sheet_width,
+        x_offset,
+        [(cx + 20, cy - 10), (cx + 33, cy - 5), (cx + 31 + sway * 0.4, cy + 38), (cx + 21, cy + 52)],
+        (82, 10, 20, 174),
+        fw,
+        fh,
+    )
+    draw_limb(pixels, sheet_width, x_offset, cx + 7, cy - 15, cx + 4 + sway, cy + 56, 2, (132, 27, 34, 118), fw, fh)
+    draw_limb(pixels, sheet_width, x_offset, cx - 7, cy - 7, cx - 1 + sway * 0.5, cy + 58, 2, (19, 9, 13, 150), fw, fh)
+    for tear in range(5):
+        tear_x = cx - 18 + tear * 9 + math.sin(frame * 0.4 + tear) * 1.1
+        draw_limb(pixels, sheet_width, x_offset, tear_x, cy + 34, tear_x - 3 + sway * 0.25, cy + 62 + (tear % 2) * 7, 2, (104, 15, 27, 116), fw, fh)
 
     hood = [
         (cx - 35, cy - 47),
@@ -216,6 +239,12 @@ def draw_boss_frame(pixels: bytearray, sheet_width: int, x_offset: int, fw: int,
     draw_rotated_ellipse(pixels, sheet_width, x_offset, cx + 9, mask_y - 1, 8, 4, -0.08, (218, 192, 126, 202), fw, fh)
     draw_circle(pixels, sheet_width, x_offset, cx + 8, mask_y - 1, 2, (122, 11, 18, 230), fw, fh)
     draw_limb(pixels, sheet_width, x_offset, cx + 13, mask_y + 3, cx + 27, mask_y + 8, 2, BONE_DARK, fw, fh)
+    draw_limb(pixels, sheet_width, x_offset, cx - 26, mask_y + 17, cx - 6, mask_y + 23, 2, BONE_DARK, fw, fh)
+    draw_limb(pixels, sheet_width, x_offset, cx + 3, mask_y + 23, cx + 31, mask_y + 18, 2, BRASS, fw, fh)
+    for bead in range(6):
+        bead_x = cx - 23 + bead * 9
+        bead_y = mask_y + 20 + math.sin(frame * 0.5 + bead) * 1.4
+        draw_circle(pixels, sheet_width, x_offset, bead_x, bead_y, 2, BRASS if bead % 2 else BONE_DARK, fw, fh)
 
     for i in range(24):
         tail_x = cx - 58 + i * 5.0 + math.sin(frame * 0.4 + i) * 1.4
