@@ -21,6 +21,7 @@ const ROGUELIKE_RUN_SCRIPT := preload("res://scripts/roguelike_run.gd")
 @onready var sigil_pips: HBoxContainer = $CanvasLayer/HUDPanel/SigilPips
 @onready var state_label: Label = $CanvasLayer/HUDPanel/StateLabel
 @onready var stage_generator: Node = $StageGenerator
+@onready var background: Sprite2D = $Background
 
 var sigils_total := 0
 var sigils_collected := 0
@@ -41,9 +42,11 @@ var selected_reward := {}
 
 func _ready() -> void:
 	_apply_window_size()
+	RenderingServer.set_default_clear_color(Color(0.025, 0.028, 0.032, 1.0))
 	camera.zoom = CAMERA_ZOOM
 	_ensure_input_actions()
 	_generate_stage()
+	_configure_background()
 	_connect_collectibles()
 	_connect_enemies()
 	_update_camera()
@@ -243,6 +246,12 @@ func _generate_stage() -> void:
 	stage_generator.run_reward_count = run_rewards.size()
 	generated_stage_summary = stage_generator.generate_stage(self)
 	player.spawn_position = player.global_position
+
+func _configure_background() -> void:
+	background.centered = true
+	background.position = Vector2(1420.0, 540.0)
+	background.scale = Vector2(2.85, 1.22)
+	background.z_index = -100
 
 func _reset_run_state() -> void:
 	sigils_total = 0

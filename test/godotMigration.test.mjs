@@ -18,7 +18,10 @@ const requiredFiles = [
   'scripts/window_e2e_runner.gd',
   'scripts/llm_verify.gd',
   'assets/background-city.png',
+  'assets/platform-stone-tile.png',
+  'assets/player-shot.png',
   'tools/stabilizePlayerWalkSheet.py',
+  'tools/generateStageVisualAssets.py',
   'assets/axe-swing-sheet-8.png',
   'assets/enemy-idle-sheet-8.png',
   'assets/enemy-walk-sheet-12.png',
@@ -153,6 +156,10 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(generator, /locked_gate_count/);
   assert.match(generator, /critical_path_room_count/);
   assert.match(generator, /DEFAULT_STAGE_SEED := 1337/);
+  assert.match(generator, /PLATFORM_TILE_TEXTURE_PATH := "res:\/\/assets\/platform-stone-tile\.png"/);
+  assert.match(generator, /ImageTexture\.create_from_image/);
+  assert.match(generator, /func _add_platform_tiles/);
+  assert.match(generator, /VisualTiles/);
   assert.match(generator, /run_stage_index/);
   assert.match(generator, /curse_level/);
   assert.match(generator, /run_reward_count/);
@@ -193,6 +200,8 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(player, /player-walk-sheet-24\.png/);
   assert.match(player, /player-attack-combo-sheet-18\.png/);
   assert.match(player, /player-shoot-sheet-8\.png/);
+  assert.match(player, /SHOT_TEXTURE_PATH := "res:\/\/assets\/player-shot\.png"/);
+  assert.match(player, /ImageTexture\.create_from_image/);
   assert.match(player, /axe-swing-sheet-8\.png/);
   assert.match(player, /ATTACK_HITBOX_OFFSET := Vector2\(62, -36\)/);
   assert.match(player, /ATTACK_HITBOX_SIZE := Vector2\(96, 72\)/);
@@ -210,6 +219,7 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(player, /func e2e_shoot/);
   assert.match(player, /func can_shoot/);
   assert.match(player, /func _create_projectile/);
+  assert.match(player, /Sprite2D\.new\(\)/);
   assert.match(player, /func _damage_attack_target/);
   assert.match(player, /func apply_damage_knockback/);
   assert.match(player, /KNOCKBACK_DURATION := 0\.24/);

@@ -36,6 +36,7 @@ const WALK_TEXTURE := preload("res://assets/player-walk-sheet-24.png")
 const ATTACK_BODY_TEXTURE := preload("res://assets/player-attack-combo-sheet-18.png")
 const SHOOT_TEXTURE := preload("res://assets/player-shoot-sheet-8.png")
 const ATTACK_TEXTURE := preload("res://assets/axe-swing-sheet-8.png")
+const SHOT_TEXTURE_PATH := "res://assets/player-shot.png"
 
 @onready var player_sprite: AnimatedSprite2D = $PlayerSprite
 @onready var attack_arc: AnimatedSprite2D = $AttackArc
@@ -57,10 +58,12 @@ var shoot_focus := FOCUS_MAX
 var knockback_timer := 0.0
 var knockback_velocity := Vector2.ZERO
 var hit_targets := {}
+var shot_texture: Texture2D
 
 func _ready() -> void:
 	add_to_group("player")
 	spawn_position = global_position
+	shot_texture = _load_png_texture(SHOT_TEXTURE_PATH)
 	_setup_animations()
 	_setup_attack_animation()
 	_configure_attack_hitbox_shape()
@@ -311,13 +314,10 @@ func _create_projectile() -> Area2D:
 	projectile.area_entered.connect(_on_projectile_area_entered.bind(projectile))
 	projectile_container.add_child(projectile)
 
-	var visual := ColorRect.new()
+	var visual := Sprite2D.new()
 	visual.name = "Visual"
-	visual.offset_left = -SHOT_SIZE.x * 0.5
-	visual.offset_top = -SHOT_SIZE.y * 0.5
-	visual.offset_right = SHOT_SIZE.x * 0.5
-	visual.offset_bottom = SHOT_SIZE.y * 0.5
-	visual.color = Color(0.75, 0.68, 0.50, 0.94)
+	visual.texture = shot_texture
+	visual.flip_h = direction < 0.0
 	projectile.add_child(visual)
 
 	var shape := RectangleShape2D.new()
@@ -399,3 +399,11 @@ func _add_sheet_animation_range(sprite_frames: SpriteFrames, animation_name: Str
 		atlas.atlas = texture
 		atlas.region = Rect2((start_frame + frame) * FRAME_SIZE.x, 0, FRAME_SIZE.x, FRAME_SIZE.y)
 		sprite_frames.add_frame(animation_name, atlas)
+
+func _load_png_texture(path: String) -> Texture2D:
+	var image := Image.new()
+	var error := image.load(path)
+	if error != OK:
+		push_error("Failed to load player projectile texture: %s" % [path])
+		return null
+	return ImageTexture.create_from_image(image)

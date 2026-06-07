@@ -28,6 +28,7 @@ const ENEMY_IDLE_TEXTURE := preload("res://assets/enemy-idle-sheet-8.png")
 const ENEMY_WALK_TEXTURE := preload("res://assets/enemy-walk-sheet-12.png")
 const ENEMY_ATTACK_TEXTURE := preload("res://assets/enemy-attack-sheet-8.png")
 const BOSS_TEXTURE := preload("res://assets/boss-idle-sheet-8.png")
+const PLATFORM_TILE_TEXTURE_PATH := "res://assets/platform-stone-tile.png"
 const ENEMY_LIBRARY := [
 	Vector2(960, 432),
 	Vector2(1715, 352),
@@ -115,6 +116,8 @@ const ROOM_LIBRARY := [
 @export var curse_level := 0
 @export var run_reward_count := 0
 
+var platform_tile_texture: Texture2D
+
 func generate_stage(game: Node2D) -> Dictionary:
 	var platforms: Node2D = game.get_node("Platforms")
 	var collectibles: Node2D = game.get_node("Collectibles")
@@ -123,6 +126,7 @@ func generate_stage(game: Node2D) -> Dictionary:
 	var goal: Area2D = game.get_node("Goal")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = stage_seed
+	platform_tile_texture = _load_png_texture(PLATFORM_TILE_TEXTURE_PATH)
 
 	_clear_children(platforms)
 	_clear_children(collectibles)
@@ -250,6 +254,7 @@ func _create_platform(parent: Node2D, room: Dictionary, center: Vector2) -> void
 	visual.offset_bottom = size.y * 0.5
 	visual.color = _room_color(room)
 	platform.add_child(visual)
+	_add_platform_tiles(platform, size, room)
 
 	var shape := RectangleShape2D.new()
 	shape.size = size
@@ -264,6 +269,45 @@ func _room_color(room: Dictionary) -> Color:
 	if bool(room.get("branch", false)):
 		return BRANCH_COLOR
 	return FLOOR_COLOR
+
+func _add_platform_tiles(platform: StaticBody2D, size: Vector2, room: Dictionary) -> void:
+	var tiles := Node2D.new()
+	tiles.name = "VisualTiles"
+	tiles.z_index = 1
+	platform.add_child(tiles)
+
+	var tile_size := Vector2(96.0, 64.0)
+	var columns := ceili(size.x / tile_size.x)
+	var rows := ceili(size.y / tile_size.y)
+	var left := -size.x * 0.5
+	var top := -size.y * 0.5
+	var tone := _room_tile_tone(room)
+	for row in range(rows):
+		for column in range(columns):
+			var sprite := Sprite2D.new()
+			sprite.name = "StoneTile%d_%d" % [column, row]
+			sprite.texture = platform_tile_texture
+			sprite.centered = false
+			sprite.region_enabled = true
+			sprite.region_rect = Rect2(0, 0, minf(tile_size.x, size.x - column * tile_size.x), minf(tile_size.y, size.y - row * tile_size.y))
+			sprite.position = Vector2(left + column * tile_size.x, top + row * tile_size.y)
+			sprite.modulate = tone
+			tiles.add_child(sprite)
+
+func _room_tile_tone(room: Dictionary) -> Color:
+	if bool(room.get("gate", false)):
+		return Color(1.08, 0.86, 0.86, 1.0)
+	if bool(room.get("branch", false)):
+		return Color(0.86, 0.92, 1.03, 1.0)
+	return Color(1.0, 1.0, 1.0, 1.0)
+
+func _load_png_texture(path: String) -> Texture2D:
+	var image := Image.new()
+	var error := image.load(path)
+	if error != OK:
+		push_error("Failed to load gothic stage texture: %s" % [path])
+		return null
+	return ImageTexture.create_from_image(image)
 
 func _create_sigil(parent: Node2D, index: int, position: Vector2) -> void:
 	var sigil := Area2D.new()

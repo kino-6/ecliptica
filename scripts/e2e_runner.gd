@@ -27,6 +27,9 @@ func run_e2e() -> void:
 		return
 	if not _expect(scene.get_node_or_null("Background") != null, "background should exist"):
 		return
+	var background := scene.get_node("Background") as Sprite2D
+	if not _expect(background.scale.x >= 2.65 and background.scale.y >= 1.18, "background should cover the generated 1920 world without gray gaps"):
+		return
 	if not _expect(scene.get_node("Camera2D").zoom == Vector2(2.2, 2.2), "camera should use close gothic action framing"):
 		return
 	if not _expect(game.TARGET_WINDOW_SIZE.x / scene.get_node("Camera2D").zoom.x <= 900.0, "camera should keep the visible world width tight enough to read character detail"):
@@ -68,6 +71,11 @@ func run_e2e() -> void:
 	if not _expect(game.generated_stage_summary["sigil_count"] == 6, "stage should generate six sigils"):
 		return
 	if not _expect(scene.get_node("Platforms").get_child_count() == game.generated_stage_summary["platform_count"], "platform container should match generated summary"):
+		return
+	if not _expect(scene.get_node("Platforms").get_child(0).get_node_or_null("VisualTiles") != null, "platforms should use gothic stone tile sprites"):
+		return
+	var first_tile := scene.get_node("Platforms").get_child(0).get_node("VisualTiles").get_child(0) as Sprite2D
+	if not _expect(first_tile != null and first_tile.texture != null, "platform tile sprites should carry the gothic stone texture"):
 		return
 	if not _expect(get_nodes_in_group("sigils").size() == game.generated_stage_summary["sigil_count"], "sigil group should match generated summary"):
 		return
@@ -137,6 +145,9 @@ func run_e2e() -> void:
 	var boss: Area2D = bosses[0]
 	if not _expect(boss.get_node_or_null("BossSprite") != null, "boss should use a dedicated sprite asset"):
 		return
+	var boss_sprite := boss.get_node("BossSprite") as AnimatedSprite2D
+	if not _expect(boss_sprite.sprite_frames.get_frame_texture("idle", 0) != null, "boss sprite should have a loaded gothic boss texture"):
+		return
 	if not _expect(boss.get_meta("hit_points", 0) > 1, "boss should require multiple hits"):
 		return
 	player._damage_attack_target(boss)
@@ -165,6 +176,11 @@ func run_e2e() -> void:
 	if not _expect(focus_after_shot < focus_before_shot, "shoot should consume focus"):
 		return
 	if not _expect(scene.get_node("Projectiles").get_child_count() > projectile_count_before, "shoot should spawn a projectile"):
+		return
+	var spawned_projectile := scene.get_node("Projectiles").get_child(scene.get_node("Projectiles").get_child_count() - 1)
+	if not _expect(spawned_projectile.get_node_or_null("Visual") is Sprite2D, "player shot should render as a sprite asset instead of a debug block"):
+		return
+	if not _expect((spawned_projectile.get_node("Visual") as Sprite2D).texture != null, "player shot sprite should have a loaded gothic projectile texture"):
 		return
 	for frame in 30:
 		await process_frame
