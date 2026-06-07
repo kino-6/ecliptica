@@ -60,6 +60,8 @@ func run_e2e() -> void:
 		return
 	if not _expect(get_nodes_in_group("enemies").size() == game.generated_stage_summary["enemy_count"], "enemy group should match generated summary"):
 		return
+	if not _expect(get_nodes_in_group("bosses").size() == game.generated_stage_summary["boss_count"], "boss group should match generated summary"):
+		return
 
 	var start_x: float = player.global_position.x
 	player.e2e_set_axis(1.0)
@@ -97,6 +99,21 @@ func run_e2e() -> void:
 
 	var enemies := get_nodes_in_group("enemies")
 	if not _expect(enemies.size() >= 3, "generated stage should include enemies"):
+		return
+	var bosses := get_nodes_in_group("bosses")
+	if not _expect(bosses.size() == 1, "generated stage should include one boss"):
+		return
+	var boss: Area2D = bosses[0]
+	if not _expect(boss.get_node_or_null("BossSprite") != null, "boss should use a dedicated sprite asset"):
+		return
+	if not _expect(boss.get_meta("hit_points", 0) > 1, "boss should require multiple hits"):
+		return
+	player._damage_attack_target(boss)
+	if not _expect(not boss.get_meta("destroyed", false), "boss should survive the first hit"):
+		return
+	while int(boss.get_meta("hit_points", 0)) > 0:
+		player._damage_attack_target(boss)
+	if not _expect(boss.get_meta("destroyed", false), "boss should be destroyed after all hit points are removed"):
 		return
 
 	var ranged_enemy: Area2D = enemies[1]

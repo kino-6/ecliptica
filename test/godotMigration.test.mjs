@@ -17,6 +17,8 @@ const requiredFiles = [
   'scripts/llm_verify.gd',
   'assets/background-city.png',
   'assets/axe-swing-sheet-8.png',
+  'assets/enemy-idle-sheet-8.png',
+  'assets/boss-idle-sheet-8.png',
   'assets/player-idle-sheet-10.png',
   'assets/player-walk-sheet-24.png',
 ];
@@ -109,7 +111,13 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(generator, /platform_count/);
   assert.match(generator, /sigil_count/);
   assert.match(generator, /enemy_count/);
+  assert.match(generator, /boss_count/);
   assert.match(generator, /func _create_enemy/);
+  assert.match(generator, /func _create_boss/);
+  assert.match(generator, /enemy-idle-sheet-8\.png/);
+  assert.match(generator, /boss-idle-sheet-8\.png/);
+  assert.match(generator, /AnimatedSprite2D/);
+  assert.match(generator, /hit_points/);
   assert.match(player, /func _physics_process/);
   assert.match(player, /func _update_animation/);
   assert.match(player, /IDLE_FRAME_COUNT := 10/);
@@ -126,6 +134,7 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(player, /func e2e_shoot/);
   assert.match(player, /func can_shoot/);
   assert.match(player, /func _create_projectile/);
+  assert.match(player, /func _damage_attack_target/);
   assert.match(player, /func e2e_attack/);
   assert.match(player, /func is_attacking/);
   assert.match(game, /shoot_focus/);
@@ -160,6 +169,15 @@ test('walk atlas frames have transparent gutters for Godot hframes slicing', () 
 
 test('axe swing atlas follows the accessory animation contract', () => {
   const result = spawnSync(process.execPath, ['test/axeAttackAssetCheck.mjs'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+});
+
+test('enemy and boss atlases follow the actor animation contract', () => {
+  const result = spawnSync(process.execPath, ['test/enemyBossAssetCheck.mjs'], {
     cwd: process.cwd(),
     encoding: 'utf8',
   });
