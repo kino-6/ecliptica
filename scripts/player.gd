@@ -184,7 +184,7 @@ func _strike_target(area: Area2D) -> void:
 	if hit_targets.has(target_id):
 		return
 	hit_targets[target_id] = true
-	_destroy_attack_target(area)
+	_damage_attack_target(area)
 
 func _update_focus(delta: float) -> void:
 	shoot_focus = minf(shoot_focus + FOCUS_REGEN_PER_SECOND * delta, FOCUS_MAX)
@@ -259,8 +259,16 @@ func _hit_projectile_target(projectile: Area2D, area: Area2D) -> void:
 		return
 	if not area.is_in_group("attack_targets") or area.get_meta("destroyed", false):
 		return
-	_destroy_attack_target(area)
+	_damage_attack_target(area)
 	projectile.queue_free()
+
+func _damage_attack_target(area: Area2D) -> void:
+	var hit_points := int(area.get_meta("hit_points", 1)) - 1
+	area.set_meta("hit_points", hit_points)
+	if hit_points > 0:
+		area.modulate = Color(1.25, 0.82, 0.82, 1.0)
+		return
+	_destroy_attack_target(area)
 
 func _destroy_attack_target(area: Area2D) -> void:
 	area.set_meta("destroyed", true)

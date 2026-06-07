@@ -4,12 +4,18 @@ const DEFAULT_STAGE_SEED := 1337
 const FLOOR_COLOR := Color(0.10, 0.10, 0.13, 0.92)
 const BRANCH_COLOR := Color(0.08, 0.09, 0.12, 0.94)
 const SIGIL_COLOR := Color(0.72, 0.08, 0.13, 0.92)
-const ENEMY_COLOR := Color(0.38, 0.04, 0.08, 0.9)
+const ENEMY_FRAME_SIZE := Vector2i(96, 96)
+const BOSS_FRAME_SIZE := Vector2i(192, 160)
+const ACTOR_FRAME_COUNT := 8
+const BOSS_HIT_POINTS := 4
+const ENEMY_TEXTURE := preload("res://assets/enemy-idle-sheet-8.png")
+const BOSS_TEXTURE := preload("res://assets/boss-idle-sheet-8.png")
 const ENEMY_LIBRARY := [
 	Vector2(690, 410),
 	Vector2(1660, 390),
 	Vector2(2280, 400),
 ]
+const BOSS_POSITION := Vector2(2190, 394)
 const ROOM_LIBRARY := [
 	{
 		"name": "entrance",
@@ -74,6 +80,7 @@ func generate_stage(game: Node2D) -> Dictionary:
 	var platform_count := 0
 	var sigil_count := 0
 	var enemy_count := 0
+	var boss_count := 0
 	for index in range(ROOM_LIBRARY.size()):
 		var room: Dictionary = ROOM_LIBRARY[index]
 		var jitter: Vector2 = _room_jitter(rng, index)
@@ -92,6 +99,9 @@ func generate_stage(game: Node2D) -> Dictionary:
 	for enemy_position in ENEMY_LIBRARY:
 		_create_enemy(enemies, enemy_count + 1, enemy_position)
 		enemy_count += 1
+	_create_boss(enemies, BOSS_POSITION)
+	enemy_count += 1
+	boss_count += 1
 
 	var entrance: Dictionary = ROOM_LIBRARY[0]
 	var entrance_center: Vector2 = entrance["center"]
@@ -110,6 +120,7 @@ func generate_stage(game: Node2D) -> Dictionary:
 		"platform_count": platform_count,
 		"sigil_count": sigil_count,
 		"enemy_count": enemy_count,
+		"boss_count": boss_count,
 		"goal_position": goal.global_position,
 		"theme": "cathedral_forest",
 	}
@@ -174,20 +185,55 @@ func _create_enemy(parent: Node2D, index: int, position: Vector2) -> void:
 	enemy.position = position
 	enemy.add_to_group("enemies")
 	enemy.add_to_group("attack_targets")
+	enemy.set_meta("hit_points", 1)
+	enemy.set_meta("max_hit_points", 1)
 	parent.add_child(enemy)
 
-	var visual := ColorRect.new()
-	visual.name = "Visual"
-	visual.offset_left = -18.0
-	visual.offset_top = -28.0
-	visual.offset_right = 18.0
-	visual.offset_bottom = 28.0
-	visual.color = ENEMY_COLOR
-	enemy.add_child(visual)
+	var sprite := _create_actor_sprite("EnemySprite", ENEMY_TEXTURE, ENEMY_FRAME_SIZE, 8.0)
+	sprite.position = Vector2(0, -8)
+	enemy.add_child(sprite)
 
 	var shape := RectangleShape2D.new()
-	shape.size = Vector2(36, 56)
+	shape.size = Vector2(42, 58)
 	var collision := CollisionShape2D.new()
 	collision.name = "CollisionShape2D"
 	collision.shape = shape
 	enemy.add_child(collision)
+
+func _create_boss(parent: Node2D, position: Vector2) -> void:
+	var boss := Area2D.new()
+	boss.name = "GeneratedBoss"
+	boss.position = position
+	boss.add_to_group("enemies")
+	boss.add_to_group("bosses")
+	boss.add_to_group("attack_targets")
+	boss.set_meta("hit_points", BOSS_HIT_POINTS)
+	boss.set_meta("max_hit_points", BOSS_HIT_POINTS)
+	parent.add_child(boss)
+
+	var sprite := _create_actor_sprite("BossSprite", BOSS_TEXTURE, BOSS_FRAME_SIZE, 5.5)
+	sprite.position = Vector2(0, -22)
+	boss.add_child(sprite)
+
+	var shape := RectangleShape2D.new()
+	shape.size = Vector2(92, 116)
+	var collision := CollisionShape2D.new()
+	collision.name = "CollisionShape2D"
+	collision.shape = shape
+	boss.add_child(collision)
+
+func _create_actor_sprite(sprite_name: StringName, texture: Texture2D, frame_size: Vector2i, speed: float) -> AnimatedSprite2D:
+	var sprite := AnimatedSprite2D.new()
+	sprite.name = sprite_name
+	var frames := SpriteFrames.new()
+	frames.add_animation("idle")
+	frames.set_animation_loop("idle", true)
+	frames.set_animation_speed("idle", speed)
+	for frame in range(ACTOR_FRAME_COUNT):
+		var atlas := AtlasTexture.new()
+		atlas.atlas = texture
+		atlas.region = Rect2(frame * frame_size.x, 0, frame_size.x, frame_size.y)
+		frames.add_frame("idle", atlas)
+	sprite.sprite_frames = frames
+	sprite.play("idle")
+	return sprite
