@@ -20,6 +20,7 @@ func run_e2e() -> void:
 
 	var player: CharacterBody2D = scene.get_node("Player")
 	var player_sprite: AnimatedSprite2D = scene.get_node("Player/PlayerSprite")
+	var axe_sprite: AnimatedSprite2D = scene.get_node("Player/AxeSprite")
 	var game: Node = scene
 	if not _expect(root.size == Vector2i(1920, 1080), "runtime root viewport should be 1920x1080"):
 		return
@@ -40,9 +41,16 @@ func run_e2e() -> void:
 		return
 	if not _expect(scene.get_node_or_null("CanvasLayer/HUDPanel/SigilPips") != null, "sigils should render as pips"):
 		return
+	var run_info_label := scene.get_node_or_null("CanvasLayer/RunInfoLabel") as Label
+	if not _expect(run_info_label != null, "run info should render in the upper-right HUD"):
+		return
+	if not _expect(run_info_label.text.contains("GAME REV 0.1.0-dev") and run_info_label.text.contains("SEED 1337"), "run info should show game revision and deterministic seed"):
+		return
 	if not _expect(scene.get_node_or_null("Player/PlayerSprite") != null, "player sprite should exist"):
 		return
-	if not _expect(scene.get_node_or_null("Player/AttackArc") != null, "attack arc should exist"):
+	if not _expect(scene.get_node_or_null("Player/AxeSprite") != null, "dedicated player axe sprite should exist"):
+		return
+	if not _expect(scene.get_node_or_null("Player/AttackArc") == null, "attack should not use a separate drawn arc object"):
 		return
 	if not _expect(scene.get_node_or_null("Player/AttackHitbox") != null, "attack hitbox should exist"):
 		return
@@ -56,7 +64,9 @@ func run_e2e() -> void:
 		return
 	if not _expect(game.generated_stage_summary["seed"] == 1337, "stage seed should be deterministic"):
 		return
-	if not _expect(game.generated_stage_summary.get("layout_style", "") == "castle_keep", "stage should use a castle keep layout"):
+	if not _expect(game.generated_stage_summary.get("layout_style", "") == "sanctuary_rogue_wing", "stage should use a sanctuary rogue wing layout"):
+		return
+	if not _expect(game.generated_stage_summary.get("room_count", 0) >= 7, "stage should generate architectural rooms"):
 		return
 	if not _expect(game.generated_stage_summary.get("vertical_room_count", 0) == 3, "stage should include vertical castle rooms"):
 		return
@@ -66,13 +76,35 @@ func run_e2e() -> void:
 		return
 	if not _expect(game.generated_stage_summary.get("critical_path_room_count", 0) == 6, "stage should expose a six-room critical path"):
 		return
-	if not _expect(game.generated_stage_summary["platform_count"] >= 7, "stage should generate traversable platforms"):
+	if not _expect(game.generated_stage_summary.get("branch_room_count", 0) >= 2, "stage should include optional branch rooms"):
 		return
-	if not _expect(game.generated_stage_summary["sigil_count"] == 6, "stage should generate six sigils"):
+	if not _expect(game.generated_stage_summary.get("floating_platform_count", -1) == 0, "stage should not use floating platform rooms"):
+		return
+	if not _expect(game.generated_stage_summary.get("critical_path_reachable", false), "stage critical path should be reachable"):
+		return
+	if not _expect(game.generated_stage_summary.get("max_required_step_up", 9999.0) <= 96.0, "stage should not require jumps above player jump budget"):
+		return
+	if not _expect(game.generated_stage_summary.get("impossible_jump_count", -1) == 0, "stage generator should reject impossible vertical steps"):
+		return
+	if not _expect(game.generated_stage_summary.get("enemy_spawn_grounded", false), "standard enemies should spawn grounded"):
+		return
+	if not _expect(game.generated_stage_summary.get("enemy_spawn_overlap_count", -1) == 0, "standard enemies should not overlap floor collision"):
+		return
+	if not _expect(game.generated_stage_summary.get("enemy_spawn_out_of_floor_count", -1) == 0, "standard enemies should spawn inside floor segments"):
+		return
+	if not _expect(game.generated_stage_summary.get("boss_spawn_grounded", false), "boss should spawn grounded"):
+		return
+	if not _expect(game.generated_stage_summary["platform_count"] == game.generated_stage_summary["room_count"], "legacy platform count should mirror generated rooms"):
+		return
+	if not _expect(game.generated_stage_summary["sigil_count"] == 7, "stage should generate seven sigils"):
 		return
 	if not _expect(scene.get_node("Platforms").get_child_count() == game.generated_stage_summary["platform_count"], "platform container should match generated summary"):
 		return
-	if not _expect(scene.get_node("Platforms").get_child(0).get_node_or_null("VisualTiles") != null, "platforms should use gothic stone tile sprites"):
+	if not _expect(scene.get_node("Platforms").get_child(0).get_node_or_null("VisualTiles") != null, "room floors should use gothic stone tile sprites"):
+		return
+	if not _expect(scene.get_node("Platforms").get_child(0).get_node_or_null("BackWall") != null, "rooms should include gothic back wall shells"):
+		return
+	if not _expect(scene.get_node("Platforms").get_child(0).get_node_or_null("Connectors") != null, "rooms should expose connector markers"):
 		return
 	var first_tile := scene.get_node("Platforms").get_child(0).get_node("VisualTiles").get_child(0) as Sprite2D
 	if not _expect(first_tile != null and first_tile.texture != null, "platform tile sprites should carry the gothic stone texture"):
@@ -94,6 +126,8 @@ func run_e2e() -> void:
 		return
 	if not _expect(player_sprite.animation == "walk", "walk animation should become active"):
 		return
+	if not _expect(axe_sprite.animation == "walk", "axe accessory should follow the walk animation"):
+		return
 
 	player.global_position = Vector2(1300.0, player.global_position.y)
 	game._update_camera()
@@ -107,16 +141,20 @@ func run_e2e() -> void:
 	dummy.set_meta("destroyed", false)
 	dummy.global_position = player.global_position + Vector2(76.0, -42.0)
 	player.attack()
-	await process_frame
-	await process_frame
+	await physics_frame
+	await physics_frame
 	if not _expect(String(player_sprite.animation).begins_with("attack"), "attack should use the player body axe animation instead of drawing a second axe arc"):
 		return
-	if not _expect(not scene.get_node("Player/AttackArc").visible, "attack arc should stay hidden so the axe is not rendered twice"):
+	if not _expect(String(axe_sprite.animation).begins_with("attack"), "attack should use the dedicated image-based axe animation"):
 		return
+	var heavy_scale_seen := axe_sprite.scale.distance_to(player.AXE_ATTACK_SCALE) <= 0.01
 	var hitbox_enabled := false
-	for frame in 16:
-		await process_frame
+	for frame in 32:
+		await physics_frame
+		heavy_scale_seen = heavy_scale_seen or axe_sprite.scale.distance_to(player.AXE_ATTACK_SCALE) <= 0.01
 		hitbox_enabled = hitbox_enabled or scene.get_node("Player/AttackHitbox").monitoring
+	if not _expect(heavy_scale_seen, "attack should enlarge the image-based axe layer to match the heavy hitbox"):
+		return
 	if not _expect(hitbox_enabled, "attack hitbox should enable during active frames"):
 		return
 	if not _expect(dummy.get_meta("destroyed", false), "attack should destroy training dummy"):
@@ -126,15 +164,19 @@ func run_e2e() -> void:
 	player.combo_reset_timer = 0.0
 	player.current_attack_step = 0
 	var combo_animations: Array[String] = []
+	var combo_axe_animations: Array[String] = []
 	for step in range(3):
 		player.attack()
 		await process_frame
 		combo_animations.append(String(player_sprite.animation))
+		combo_axe_animations.append(String(axe_sprite.animation))
 		player.attack_timer = 0.0
 		player.attack_hitbox.monitoring = false
-		scene.get_node("Player/AttackArc").visible = false
 	var combo_ok := combo_animations.size() == 3 and combo_animations[0] == "attack1" and combo_animations[1] == "attack2" and combo_animations[2] == "attack3"
 	if not _expect(combo_ok, "combo should advance through three attack body animations: %s" % [combo_animations]):
+		return
+	var axe_combo_ok := combo_axe_animations.size() == 3 and combo_axe_animations[0] == "attack1" and combo_axe_animations[1] == "attack2" and combo_axe_animations[2] == "attack3"
+	if not _expect(axe_combo_ok, "combo should advance through three dedicated axe animations: %s" % [combo_axe_animations]):
 		return
 	player.attack_timer = 0.0
 	player.combo_reset_timer = 0.0
@@ -194,12 +236,15 @@ func run_e2e() -> void:
 	if not _expect(scene.get_node("Projectiles").get_child_count() > projectile_count_before, "shoot should spawn a projectile"):
 		return
 	var spawned_projectile := scene.get_node("Projectiles").get_child(scene.get_node("Projectiles").get_child_count() - 1)
-	if not _expect(spawned_projectile.get_node_or_null("Visual") is Sprite2D, "player shot should render as a sprite asset instead of a debug block"):
+	if not _expect(spawned_projectile.get_node_or_null("Visual") is AnimatedSprite2D, "player shot should render as an animated sprite asset instead of a debug block"):
 		return
-	if not _expect((spawned_projectile.get_node("Visual") as Sprite2D).texture != null, "player shot sprite should have a loaded gothic projectile texture"):
+	var shot_visual := spawned_projectile.get_node("Visual") as AnimatedSprite2D
+	if not _expect(shot_visual.sprite_frames != null and shot_visual.sprite_frames.has_animation("fly"), "player shot should use a dedicated animated gunshot VFX sheet"):
 		return
-	var shot_texture := (spawned_projectile.get_node("Visual") as Sprite2D).texture
-	if not _expect(shot_texture.get_width() >= 96 and shot_texture.get_height() >= 40, "player shot should use a readable smoke-and-flash sprite, not a tiny debug pellet"):
+	if not _expect(shot_visual.sprite_frames.get_frame_count("fly") == player.SHOT_VFX_FRAME_COUNT, "player shot should expose all smoke-and-flash VFX frames"):
+		return
+	var shot_texture := (shot_visual.sprite_frames.get_frame_texture("fly", 0) as AtlasTexture).atlas
+	if not _expect(shot_texture.get_width() >= 960 and shot_texture.get_height() >= 72, "player shot should use a readable animated smoke-and-flash sheet, not a tiny debug pellet"):
 		return
 	for frame in 30:
 		await process_frame

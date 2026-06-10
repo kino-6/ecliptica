@@ -12,7 +12,7 @@ size = Vector2(34, 46)
 size = Vector2(60, 96)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_attack"]
-size = Vector2(96, 72)
+size = Vector2(126, 88)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_dummy"]
 size = Vector2(34, 54)
@@ -49,13 +49,13 @@ shape = SubResource("RectangleShape2D_player")
 position = Vector2(-2, -68)
 scale = Vector2(0.3, 0.3)
 
-[node name="AttackArc" type="AnimatedSprite2D" parent="Player"]
-position = Vector2(62, -36)
-scale = Vector2(0.72, 0.56)
-visible = false
+[node name="AxeSprite" type="AnimatedSprite2D" parent="Player"]
+z_index = 9
+position = Vector2(-2, -68)
+scale = Vector2(0.3, 0.3)
 
 [node name="AttackHitbox" type="Area2D" parent="Player"]
-position = Vector2(62, -36)
+position = Vector2(76, -48)
 monitoring = false
 monitorable = false
 
@@ -71,12 +71,9 @@ shape = SubResource("RectangleShape2D_attack")
 [node name="TrainingDummy" type="Area2D" parent="." groups=["attack_targets"]]
 position = Vector2(238, 430)
 
-[node name="Visual" type="ColorRect" parent="TrainingDummy"]
-offset_left = -17.0
-offset_top = -27.0
-offset_right = 17.0
-offset_bottom = 27.0
-color = Color(0.22, 0.07, 0.08, 0.86)
+[node name="Visual" type="Sprite2D" parent="TrainingDummy"]
+position = Vector2(0, -4)
+scale = Vector2(0.76, 0.76)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="TrainingDummy"]
 shape = SubResource("RectangleShape2D_dummy")
@@ -84,12 +81,8 @@ shape = SubResource("RectangleShape2D_dummy")
 [node name="Goal" type="Area2D" parent="."]
 position = Vector2(2460, 436)
 
-[node name="GateVisual" type="ColorRect" parent="Goal"]
-offset_left = -30.0
-offset_top = -48.0
-offset_right = 30.0
-offset_bottom = 48.0
-color = Color(0.08, 0.09, 0.13, 0.82)
+[node name="GateVisual" type="Sprite2D" parent="Goal"]
+scale = Vector2(0.74, 0.74)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Goal"]
 shape = SubResource("RectangleShape2D_goal")
@@ -147,5 +140,13 @@ offset_top = 84.0
 offset_right = 360.0
 offset_bottom = 104.0
 text = "SEALED"
+
+[node name="RunInfoLabel" type="Label" parent="CanvasLayer"]
+offset_left = 1480.0
+offset_top = 14.0
+offset_right = 1904.0
+offset_bottom = 58.0
+text = "GAME REV 0.1.0-dev\nSEED 1337"
+horizontal_alignment = 2
 
 [node name="E2ERunner" type="Node" parent="."]

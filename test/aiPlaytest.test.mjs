@@ -18,7 +18,24 @@ test('AI playtest mode evaluates five human-limited skill profiles', async () =>
   const summary = parseSummary(result.stdout);
 
   assert.equal(summary.mode, 'ai_headless_playtest');
+  assert.equal(summary.stage.game_rev, '0.1.0-dev');
+  assert.equal(summary.stage.display_seed, 1337);
+  assert.match(summary.stage.run_info_text, /GAME REV 0\.1\.0-dev/);
+  assert.match(summary.stage.run_info_text, /SEED 1337/);
   assert.equal(summary.stage.seed, 1337);
+  assert.equal(summary.stage.layout_style, 'sanctuary_rogue_wing');
+  assert.ok(summary.stage.room_count >= 7);
+  assert.ok(summary.stage.branch_room_count >= 2);
+  assert.equal(summary.stage.shortcut_count, 1);
+  assert.equal(summary.stage.floating_platform_count, 0);
+  assert.equal(summary.stage.critical_path_reachable, true);
+  assert.ok(summary.stage.max_required_step_up <= 96);
+  assert.equal(summary.stage.impossible_jump_count, 0);
+  assert.equal(summary.stage.enemy_spawn_grounded, true);
+  assert.equal(summary.stage.enemy_spawn_overlap_count, 0);
+  assert.equal(summary.stage.enemy_spawn_out_of_floor_count, 0);
+  assert.equal(summary.stage.boss_spawn_grounded, true);
+  assert.equal(summary.stage.platform_count, summary.stage.room_count);
   assert.equal(summary.stage.balance.pacing, 'first_stage_two_try');
   assert.equal(summary.parallel.strategy, 'auto_machine_fit');
   assert.equal(typeof summary.parallel.available_parallelism, 'number');

@@ -10,8 +10,8 @@ Ecliptica は、ローグライク要素を持つ悪魔城ドラキュラ風の 
 - シード付き `StageGenerator` による悪魔城風の 1 ステージ生成
 - 1920x1080 の既定ビューポート、起動時は全画面
 - 10 フレーム Idle、24 フレーム Walk の主人公スプライト
-- 18 フレームの 3 段斧攻撃本体アニメーション、8 フレームの斧スイング、前方攻撃判定、訓練用ターゲット破壊
-- 8 フレームの射撃本体アニメーション、時間回復する FOCUS を消費する銃撃、前方弾、遠距離の敵破壊
+- 24 フレームの 3 段斧攻撃本体アニメーション、画像ベースの重量斧レイヤー、前方攻撃判定、訓練用ターゲット破壊
+- 8 フレームの射撃本体アニメーション、6 フレーム画像ベース銃撃 VFX、時間回復する FOCUS 消費、遠距離の敵破壊
 - 専用スプライトの通常敵、巡回/突進 Enemy AI、複数ヒットで倒す Boss
 - クリア報酬、最大 HP 強化、次 seed/variant ステージへ進むローグライク run loop
 - 初回ステージは「中級以上のアクションゲーム経験者が 2 回前後のトライでクリア」想定のバランス指標つき
@@ -40,17 +40,21 @@ python3 -m venv .venv
 
 ## 起動
 
-```bash
-godot --path .
-```
-
-別シーンを指定して検証したい場合:
+標準起動は次の 1 つに統一しています。
 
 ```bash
-godot --path . --scene res://scenes/main.tscn
+npm run start
 ```
 
-ゲーム内部の論理ビューポートは既定で 1920x1080 です。起動時は全画面になり、カメラは悪魔城寄りの近い構図で、キャラクターや敵のディテールを読める倍率に寄せています。HUD の HP と FOCUS はバー、シジルはピップで表示します。
+内部では `tools/runGodotGame.mjs` が `GODOT_BIN`、`godot`、`godot4`、macOS の Godot.app を順に探し、見つかった Godot 4.6.x で `--path .` を実行します。以後、手元確認の通知でもこのコマンドを標準として扱います。
+
+Godot の場所を明示したい場合:
+
+```bash
+GODOT_BIN=/Applications/Godot.app/Contents/MacOS/Godot npm run start
+```
+
+ゲーム内部の論理ビューポートは既定で 1920x1080 です。起動時は全画面になり、カメラは悪魔城寄りの近い構図で、キャラクターや敵のディテールを読める倍率に寄せています。HUD の HP と FOCUS はバー、シジルはピップで表示します。画面右上には `GAME REV` と `SEED` を表示し、スクリーンショットや Headless 検証結果から同じステージを再現しやすくしています。
 
 ## 操作
 
@@ -61,15 +65,15 @@ godot --path . --scene res://scenes/main.tscn
 - リトライ: Game Over 後に `R` または `Enter`
 - 次ステージ: クリア後に `N` または `Enter`
 
-赤いシジルをすべて集めるとゲートが開きます。ステージ上の敵と訓練用ターゲットは斧攻撃や銃撃で壊せます。通常敵は巡回し、プレイヤーが近づくと短く突進します。Boss は複数回攻撃すると倒せます。銃撃は FOCUS を 1 消費し、FOCUS は時間経過で最大 3 まで回復します。敵に触れると HP が減り、開始位置へ戻されます。
+赤いシジルをすべて集めるとゲートが開きます。ステージ上の敵と訓練用ターゲットは斧攻撃や銃撃で壊せます。通常敵は巡回し、プレイヤーが近づくと短く突進します。Boss は複数回攻撃すると倒せます。銃撃は FOCUS を 1 消費し、FOCUS は時間経過で最大 3 まで回復します。敵に触れると HP が減り、短い無敵時間とノックバックが入ります。
 
 ステージをクリアすると `blood_vial` などの run 報酬を獲得します。現在の最小実装では報酬は deterministic に選ばれ、`blood_vial` は最大 HP を 1 増やします。クリア後に次ステージへ進むと stage index、seed、variant が変わり、2 ステージ目は `moonlit_cloister` になります。
 
 ## 生成ステージ
 
-`scripts/stage_generator.gd` が `DEFAULT_STAGE_SEED := 1337` から 1 ステージ分の城内区画、6 個のシジル、3 体の通常敵、1 体の Boss、ゴール位置を生成します。`scenes/main.tscn` には固定配置の足場や収集物を置かず、`Platforms`、`Collectibles`、`Enemies` の空コンテナへ実行時に生成します。
+`scripts/stage_generator.gd` が `DEFAULT_STAGE_SEED := 1337` から 1 ステージ分の城内区画、7 個のシジル、3 体の通常敵、1 体の Boss、ゴール位置を生成します。`scenes/main.tscn` には固定配置の足場や収集物を置かず、`Platforms`、`Collectibles`、`Enemies` の空コンテナへ実行時に生成します。
 
-現在のレイアウトは `castle_keep` です。外門、入口階段、下層回廊、礼拝堂バルコニー、書庫踊り場、地下墓所、鐘塔ショートカット、回復ギャラリー、Boss 前室、封印門ホールをつなぎ、横一直線の足場ではなく、縦移動、寄り道、門前への収束が読める構成にしています。
+現在のレイアウトは `sanctuary_rogue_wing` です。入口聖域、門番ホール、下層回廊、礼拝堂枝道、納骨堂、地下下降、鐘塔ショートカット、Boss 前室、封印された nave を部屋グラフとしてつなぎます。横長の謎足場ではなく、各 room shell が床、壁、背面、扉/ショートカットの connector を持ちます。
 
 ## 初回ステージのバランス目安
 
@@ -106,12 +110,19 @@ godot --path . --scene res://scenes/main.tscn
 - 基準位置: 人物中心 `x=96`、足元 baseline `y=344`
 - Idle: `assets/player-idle-sheet-10.png`、10 frames
 - Walk: `assets/player-walk-sheet-24.png`、24 frames
-- Axe attack body: `assets/player-attack-combo-sheet-18.png`、3 steps x 6 frames
+- Axe attack body: `assets/player-attack-combo-sheet-24.png`、3 steps x 8 frames
 - Shoot body: `assets/player-shoot-sheet-8.png`、8 frames
-- Axe swing: `assets/axe-swing-sheet-8.png`、8 frames、`128x128`
-- Enemy: `assets/enemy-idle-sheet-8.png`、`assets/enemy-walk-sheet-12.png`、`assets/enemy-attack-sheet-8.png`、`96x96`
-- Godot 表示: `PlayerSprite` の単一 `AnimatedSprite2D` で `idle` / `walk` / `attack1` / `attack2` / `attack3` / `shoot` を切り替える
-- 攻撃表示: `AttackArc` の別 `AnimatedSprite2D` で斧スイングを重ねる
+- Shot VFX: `assets/player-shot-sheet-6.png`、6 frames x `160x72`
+- Axe source: `assets/source/player-axe-source-key.png` から `tools/generatePlayerAxeSheets.py` で透明化、縮小、回転合成する
+- Axe accessory: `assets/player-axe-idle-sheet-10.png`、`assets/player-axe-walk-sheet-24.png`、`assets/player-axe-attack-combo-sheet-24.png`、`assets/player-axe-shoot-sheet-8.png`
+- Enemy: `assets/enemy-idle-sheet-8.png`、`assets/enemy-walk-sheet-12.png`、`assets/enemy-attack-sheet-8.png`、`192x384`
+- Boss: `assets/boss-idle-sheet-8.png`、`256x384`
+- Stage relics: `assets/sigil-relic.png`、`assets/gate-sealed.png`、`assets/gate-open.png`、`assets/training-reliquary.png`
+- Godot 表示: `PlayerSprite` と `AxeSprite` の 2 つの `AnimatedSprite2D` を同期し、`idle` / `walk` / `attack1` / `attack2` / `attack3` / `shoot` を切り替える
+- 攻撃表示: 斧本体は `AxeSprite` の画像ベースアクセサリだけで描画する。攻撃時は専用 8 フレームシートで構え、溜め、急加速、接触、振り抜きを表現し、`AttackArc` のような別描画オブジェクトは使わない。
+- 斧攻撃設計: `docs/axe-attack-redesign.md`
+- 銃撃表示: 弾は `AnimatedSprite2D` の `fly` アニメーションで描画し、銃口閃光、煙、火花、残光を 6 フレームで表現する。見える銃撃に `ColorRect` や矩形バーは使わない。
+- 銃撃設計: `docs/gunshot-redesign.md`
 
 ## 開発ロードマップ
 
@@ -163,7 +174,7 @@ npm run verify:llm
 LLM_VERIFY_JSON {"mode":"llm_headless_verify","status":"pass",...}
 ```
 
-JSON にはプロジェクト名、ビューポート、生成ステージの seed、足場数、シジル数、敵数、バランス指標、カメラ追従、プレイヤー移動量、HP、被弾リスポーン、攻撃表示、攻撃判定、銃撃、FOCUS 消費/回復、敵/訓練用ターゲット破壊、ゲート開放、勝利状態、失敗理由の配列が含まれます。失敗時も `failures` に理由を入れて出力するため、LLM が次の修正対象を読み取りやすくなります。
+JSON にはプロジェクト名、ビューポート、画面右上に出す game revision と display seed、生成ステージの seed、足場数、シジル数、敵数、バランス指標、カメラ追従、プレイヤー移動量、HP、被弾リスポーン、攻撃表示、攻撃判定、銃撃 VFX のアニメーション契約、FOCUS 消費/回復、敵/訓練用ターゲット破壊、ゲート開放、勝利状態、失敗理由の配列が含まれます。失敗時も `failures` に理由を入れて出力するため、LLM が次の修正対象を読み取りやすくなります。
 
 ## Headless AI プレイテスト
 

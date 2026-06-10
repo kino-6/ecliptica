@@ -38,6 +38,7 @@ func run_verify() -> void:
 		return
 
 	_record_stage(scene, game, summary, failures)
+	_verify_visual_quality(scene, summary, failures)
 	await _verify_enemy_behavior(scene, summary, failures)
 	await _verify_player_movement(scene, player, summary, failures)
 	await _verify_attack(scene, player, summary, failures)
@@ -64,6 +65,7 @@ func _base_summary() -> Dictionary:
 		"gameplay": {},
 		"roguelike": {},
 		"retry": {},
+		"visuals": {},
 		"failures": [],
 	}
 
@@ -91,8 +93,15 @@ func _record_stage(scene: Node, game: Node, summary: Dictionary, failures: Array
 	var sigil_count: int = get_nodes_in_group("sigils").size()
 	var enemy_count: int = get_nodes_in_group("enemies").size()
 	var platform_count: int = platforms.get_child_count()
+	var run_info_label := scene.get_node_or_null("CanvasLayer/RunInfoLabel") as Label
+	var game_rev := String(game.call("game_revision")) if game.has_method("game_revision") else ""
+	var display_seed := int(game.call("current_display_seed")) if game.has_method("current_display_seed") else 0
+	var run_info_text := run_info_label.text if run_info_label != null else ""
 
 	summary["stage"] = {
+		"game_rev": game_rev,
+		"display_seed": display_seed,
+		"run_info_text": run_info_text,
 		"seed": stage_summary.get("seed", null),
 		"theme": stage_summary.get("theme", ""),
 		"run_seed": int(stage_summary.get("run_seed", 0)),
@@ -100,10 +109,21 @@ func _record_stage(scene: Node, game: Node, summary: Dictionary, failures: Array
 		"stage_variant": stage_summary.get("stage_variant", ""),
 		"elite_enemy_count": int(stage_summary.get("elite_enemy_count", 0)),
 		"layout_style": stage_summary.get("layout_style", ""),
+		"room_count": int(stage_summary.get("room_count", 0)),
 		"vertical_room_count": int(stage_summary.get("vertical_room_count", 0)),
 		"shortcut_count": int(stage_summary.get("shortcut_count", 0)),
 		"locked_gate_count": int(stage_summary.get("locked_gate_count", 0)),
 		"critical_path_room_count": int(stage_summary.get("critical_path_room_count", 0)),
+		"branch_room_count": int(stage_summary.get("branch_room_count", 0)),
+		"sanctuary_count": int(stage_summary.get("sanctuary_count", 0)),
+		"floating_platform_count": int(stage_summary.get("floating_platform_count", -1)),
+		"critical_path_reachable": bool(stage_summary.get("critical_path_reachable", false)),
+		"max_required_step_up": float(stage_summary.get("max_required_step_up", 9999.0)),
+		"impossible_jump_count": int(stage_summary.get("impossible_jump_count", -1)),
+		"enemy_spawn_grounded": bool(stage_summary.get("enemy_spawn_grounded", false)),
+		"enemy_spawn_overlap_count": int(stage_summary.get("enemy_spawn_overlap_count", -1)),
+		"enemy_spawn_out_of_floor_count": int(stage_summary.get("enemy_spawn_out_of_floor_count", -1)),
+		"boss_spawn_grounded": bool(stage_summary.get("boss_spawn_grounded", false)),
 		"platform_count": platform_count,
 		"sigil_count": sigil_count,
 		"enemy_count": enemy_count,
@@ -112,19 +132,94 @@ func _record_stage(scene: Node, game: Node, summary: Dictionary, failures: Array
 		"summary_enemy_count": stage_summary.get("enemy_count", null),
 	}
 
+	_expect(game_rev == "0.1.0-dev", "stage report should expose the current game revision", failures)
+	_expect(display_seed == 1337, "stage report should expose the display seed", failures)
+	_expect(run_info_text.contains("GAME REV 0.1.0-dev") and run_info_text.contains("SEED 1337"), "upper-right HUD should show game revision and seed", failures)
 	_expect(stage_summary.get("seed", null) == 1337, "stage seed should be deterministic", failures)
-	_expect(stage_summary.get("layout_style", "") == "castle_keep", "stage should use a castle keep layout rather than a linear platform chain", failures)
+	_expect(stage_summary.get("layout_style", "") == "sanctuary_rogue_wing", "stage should use a Salt-like sanctuary rogue wing layout", failures)
+	_expect(int(stage_summary.get("room_count", 0)) >= 7, "stage should generate at least seven architectural rooms", failures)
 	_expect(int(stage_summary.get("vertical_room_count", 0)) == 3, "stage should include three vertical castle rooms", failures)
 	_expect(int(stage_summary.get("shortcut_count", 0)) == 1, "stage should include one readable shortcut branch", failures)
 	_expect(int(stage_summary.get("locked_gate_count", 0)) == 1, "stage should end at one locked gate hall", failures)
 	_expect(int(stage_summary.get("critical_path_room_count", 0)) == 6, "stage should expose a six-room critical path", failures)
-	_expect(platform_count >= 7, "stage should generate traversable platforms", failures)
-	_expect(sigil_count == 6, "stage should generate six sigils", failures)
+	_expect(int(stage_summary.get("branch_room_count", 0)) >= 2, "stage should include at least two optional branch rooms", failures)
+	_expect(int(stage_summary.get("sanctuary_count", 0)) >= 1, "stage should include a sanctuary room", failures)
+	_expect(int(stage_summary.get("floating_platform_count", -1)) == 0, "stage should not report floating platform rooms", failures)
+	_expect(bool(stage_summary.get("critical_path_reachable", false)), "stage should report a reachable critical path", failures)
+	_expect(float(stage_summary.get("max_required_step_up", 9999.0)) <= 96.0, "stage should not require jumps above the player jump budget", failures)
+	_expect(int(stage_summary.get("impossible_jump_count", -1)) == 0, "stage validation should reject impossible jump steps", failures)
+	_expect(bool(stage_summary.get("enemy_spawn_grounded", false)), "generated enemies should spawn grounded on room floors", failures)
+	_expect(int(stage_summary.get("enemy_spawn_overlap_count", -1)) == 0, "generated enemies should not spawn intersecting floors", failures)
+	_expect(int(stage_summary.get("enemy_spawn_out_of_floor_count", -1)) == 0, "generated enemies should spawn within floor segments", failures)
+	_expect(bool(stage_summary.get("boss_spawn_grounded", false)), "generated boss should spawn grounded on the boss room floor", failures)
+	_expect(platform_count == int(stage_summary.get("room_count", -1)), "room container should match generated room count", failures)
+	_expect(sigil_count == 7, "stage should generate seven sigils across the sanctuary wing", failures)
 	_expect(enemy_count >= 3, "stage should generate enemies", failures)
 	_expect(platform_count == stage_summary.get("platform_count", -1), "platform count should match generated summary", failures)
 	_expect(sigil_count == stage_summary.get("sigil_count", -1), "sigil count should match generated summary", failures)
 	_expect(enemy_count == stage_summary.get("enemy_count", -1), "enemy count should match generated summary", failures)
 	_record_balance(scene, stage_summary, summary, failures)
+
+func _verify_visual_quality(scene: Node, summary: Dictionary, failures: Array) -> void:
+	var first_platform := scene.get_node("Platforms").get_child(0)
+	var platform_flat_visual := first_platform.get_node_or_null("Visual") as ColorRect
+	var platform_tiles := first_platform.get_node_or_null("VisualTiles")
+	var room_back_wall := first_platform.get_node_or_null("BackWall") as ColorRect
+	var connectors := first_platform.get_node_or_null("Connectors")
+	var wall_visuals := first_platform.get_node_or_null("WallVisuals")
+	var blocking_wall_collision_count := _count_named_descendants(scene.get_node("Platforms"), "WallCollision")
+	var sigils := get_nodes_in_group("sigils")
+	var first_sigil_visual: Sprite2D = null
+	if not sigils.is_empty():
+		first_sigil_visual = (sigils[0] as Node).get_node_or_null("Visual") as Sprite2D
+	var gate_visual := scene.get_node_or_null("Goal/GateVisual") as Sprite2D
+	var dummy_visual := scene.get_node_or_null("TrainingDummy/Visual") as Sprite2D
+	var enemies := get_nodes_in_group("enemies")
+	var first_enemy: Area2D = null
+	if not enemies.is_empty():
+		first_enemy = enemies[0] as Area2D
+	var enemy_sprite: AnimatedSprite2D = null
+	if first_enemy != null:
+		enemy_sprite = first_enemy.get_node_or_null("EnemySprite") as AnimatedSprite2D
+	var boss_sprite := scene.get_node_or_null("Enemies/GeneratedBoss/BossSprite") as AnimatedSprite2D
+	var enemy_frame_texture: Texture2D = null
+	if enemy_sprite != null:
+		enemy_frame_texture = enemy_sprite.sprite_frames.get_frame_texture("idle", 0)
+	var boss_frame_texture: Texture2D = null
+	if boss_sprite != null:
+		boss_frame_texture = boss_sprite.sprite_frames.get_frame_texture("idle", 0)
+
+	var platform_rect_hidden := platform_flat_visual != null and not platform_flat_visual.visible
+	var sigil_uses_sprite := first_sigil_visual != null and first_sigil_visual.texture != null
+	var gate_uses_sprite := gate_visual != null and gate_visual.texture != null and gate_visual.texture.get_height() >= 150
+	var dummy_uses_sprite := dummy_visual != null and dummy_visual.texture != null and dummy_visual.texture.get_height() >= 90
+	var enemy_frame_large := enemy_frame_texture != null and enemy_frame_texture.get_height() == 384
+	var boss_frame_large := boss_frame_texture != null and boss_frame_texture.get_height() == 384
+
+	summary["visuals"] = {
+		"platform_flat_rect_hidden": platform_rect_hidden,
+		"platform_tiles_present": platform_tiles != null,
+		"room_back_wall_present": room_back_wall != null and room_back_wall.visible,
+		"room_connectors_present": connectors != null,
+		"wall_visuals_present": wall_visuals != null,
+		"blocking_wall_collision_count": blocking_wall_collision_count,
+		"sigil_uses_sprite": sigil_uses_sprite,
+		"gate_uses_sprite": gate_uses_sprite,
+		"training_dummy_uses_sprite": dummy_uses_sprite,
+		"enemy_frame_height": enemy_frame_texture.get_height() if enemy_frame_texture != null else 0,
+		"boss_frame_height": boss_frame_texture.get_height() if boss_frame_texture != null else 0,
+	}
+
+	_expect(platform_rect_hidden, "platform flat fallback rectangle should be hidden behind gothic tile sprites", failures)
+	_expect(platform_tiles != null, "room floors should expose gothic tile sprites", failures)
+	_expect(room_back_wall != null and room_back_wall.visible, "rooms should include a visible gothic back wall shell", failures)
+	_expect(connectors != null, "rooms should include connector markers for doors and shortcuts", failures)
+	_expect(blocking_wall_collision_count == 0, "decorative room wall markers should not create blocking player collisions", failures)
+	_expect(sigil_uses_sprite, "sigils should use gothic relic sprite assets instead of ColorRect blocks", failures)
+	_expect(gate_uses_sprite, "gate should use gothic gate sprite assets instead of a ColorRect block", failures)
+	_expect(dummy_uses_sprite, "training dummy should use a gothic reliquary sprite asset", failures)
+	_expect(enemy_frame_large, "enemy sprite should use the image-derived high-detail 192x384 frame contract", failures)
+	_expect(boss_frame_large, "boss sprite should use the image-derived high-detail 256x384 frame contract", failures)
 
 func _record_balance(scene: Node, stage_summary: Dictionary, summary: Dictionary, failures: Array) -> void:
 	var balance: Dictionary = stage_summary.get("balance", {})
@@ -207,25 +302,29 @@ func _verify_enemy_behavior(scene: Node, summary: Dictionary, failures: Array) -
 	var enemy: Area2D = enemies[0]
 	var sprite := enemy.get_node_or_null("EnemySprite") as AnimatedSprite2D
 	var start_x := enemy.global_position.x
+	var start_y := enemy.global_position.y
 	for frame in 45:
-		await process_frame
+		await physics_frame
 	var moved_by := absf(enemy.global_position.x - start_x)
+	var fell_by := enemy.global_position.y - start_y
 	var animation := "" if sprite == null else String(sprite.animation)
 	var has_ai_script := enemy.get_script() != null and enemy.has_method("configure_patrol")
 
 	summary["enemy"] = {
 		"has_ai_script": has_ai_script,
 		"patrol_moved_by": moved_by,
+		"patrol_fell_by": snappedf(fell_by, 0.01),
 		"animation_after_patrol": animation,
 	}
 
 	_expect(has_ai_script, "generated enemies should use the dedicated enemy AI script", failures)
 	_expect(moved_by >= 6.0, "generated enemies should patrol instead of standing still", failures)
+	_expect(fell_by <= 8.0, "generated enemies should not fall off disconnected room floors during patrol", failures)
 	_expect(animation == "walk" or animation == "attack", "generated enemies should play walk or attack animation", failures)
 
 func _verify_attack(scene: Node, player: CharacterBody2D, summary: Dictionary, failures: Array) -> void:
 	var dummy: Area2D = scene.get_node_or_null("TrainingDummy")
-	var attack_arc: AnimatedSprite2D = scene.get_node("Player/AttackArc")
+	var axe_sprite: AnimatedSprite2D = scene.get_node("Player/AxeSprite")
 	var attack_hitbox: Area2D = scene.get_node("Player/AttackHitbox")
 
 	if dummy == null:
@@ -234,22 +333,20 @@ func _verify_attack(scene: Node, player: CharacterBody2D, summary: Dictionary, f
 			"available": player.has_method("attack"),
 			"animation_seen": false,
 			"hitbox_enabled_during_attack": false,
-			"arc_hitbox_aligned_right": false,
-			"arc_hitbox_aligned_left": false,
+			"uses_legacy_attack_arc": scene.get_node_or_null("Player/AttackArc") != null,
 			"training_dummy_destroyed": false,
 		}
 		return
 
 	player.facing_left = false
 	player._sync_attack_geometry()
-	var arc_position_right := _vector_summary(attack_arc.position)
 	var hitbox_position_right := _vector_summary(attack_hitbox.position)
-	var arc_hitbox_aligned_right := attack_arc.position.distance_to(attack_hitbox.position) <= 0.5
+	var axe_position_right := _vector_summary(axe_sprite.position)
+	var hitbox_size_right := _shape_size_summary(attack_hitbox)
 	player.facing_left = true
 	player._sync_attack_geometry()
-	var arc_position_left := _vector_summary(attack_arc.position)
 	var hitbox_position_left := _vector_summary(attack_hitbox.position)
-	var arc_hitbox_aligned_left := attack_arc.position.distance_to(attack_hitbox.position) <= 0.5
+	var axe_position_left := _vector_summary(axe_sprite.position)
 	player.facing_left = false
 	player._sync_attack_geometry()
 
@@ -259,37 +356,46 @@ func _verify_attack(scene: Node, player: CharacterBody2D, summary: Dictionary, f
 	dummy.set_meta("destroyed", false)
 	dummy.global_position = player.global_position + Vector2(76.0, -42.0)
 
-	player.e2e_attack()
-	await process_frame
-	await process_frame
+	player.attack()
+	await physics_frame
+	await physics_frame
 
 	var animation_seen := String(player.get_node("PlayerSprite").animation).begins_with("attack")
+	var axe_animation_seen := String(axe_sprite.animation).begins_with("attack")
+	var axe_attack_scale := _vector_summary(axe_sprite.scale)
+	var heavy_scale_seen := axe_sprite.scale.distance_to(player.AXE_ATTACK_SCALE) <= 0.01
 	var hitbox_enabled := false
-	for frame in 16:
-		await process_frame
+	for frame in 32:
+		await physics_frame
 		animation_seen = animation_seen or String(player.get_node("PlayerSprite").animation).begins_with("attack")
+		axe_animation_seen = axe_animation_seen or String(axe_sprite.animation).begins_with("attack")
+		heavy_scale_seen = heavy_scale_seen or axe_sprite.scale.distance_to(player.AXE_ATTACK_SCALE) <= 0.01
 		hitbox_enabled = hitbox_enabled or attack_hitbox.monitoring
 
 	var destroyed := bool(dummy.get_meta("destroyed", false))
 	summary["attack"] = {
 		"available": player.has_method("attack"),
 		"animation_seen": animation_seen,
+		"axe_animation_seen": axe_animation_seen,
+		"axe_visible": axe_sprite.visible,
+		"axe_attack_scale": axe_attack_scale,
+		"heavy_scale_seen": heavy_scale_seen,
 		"hitbox_enabled_during_attack": hitbox_enabled,
-		"arc_hitbox_aligned_right": arc_hitbox_aligned_right,
-		"arc_hitbox_aligned_left": arc_hitbox_aligned_left,
-		"arc_position_right": arc_position_right,
+		"uses_legacy_attack_arc": scene.get_node_or_null("Player/AttackArc") != null,
+		"axe_position_right": axe_position_right,
 		"hitbox_position_right": hitbox_position_right,
-		"arc_position_left": arc_position_left,
+		"hitbox_size_right": hitbox_size_right,
+		"axe_position_left": axe_position_left,
 		"hitbox_position_left": hitbox_position_left,
-		"arc_scale": _vector_summary(attack_arc.scale),
 		"training_dummy_destroyed": destroyed,
 	}
 
 	_expect(player.has_method("attack"), "player should expose attack action", failures)
 	_expect(animation_seen, "attack should use the player body axe animation instead of drawing a second axe arc", failures)
+	_expect(axe_animation_seen, "attack should use the dedicated image-based axe animation", failures)
+	_expect(heavy_scale_seen, "attack should enlarge the image-based axe layer for a heavy swing", failures)
 	_expect(hitbox_enabled, "attack hitbox should enable during active attack frames", failures)
-	_expect(arc_hitbox_aligned_right, "right-facing attack arc should share the attack hitbox center", failures)
-	_expect(arc_hitbox_aligned_left, "left-facing attack arc should share the attack hitbox center", failures)
+	_expect(scene.get_node_or_null("Player/AttackArc") == null, "attack should not use a separate drawn arc object", failures)
 	_expect(destroyed, "attack should destroy training dummy", failures)
 
 func _verify_ranged_attack(scene: Node, player: CharacterBody2D, summary: Dictionary, failures: Array) -> void:
@@ -324,6 +430,18 @@ func _verify_ranged_attack(scene: Node, player: CharacterBody2D, summary: Dictio
 	var fired: bool = player.shoot()
 	var focus_after_shot: float = player.shoot_focus
 	var projectile_spawned := projectiles.get_child_count() > projectile_count_before
+	var projectile_visual_is_animated := false
+	var projectile_vfx_frame_count := 0
+	var projectile_vfx_sheet_size := Vector2i.ZERO
+	if projectile_spawned:
+		var spawned_projectile := projectiles.get_child(projectiles.get_child_count() - 1)
+		var shot_visual := spawned_projectile.get_node_or_null("Visual") as AnimatedSprite2D
+		projectile_visual_is_animated = shot_visual != null and shot_visual.sprite_frames != null and shot_visual.sprite_frames.has_animation("fly")
+		if projectile_visual_is_animated:
+			projectile_vfx_frame_count = shot_visual.sprite_frames.get_frame_count("fly")
+			var atlas := shot_visual.sprite_frames.get_frame_texture("fly", 0) as AtlasTexture
+			if atlas != null and atlas.atlas != null:
+				projectile_vfx_sheet_size = Vector2i(atlas.atlas.get_width(), atlas.atlas.get_height())
 	for frame in 30:
 		await process_frame
 
@@ -336,6 +454,9 @@ func _verify_ranged_attack(scene: Node, player: CharacterBody2D, summary: Dictio
 		"available": player.has_method("shoot"),
 		"fired": fired,
 		"projectile_spawned": projectile_spawned,
+		"projectile_visual_is_animated": projectile_visual_is_animated,
+		"projectile_vfx_frame_count": projectile_vfx_frame_count,
+		"projectile_vfx_sheet_size": _vector2i_summary(projectile_vfx_sheet_size),
 		"enemy_destroyed_by_shot": destroyed,
 		"focus_after_shot": focus_after_shot,
 		"focus_after_regen": focus_after_regen,
@@ -344,6 +465,8 @@ func _verify_ranged_attack(scene: Node, player: CharacterBody2D, summary: Dictio
 	_expect(player.has_method("shoot"), "player should expose ranged shoot action", failures)
 	_expect(fired, "shoot should fire when focus is available", failures)
 	_expect(projectile_spawned, "shoot should spawn a projectile", failures)
+	_expect(projectile_visual_is_animated, "shot should use an animated image-based gunshot VFX instead of a debug block", failures)
+	_expect(projectile_vfx_frame_count == player.SHOT_VFX_FRAME_COUNT, "shot VFX should expose all smoke-and-flash frames", failures)
 	_expect(destroyed, "shot should destroy an enemy at range", failures)
 	_expect(is_equal_approx(focus_after_shot, player.FOCUS_MAX - player.SHOT_COST), "shoot should consume focus", failures)
 	_expect(focus_after_regen > focus_after_shot, "focus should regenerate over time", failures)
@@ -371,10 +494,10 @@ func _verify_combat_and_damage(scene: Node, game: Node, player: CharacterBody2D,
 	enemy.set_physics_process(false)
 
 	player.attack()
-	await process_frame
-	await process_frame
-	for frame in 16:
-		await process_frame
+	await physics_frame
+	await physics_frame
+	for frame in 32:
+		await physics_frame
 
 	var enemy_destroyed := bool(enemy.get_meta("destroyed", false))
 	game.player_health = 3
@@ -504,6 +627,26 @@ func _vector_summary(vector: Vector2) -> Dictionary:
 		"x": snappedf(vector.x, 0.01),
 		"y": snappedf(vector.y, 0.01),
 	}
+
+func _vector2i_summary(vector: Vector2i) -> Dictionary:
+	return {
+		"x": vector.x,
+		"y": vector.y,
+	}
+
+func _count_named_descendants(root: Node, prefix: String) -> int:
+	var count := 0
+	for child in root.get_children():
+		if String(child.name).begins_with(prefix):
+			count += 1
+		count += _count_named_descendants(child, prefix)
+	return count
+
+func _shape_size_summary(area: Area2D) -> Dictionary:
+	var collision_shape := area.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if collision_shape == null or not collision_shape.shape is RectangleShape2D:
+		return {"x": 0.0, "y": 0.0}
+	return _vector_summary((collision_shape.shape as RectangleShape2D).size)
 
 func _finish(summary: Dictionary, failures: Array) -> void:
 	summary["status"] = "pass" if failures.is_empty() else "fail"

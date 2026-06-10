@@ -5,6 +5,8 @@ const ATTACK_STATE := "attack"
 const GRAVITY := 1600.0
 const MAX_FALL_SPEED := 780.0
 const FLOOR_SNAP_DISTANCE := 12.0
+const FLOOR_PROBE_UP := 28.0
+const FLOOR_PROBE_DOWN := 96.0
 const FOOT_OFFSET_Y := 29.0
 
 var patrol_origin := Vector2.ZERO
@@ -52,11 +54,19 @@ func _can_lunge_at(player: Node2D) -> bool:
 
 func _update_lunge(player: Node2D, delta: float) -> void:
 	direction = -1.0 if player.global_position.x < global_position.x else 1.0
-	global_position.x += direction * lunge_speed * delta
+	var proposed_x := global_position.x + direction * lunge_speed * delta
+	if _can_move_to_x(proposed_x):
+		global_position.x = proposed_x
+	else:
+		direction *= -1.0
 	_set_state(ATTACK_STATE)
 
 func _update_patrol(delta: float) -> void:
-	global_position.x += direction * patrol_speed * delta
+	var proposed_x := global_position.x + direction * patrol_speed * delta
+	if _can_move_to_x(proposed_x):
+		global_position.x = proposed_x
+	else:
+		direction *= -1.0
 	var offset_x := global_position.x - patrol_origin.x
 	if offset_x <= -patrol_radius:
 		direction = 1.0
@@ -69,8 +79,8 @@ func _apply_gravity(delta: float, previous_y: float) -> void:
 	global_position.y += vertical_velocity * delta
 	grounded = false
 
-	var ray_start := Vector2(global_position.x, previous_y + FOOT_OFFSET_Y)
-	var ray_end := Vector2(global_position.x, global_position.y + FOOT_OFFSET_Y + FLOOR_SNAP_DISTANCE)
+	var ray_start := Vector2(global_position.x, previous_y + FOOT_OFFSET_Y - FLOOR_PROBE_UP)
+	var ray_end := Vector2(global_position.x, global_position.y + FOOT_OFFSET_Y + FLOOR_SNAP_DISTANCE + FLOOR_PROBE_DOWN)
 	var query := PhysicsRayQueryParameters2D.create(ray_start, ray_end)
 	query.exclude = [get_rid()]
 	query.collide_with_areas = false
@@ -87,6 +97,21 @@ func _update_facing() -> void:
 	facing_left = direction < 0.0
 	if sprite != null:
 		sprite.flip_h = not facing_left
+
+func _can_move_to_x(proposed_x: float) -> bool:
+	if not grounded:
+		return true
+	return _has_floor_at(proposed_x + direction * 24.0)
+
+func _has_floor_at(world_x: float) -> bool:
+	var ray_start := Vector2(world_x, global_position.y + FOOT_OFFSET_Y - FLOOR_PROBE_UP)
+	var ray_end := Vector2(world_x, global_position.y + FOOT_OFFSET_Y + FLOOR_SNAP_DISTANCE + FLOOR_PROBE_DOWN)
+	var query := PhysicsRayQueryParameters2D.create(ray_start, ray_end)
+	query.exclude = [get_rid()]
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	var hit := get_world_2d().direct_space_state.intersect_ray(query)
+	return not hit.is_empty() and hit.get("collider") is StaticBody2D
 
 func _set_state(state: StringName) -> void:
 	set_meta("ai_state", state)

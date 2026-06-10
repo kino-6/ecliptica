@@ -5,10 +5,16 @@ import { inflateSync } from 'node:zlib';
 const FRAME_WIDTH = 192;
 const FRAME_HEIGHT = 384;
 const GUTTER = 8;
-const MAX_BAKED_AXE_PIXELS = 1100;
+const MAX_BAKED_AXE_PIXELS = 650;
+
+const actionGenerator = readFileSync('tools/generatePlayerActionSheets.py', 'utf8');
+const attackFrameGenerator = actionGenerator.match(/def make_attack_frame[\s\S]*?def make_shoot_frame/)?.[0] ?? '';
+assert.doesNotMatch(attackFrameGenerator, /draw_line\(/, 'player body attack generator should not draw a script-made axe or handle');
+assert.doesNotMatch(attackFrameGenerator, /draw_circle\(/, 'player body attack generator should not draw a script-made axe grip');
+assert.doesNotMatch(attackFrameGenerator, /draw_cloth_pull/, 'player body attack generator should not add rear strokes that read as an old axe handle');
 
 const contracts = [
-  { file: 'assets/player-attack-combo-sheet-18.png', frameCount: 18, minVisible: 12500, minFrameDiff: 900, heavyAttack: true },
+  { file: 'assets/player-attack-combo-sheet-24.png', frameCount: 24, minVisible: 12500, minFrameDiff: 900, heavyAttack: true },
   { file: 'assets/player-shoot-sheet-8.png', frameCount: 8, minVisible: 11800, minFrameDiff: 500 },
 ];
 
@@ -29,10 +35,10 @@ for (const contract of contracts) {
   assert.ok(frameDifference(png, 0, contract.frameCount - 1) > contract.minFrameDiff, `${contract.file} should visibly change pose across the animation`);
   if (contract.heavyAttack) {
     for (let combo = 0; combo < 3; combo += 1) {
-      const base = combo * 6;
-      assert.ok(centerOfMassX(png, base + 1) < centerOfMassX(png, base + 4), `${contract.file} combo ${combo + 1} should shift body weight into the hit`);
-      assert.ok(frameDifference(png, base + 1, base + 3) > frameDifference(png, base, base + 1) * 1.12, `${contract.file} combo ${combo + 1} should accelerate after anticipation`);
-      assert.ok(countBakedAxePixels(png, base + 3) < MAX_BAKED_AXE_PIXELS, `${contract.file} combo ${combo + 1} should keep the axe out of the body sheet`);
+      const base = combo * 8;
+      assert.ok(centerOfMassX(png, base + 2) < centerOfMassX(png, base + 6), `${contract.file} combo ${combo + 1} should shift body weight into the hit`);
+      assert.ok(frameDifference(png, base + 3, base + 5) > frameDifference(png, base, base + 1) * 1.12, `${contract.file} combo ${combo + 1} should accelerate after anticipation`);
+      assert.ok(countBakedAxePixels(png, base + 5) < MAX_BAKED_AXE_PIXELS, `${contract.file} combo ${combo + 1} should keep the axe out of the body sheet`);
     }
   }
 }

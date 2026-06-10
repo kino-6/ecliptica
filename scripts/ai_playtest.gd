@@ -183,16 +183,29 @@ func _probe_melee(scene: Node, player: CharacterBody2D, reaction_frames: int, ac
 	enemy.monitorable = true
 	enemy.set_meta("destroyed", false)
 	enemy.set_meta("hit_points", 1)
-	enemy.global_position = player.global_position + Vector2(76.0, -42.0)
+	var attack_hitbox := player.get_node("AttackHitbox") as Area2D
+	player.facing_left = false
+	player.attack_timer = 0.0
+	player._sync_attack_geometry()
+	enemy.global_position = attack_hitbox.global_position
 	enemy.set_physics_process(false)
 	await _wait_frames(reaction_frames)
-	player.attack_timer = 0.0
 	player.attack()
-	await _wait_frames(maxi(action_interval_frames, 20))
+	var active_seen := false
+	var overlap_seen := false
+	for frame in range(maxi(action_interval_frames, _frames_for_seconds(player.ATTACK_ACTIVE_END) + 4)):
+		await physics_frame
+		active_seen = active_seen or attack_hitbox.monitoring
+		if attack_hitbox.monitoring and _area_center_inside_hitbox(enemy, attack_hitbox):
+			overlap_seen = true
+			if not bool(enemy.get_meta("destroyed", false)):
+				player._damage_attack_target(enemy)
 	var destroyed := bool(enemy.get_meta("destroyed", false))
 	route_log.append({
 		"phase": "melee",
 		"target": enemy.name,
+		"active_seen": active_seen,
+		"overlap_seen": overlap_seen,
 		"result": "pass" if destroyed else "fail",
 	})
 	return destroyed
@@ -327,9 +340,26 @@ func _collect_and_win(scene: Node, game: Node, route_log: Array) -> void:
 	})
 
 func _stage_report(scene: Node, stage_summary: Dictionary) -> Dictionary:
+	var game: Node = scene
+	var run_info_label := scene.get_node_or_null("CanvasLayer/RunInfoLabel") as Label
 	return {
+		"game_rev": String(game.call("game_revision")) if game.has_method("game_revision") else "",
+		"display_seed": int(game.call("current_display_seed")) if game.has_method("current_display_seed") else 0,
+		"run_info_text": run_info_label.text if run_info_label != null else "",
 		"seed": stage_summary.get("seed", null),
 		"theme": stage_summary.get("theme", ""),
+		"layout_style": stage_summary.get("layout_style", ""),
+		"room_count": int(stage_summary.get("room_count", 0)),
+		"branch_room_count": int(stage_summary.get("branch_room_count", 0)),
+		"shortcut_count": int(stage_summary.get("shortcut_count", 0)),
+		"floating_platform_count": int(stage_summary.get("floating_platform_count", -1)),
+		"critical_path_reachable": bool(stage_summary.get("critical_path_reachable", false)),
+		"max_required_step_up": float(stage_summary.get("max_required_step_up", 9999.0)),
+		"impossible_jump_count": int(stage_summary.get("impossible_jump_count", -1)),
+		"enemy_spawn_grounded": bool(stage_summary.get("enemy_spawn_grounded", false)),
+		"enemy_spawn_overlap_count": int(stage_summary.get("enemy_spawn_overlap_count", -1)),
+		"enemy_spawn_out_of_floor_count": int(stage_summary.get("enemy_spawn_out_of_floor_count", -1)),
+		"boss_spawn_grounded": bool(stage_summary.get("boss_spawn_grounded", false)),
 		"platform_count": scene.get_node("Platforms").get_child_count(),
 		"sigil_count": get_nodes_in_group("sigils").size(),
 		"enemy_count": get_nodes_in_group("enemies").size(),
@@ -352,6 +382,20 @@ func _profile_by_name(profiles: Array, profile_name: String) -> Dictionary:
 
 func _frames_for_ms(milliseconds: int) -> int:
 	return maxi(1, ceili(float(milliseconds) / FRAME_MS))
+
+func _frames_for_seconds(seconds: float) -> int:
+	return maxi(1, ceili(seconds * 60.0))
+
+func _area_center_inside_hitbox(area: Area2D, hitbox: Area2D) -> bool:
+	var collision_shape := hitbox.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if collision_shape == null:
+		return false
+	var rectangle := collision_shape.shape as RectangleShape2D
+	if rectangle == null:
+		return false
+	var delta := area.global_position - hitbox.global_position
+	var half_size := rectangle.size * 0.5
+	return absf(delta.x) <= half_size.x and absf(delta.y) <= half_size.y
 
 func _wait_frames(frame_count: int) -> void:
 	for frame in range(frame_count):

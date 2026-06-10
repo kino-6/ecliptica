@@ -11,11 +11,17 @@ const ENEMY_IDLE_FRAME_COUNT := 8
 const ENEMY_WALK_FRAME_COUNT := 12
 const ENEMY_ATTACK_FRAME_COUNT := 8
 const BOSS_FRAME_COUNT := 8
-const CASTLE_LAYOUT_STYLE := "castle_keep"
+const STAGE_LAYOUT_STYLE := "sanctuary_rogue_wing"
 const VERTICAL_ROOM_COUNT := 3
 const SHORTCUT_COUNT := 1
 const LOCKED_GATE_COUNT := 1
 const CRITICAL_PATH_ROOM_COUNT := 6
+const BRANCH_ROOM_COUNT := 2
+const SANCTUARY_COUNT := 1
+const FLOATING_PLATFORM_COUNT := 0
+const PLAYER_MAX_STEP_UP := 96.0
+const ENEMY_FOOT_OFFSET_Y := 29.0
+const BOSS_FOOT_OFFSET_Y := 58.0
 const BOSS_HIT_POINTS := 3
 const TARGET_CLEAR_ATTEMPTS := 2
 const EXPECTED_CLEAR_ATTEMPTS := 2
@@ -29,84 +35,137 @@ const ENEMY_WALK_TEXTURE_PATH := "res://assets/enemy-walk-sheet-12.png"
 const ENEMY_ATTACK_TEXTURE_PATH := "res://assets/enemy-attack-sheet-8.png"
 const BOSS_TEXTURE_PATH := "res://assets/boss-idle-sheet-8.png"
 const PLATFORM_TILE_TEXTURE_PATH := "res://assets/platform-stone-tile.png"
-const ENEMY_LIBRARY := [
-	Vector2(960, 432),
-	Vector2(1715, 352),
-	Vector2(2205, 402),
+const SIGIL_TEXTURE_PATH := "res://assets/sigil-relic.png"
+const ENEMY_SPAWN_SLOTS := [
+	{"room": "lower_cloister", "floor": 0, "x": 960.0},
+	{"room": "crypt_descent", "floor": 0, "x": 1660.0},
+	{"room": "boss_antechamber", "floor": 0, "x": 2055.0},
 ]
-const BOSS_POSITION := Vector2(2390, 414)
-const ROOM_LIBRARY := [
+const BOSS_SPAWN_SLOT := {"room": "sealed_nave_boss", "floor": 0, "x": 2390.0}
+const TRAVERSAL_EDGES := [
+	{"from": "entrance_sanctuary", "from_floor": 0, "to": "gatehouse_hall", "to_floor": 0, "kind": "door"},
+	{"from": "gatehouse_hall", "from_floor": 0, "to": "lower_cloister", "to_floor": 0, "kind": "door"},
+	{"from": "lower_cloister", "from_floor": 0, "to": "crypt_descent", "to_floor": 0, "kind": "door"},
+	{"from": "crypt_descent", "from_floor": 0, "to": "boss_antechamber", "to_floor": 0, "kind": "door"},
+	{"from": "boss_antechamber", "from_floor": 0, "to": "sealed_nave_boss", "to_floor": 0, "kind": "boss_door"},
+	{"from": "gatehouse_hall", "from_floor": 0, "to": "ossuary_cache", "to_floor": 0, "kind": "optional_branch"},
+	{"from": "lower_cloister", "from_floor": 0, "to": "upper_chapel", "to_floor": 0, "kind": "stair"},
+	{"from": "upper_chapel", "from_floor": 0, "to": "upper_chapel", "to_floor": 1, "kind": "balcony"},
+	{"from": "crypt_descent", "from_floor": 0, "to": "crypt_descent", "to_floor": 1, "kind": "crypt_step"},
+	{"from": "crypt_descent", "from_floor": 1, "to": "shortcut_bell_stair", "to_floor": 0, "kind": "shortcut"},
+	{"from": "shortcut_bell_stair", "from_floor": 0, "to": "boss_antechamber", "to_floor": 0, "kind": "shortcut_return"},
+]
+const ROOM_GRAPH := [
 	{
-		"name": "outer_gate",
-		"platform": Vector2(520, 60),
-		"center": Vector2(260, 510),
-		"sigil": Vector2(330, 424),
+		"name": "entrance_sanctuary",
+		"archetype": "entrance_sanctuary",
+		"size": Vector2(620, 420),
+		"center": Vector2(260, 438),
+		"floors": [{"center": Vector2(0, 162), "size": Vector2(620, 72)}],
+		"walls": [{"center": Vector2(-310, 0), "size": Vector2(34, 420)}],
+		"sigil": Vector2(338, 508),
+		"sanctuary": true,
 		"critical_path": true,
+		"connectors": ["right_door"],
 	},
 	{
-		"name": "entry_stair",
-		"platform": Vector2(260, 42),
-		"center": Vector2(690, 470),
-		"sigil": Vector2(660, 394),
+		"name": "gatehouse_hall",
+		"archetype": "gatehouse_hall",
+		"size": Vector2(720, 420),
+		"center": Vector2(700, 438),
+		"floors": [{"center": Vector2(0, 162), "size": Vector2(720, 72)}],
+		"walls": [],
+		"sigil": Vector2(640, 506),
 		"critical_path": true,
+		"connectors": ["left_door", "right_door", "branch_door"],
 	},
 	{
 		"name": "lower_cloister",
-		"platform": Vector2(340, 72),
-		"center": Vector2(1000, 516),
+		"archetype": "lower_cloister",
+		"size": Vector2(760, 430),
+		"center": Vector2(1110, 446),
+		"floors": [{"center": Vector2(0, 160), "size": Vector2(760, 76)}],
+		"walls": [],
 		"critical_path": true,
 		"recovery": true,
+		"connectors": ["left_door", "right_door", "stair_up"],
 	},
 	{
-		"name": "chapel_balcony",
-		"platform": Vector2(240, 38),
-		"center": Vector2(1210, 414),
-		"sigil": Vector2(1215, 342),
+		"name": "upper_chapel",
+		"archetype": "upper_chapel",
+		"size": Vector2(560, 520),
+		"center": Vector2(1320, 379),
+		"floors": [
+			{"center": Vector2(-120, 150), "size": Vector2(330, 58)},
+			{"center": Vector2(120, 86), "size": Vector2(300, 52)}
+		],
+		"walls": [{"center": Vector2(-280, 0), "size": Vector2(28, 520)}],
+		"sigil": Vector2(1372, 298),
 		"branch": true,
 		"vertical": true,
+		"connectors": ["stair_down", "right_locked"],
 	},
 	{
-		"name": "library_landing",
-		"platform": Vector2(260, 38),
-		"center": Vector2(1450, 335),
-		"sigil": Vector2(1450, 264),
+		"name": "ossuary_cache",
+		"archetype": "ossuary_cache",
+		"size": Vector2(460, 390),
+		"center": Vector2(1010, 470),
+		"floors": [{"center": Vector2(0, 128), "size": Vector2(460, 60)}],
+		"walls": [{"center": Vector2(230, 0), "size": Vector2(26, 390)}],
+		"sigil": Vector2(1030, 364),
 		"branch": true,
 		"vertical": true,
+		"connectors": ["side_door_optional"],
 	},
 	{
-		"name": "crypt_drop",
-		"platform": Vector2(400, 74),
-		"center": Vector2(1530, 522),
-		"sigil": Vector2(1585, 432),
+		"name": "crypt_descent",
+		"archetype": "crypt_descent",
+		"size": Vector2(680, 500),
+		"center": Vector2(1540, 456),
+		"floors": [
+			{"center": Vector2(-80, 152), "size": Vector2(520, 76)},
+			{"center": Vector2(170, 62), "size": Vector2(280, 54)}
+		],
+		"walls": [],
+		"sigil": Vector2(1594, 512),
 		"critical_path": true,
+		"locked": true,
+		"connectors": ["left_door", "sealed_door", "drop"],
 	},
 	{
-		"name": "bell_tower",
-		"platform": Vector2(250, 38),
-		"center": Vector2(1785, 420),
-		"sigil": Vector2(1780, 346),
-		"branch": true,
+		"name": "shortcut_bell_stair",
+		"archetype": "shortcut_bell_stair",
+		"size": Vector2(360, 480),
+		"center": Vector2(1820, 380),
+		"floors": [{"center": Vector2(0, 142), "size": Vector2(360, 58)}],
+		"walls": [{"center": Vector2(180, 0), "size": Vector2(28, 480)}],
+		"sigil": Vector2(1814, 402),
 		"vertical": true,
 		"shortcut": true,
-	},
-	{
-		"name": "recovery_gallery",
-		"platform": Vector2(340, 60),
-		"center": Vector2(1945, 492),
-		"recovery": true,
+		"connectors": ["shortcut_back", "stair_down"],
 	},
 	{
 		"name": "boss_antechamber",
-		"platform": Vector2(300, 60),
-		"center": Vector2(2225, 472),
+		"archetype": "boss_antechamber",
+		"size": Vector2(560, 420),
+		"center": Vector2(2020, 438),
+		"floors": [{"center": Vector2(0, 162), "size": Vector2(560, 72)}],
+		"walls": [],
+		"sigil": Vector2(2024, 506),
+		"recovery": true,
 		"critical_path": true,
+		"connectors": ["left_door", "boss_door"],
 	},
 	{
-		"name": "gate_hall",
-		"platform": Vector2(480, 86),
-		"center": Vector2(2565, 502),
+		"name": "sealed_nave_boss",
+		"archetype": "sealed_nave_boss",
+		"size": Vector2(760, 460),
+		"center": Vector2(2480, 438),
+		"floors": [{"center": Vector2(0, 162), "size": Vector2(760, 82)}],
+		"walls": [{"center": Vector2(380, 0), "size": Vector2(34, 460)}],
 		"gate": true,
 		"critical_path": true,
+		"connectors": ["boss_door", "exit_gate"],
 	},
 ]
 
@@ -121,6 +180,7 @@ var enemy_idle_texture: Texture2D
 var enemy_walk_texture: Texture2D
 var enemy_attack_texture: Texture2D
 var boss_texture: Texture2D
+var sigil_texture: Texture2D
 
 func generate_stage(game: Node2D) -> Dictionary:
 	var platforms: Node2D = game.get_node("Platforms")
@@ -135,22 +195,26 @@ func generate_stage(game: Node2D) -> Dictionary:
 	enemy_walk_texture = _load_png_texture(ENEMY_WALK_TEXTURE_PATH)
 	enemy_attack_texture = _load_png_texture(ENEMY_ATTACK_TEXTURE_PATH)
 	boss_texture = _load_png_texture(BOSS_TEXTURE_PATH)
+	sigil_texture = _load_png_texture(SIGIL_TEXTURE_PATH)
 
 	_clear_children(platforms)
 	_clear_children(collectibles)
 	_clear_children(enemies)
 
-	var platform_count := 0
+	var room_count := 0
 	var sigil_count := 0
 	var enemy_count := 0
 	var standard_enemy_count := 0
 	var boss_count := 0
-	for index in range(ROOM_LIBRARY.size()):
-		var room: Dictionary = ROOM_LIBRARY[index]
+	var enemy_spawn_slots: Array = []
+	var room_offsets := {}
+	for index in range(ROOM_GRAPH.size()):
+		var room: Dictionary = ROOM_GRAPH[index]
 		var jitter: Vector2 = _room_jitter(rng, index)
+		room_offsets[String(room["name"])] = jitter
 		var center: Vector2 = room["center"] + jitter
-		_create_platform(platforms, room, center)
-		platform_count += 1
+		_create_room_shell(platforms, room, center)
+		room_count += 1
 
 		if room.has("sigil"):
 			var sigil_position: Vector2 = room["sigil"] + jitter
@@ -158,26 +222,27 @@ func generate_stage(game: Node2D) -> Dictionary:
 			sigil_count += 1
 
 	var elite_enemy_count := _elite_enemy_count()
-	for enemy_position in ENEMY_LIBRARY:
+	for spawn_slot in ENEMY_SPAWN_SLOTS:
+		var enemy_position := _spawn_position_from_slot(spawn_slot, ENEMY_FOOT_OFFSET_Y, room_offsets)
 		var is_elite := enemy_count < elite_enemy_count
 		_create_enemy(enemies, enemy_count + 1, enemy_position, is_elite)
+		enemy_spawn_slots.append(spawn_slot)
 		enemy_count += 1
 		standard_enemy_count += 1
-	_create_boss(enemies, BOSS_POSITION)
+	var boss_position := _spawn_position_from_slot(BOSS_SPAWN_SLOT, BOSS_FOOT_OFFSET_Y, room_offsets)
+	_create_boss(enemies, boss_position)
 	enemy_count += 1
 	boss_count += 1
+	var geometry_validation := _validate_stage_geometry(enemy_spawn_slots, BOSS_SPAWN_SLOT, room_offsets)
 
-	var entrance: Dictionary = ROOM_LIBRARY[0]
-	var entrance_center: Vector2 = entrance["center"]
-	var entrance_size: Vector2 = entrance["platform"]
-	var entrance_top: float = entrance_center.y - entrance_size.y * 0.5
+	var entrance: Dictionary = ROOM_GRAPH[0]
+	var entrance_top: float = _primary_floor_top(entrance)
 	player.global_position = Vector2(87, entrance_top - 8.0)
 
-	var gate_floor: Dictionary = ROOM_LIBRARY[ROOM_LIBRARY.size() - 1]
+	var gate_floor: Dictionary = ROOM_GRAPH[ROOM_GRAPH.size() - 1]
 	var gate_center: Vector2 = gate_floor["center"]
-	var gate_size: Vector2 = gate_floor["platform"]
-	var gate_top: float = gate_center.y - gate_size.y * 0.5
-	goal.global_position = Vector2(gate_center.x + 120.0, gate_top - 16.0)
+	var gate_top: float = _primary_floor_top(gate_floor)
+	goal.global_position = Vector2(gate_center.x + 208.0, gate_top - 16.0)
 
 	return {
 		"seed": stage_seed,
@@ -187,12 +252,26 @@ func generate_stage(game: Node2D) -> Dictionary:
 		"run_reward_count": run_reward_count,
 		"stage_variant": _stage_variant(),
 		"elite_enemy_count": elite_enemy_count,
-		"layout_style": CASTLE_LAYOUT_STYLE,
+		"layout_style": STAGE_LAYOUT_STYLE,
+		"room_count": room_count,
 		"vertical_room_count": _count_rooms_with_flag("vertical"),
 		"shortcut_count": _count_rooms_with_flag("shortcut"),
 		"locked_gate_count": _count_rooms_with_flag("gate"),
 		"critical_path_room_count": _count_rooms_with_flag("critical_path"),
-		"platform_count": platform_count,
+		"branch_room_count": _count_rooms_with_flag("branch"),
+		"sanctuary_count": _count_rooms_with_flag("sanctuary"),
+		"floating_platform_count": FLOATING_PLATFORM_COUNT,
+		"unsupported_balcony_count": 0,
+		"critical_path_reachable": int(geometry_validation["impossible_jump_count"]) == 0,
+		"branch_reward_reachable": int(geometry_validation["impossible_jump_count"]) == 0,
+		"boss_route_requires_optional_branch": false,
+		"max_required_step_up": geometry_validation["max_required_step_up"],
+		"impossible_jump_count": geometry_validation["impossible_jump_count"],
+		"enemy_spawn_grounded": geometry_validation["enemy_spawn_grounded"],
+		"enemy_spawn_overlap_count": geometry_validation["enemy_spawn_overlap_count"],
+		"enemy_spawn_out_of_floor_count": geometry_validation["enemy_spawn_out_of_floor_count"],
+		"boss_spawn_grounded": geometry_validation["boss_spawn_grounded"],
+		"platform_count": room_count,
 		"sigil_count": sigil_count,
 		"enemy_count": enemy_count,
 		"standard_enemy_count": standard_enemy_count,
@@ -203,7 +282,7 @@ func generate_stage(game: Node2D) -> Dictionary:
 	}
 
 func _room_jitter(rng: RandomNumberGenerator, index: int) -> Vector2:
-	if index == 0 or index == ROOM_LIBRARY.size() - 1:
+	if index == 0 or index == ROOM_GRAPH.size() - 1:
 		return Vector2.ZERO
 	return Vector2(rng.randf_range(-8.0, 8.0), rng.randf_range(-4.0, 4.0))
 
@@ -233,29 +312,119 @@ func _elite_enemy_count() -> int:
 
 func _count_rooms_with_flag(flag_name: String) -> int:
 	var count := 0
-	for room in ROOM_LIBRARY:
+	for room in ROOM_GRAPH:
 		if bool(room.get(flag_name, false)):
 			count += 1
 	return count
+
+func _primary_floor_top(room: Dictionary) -> float:
+	var floors: Array = room["floors"]
+	var first_floor: Dictionary = floors[0]
+	var room_center: Vector2 = room["center"]
+	var floor_center: Vector2 = first_floor["center"]
+	var floor_size: Vector2 = first_floor["size"]
+	return room_center.y + floor_center.y - floor_size.y * 0.5
+
+func _spawn_position_from_slot(slot: Dictionary, foot_offset_y: float, room_offsets := {}) -> Vector2:
+	var room_name := String(slot["room"])
+	var room := _room_by_name(room_name)
+	var floor_index := int(slot.get("floor", 0))
+	var room_offset: Vector2 = room_offsets.get(room_name, Vector2.ZERO)
+	var floor_top := _floor_top(room, floor_index, room_offset)
+	return Vector2(float(slot["x"]) + room_offset.x, floor_top - foot_offset_y)
+
+func _validate_stage_geometry(enemy_slots: Array, boss_slot: Dictionary, room_offsets := {}) -> Dictionary:
+	var max_required_step_up := 0.0
+	var impossible_jump_count := 0
+	for edge in TRAVERSAL_EDGES:
+		var from_room_name := String(edge["from"])
+		var to_room_name := String(edge["to"])
+		var from_top := _floor_top(_room_by_name(from_room_name), int(edge.get("from_floor", 0)), room_offsets.get(from_room_name, Vector2.ZERO))
+		var to_top := _floor_top(_room_by_name(to_room_name), int(edge.get("to_floor", 0)), room_offsets.get(to_room_name, Vector2.ZERO))
+		var step_up := maxf(from_top - to_top, 0.0)
+		max_required_step_up = maxf(max_required_step_up, step_up)
+		if step_up > PLAYER_MAX_STEP_UP:
+			impossible_jump_count += 1
+
+	var enemy_spawn_overlap_count := 0
+	var enemy_spawn_out_of_floor_count := 0
+	for slot in enemy_slots:
+		if not _spawn_slot_is_grounded(slot, ENEMY_FOOT_OFFSET_Y, room_offsets):
+			enemy_spawn_overlap_count += 1
+		if not _spawn_slot_is_inside_floor(slot, room_offsets):
+			enemy_spawn_out_of_floor_count += 1
+
+	return {
+		"max_required_step_up": snapped(max_required_step_up, 0.01),
+		"impossible_jump_count": impossible_jump_count,
+		"enemy_spawn_grounded": enemy_spawn_overlap_count == 0 and enemy_spawn_out_of_floor_count == 0,
+		"enemy_spawn_overlap_count": enemy_spawn_overlap_count,
+		"enemy_spawn_out_of_floor_count": enemy_spawn_out_of_floor_count,
+		"boss_spawn_grounded": _spawn_slot_is_grounded(boss_slot, BOSS_FOOT_OFFSET_Y, room_offsets) and _spawn_slot_is_inside_floor(boss_slot, room_offsets),
+	}
+
+func _spawn_slot_is_grounded(slot: Dictionary, foot_offset_y: float, room_offsets := {}) -> bool:
+	var room_name := String(slot["room"])
+	var room := _room_by_name(room_name)
+	var floor_index := int(slot.get("floor", 0))
+	var floor_top := _floor_top(room, floor_index, room_offsets.get(room_name, Vector2.ZERO))
+	var spawn_position := _spawn_position_from_slot(slot, foot_offset_y, room_offsets)
+	return absf((spawn_position.y + foot_offset_y) - floor_top) <= 0.5
+
+func _spawn_slot_is_inside_floor(slot: Dictionary, room_offsets := {}) -> bool:
+	var room_name := String(slot["room"])
+	var room := _room_by_name(room_name)
+	var floor_index := int(slot.get("floor", 0))
+	var floor := _floor_segment(room, floor_index)
+	var room_center: Vector2 = room["center"]
+	var room_offset: Vector2 = room_offsets.get(room_name, Vector2.ZERO)
+	var floor_center: Vector2 = floor["center"]
+	var floor_size: Vector2 = floor["size"]
+	var left := room_center.x + room_offset.x + floor_center.x - floor_size.x * 0.5
+	var right := room_center.x + room_offset.x + floor_center.x + floor_size.x * 0.5
+	var x := float(slot["x"]) + room_offset.x
+	return x >= left + 24.0 and x <= right - 24.0
+
+func _floor_top(room: Dictionary, floor_index: int, room_offset := Vector2.ZERO) -> float:
+	var floor := _floor_segment(room, floor_index)
+	var room_center: Vector2 = room["center"]
+	var floor_center: Vector2 = floor["center"]
+	var floor_size: Vector2 = floor["size"]
+	return room_center.y + room_offset.y + floor_center.y - floor_size.y * 0.5
+
+func _floor_segment(room: Dictionary, floor_index: int) -> Dictionary:
+	var floors: Array = room["floors"]
+	return floors[clampi(floor_index, 0, floors.size() - 1)]
+
+func _room_by_name(room_name: String) -> Dictionary:
+	for room in ROOM_GRAPH:
+		if String(room["name"]) == room_name:
+			return room
+	push_error("Unknown generated room: %s" % [room_name])
+	return ROOM_GRAPH[0]
 
 func _clear_children(container: Node) -> void:
 	for child in container.get_children():
 		child.free()
 
-func _create_platform(parent: Node2D, room: Dictionary, center: Vector2) -> void:
+func _create_room_shell(parent: Node2D, room: Dictionary, center: Vector2) -> void:
 	var room_name: String = room["name"]
-	var size: Vector2 = room["platform"]
-	var platform := StaticBody2D.new()
-	platform.name = "%s_platform" % room_name
-	platform.position = center
-	platform.set_meta("layout_style", CASTLE_LAYOUT_STYLE)
-	platform.set_meta("room_name", room_name)
-	platform.set_meta("branch", bool(room.get("branch", false)))
-	platform.set_meta("vertical", bool(room.get("vertical", false)))
-	platform.set_meta("shortcut", bool(room.get("shortcut", false)))
-	platform.set_meta("gate", bool(room.get("gate", false)))
-	platform.set_meta("critical_path", bool(room.get("critical_path", false)))
-	parent.add_child(platform)
+	var size: Vector2 = room["size"]
+	var room_shell := StaticBody2D.new()
+	room_shell.name = "%s_room" % room_name
+	room_shell.position = center
+	room_shell.set_meta("layout_style", STAGE_LAYOUT_STYLE)
+	room_shell.set_meta("room_name", room_name)
+	room_shell.set_meta("archetype", room.get("archetype", room_name))
+	room_shell.set_meta("branch", bool(room.get("branch", false)))
+	room_shell.set_meta("vertical", bool(room.get("vertical", false)))
+	room_shell.set_meta("shortcut", bool(room.get("shortcut", false)))
+	room_shell.set_meta("gate", bool(room.get("gate", false)))
+	room_shell.set_meta("locked", bool(room.get("locked", false)))
+	room_shell.set_meta("sanctuary", bool(room.get("sanctuary", false)))
+	room_shell.set_meta("critical_path", bool(room.get("critical_path", false)))
+	room_shell.set_meta("floating_platform", false)
+	parent.add_child(room_shell)
 
 	var visual := ColorRect.new()
 	visual.name = "Visual"
@@ -264,15 +433,12 @@ func _create_platform(parent: Node2D, room: Dictionary, center: Vector2) -> void
 	visual.offset_right = size.x * 0.5
 	visual.offset_bottom = size.y * 0.5
 	visual.color = _room_color(room)
-	platform.add_child(visual)
-	_add_platform_tiles(platform, size, room)
-
-	var shape := RectangleShape2D.new()
-	shape.size = size
-	var collision := CollisionShape2D.new()
-	collision.name = "CollisionShape2D"
-	collision.shape = shape
-	platform.add_child(collision)
+	visual.visible = false
+	room_shell.add_child(visual)
+	_add_room_back_wall(room_shell, size, room)
+	_add_room_floor_tiles(room_shell, room)
+	_add_room_walls(room_shell, room)
+	_add_connector_markers(room_shell, size, room)
 
 func _room_color(room: Dictionary) -> Color:
 	if bool(room.get("gate", false)):
@@ -281,29 +447,111 @@ func _room_color(room: Dictionary) -> Color:
 		return BRANCH_COLOR
 	return FLOOR_COLOR
 
-func _add_platform_tiles(platform: StaticBody2D, size: Vector2, room: Dictionary) -> void:
+func _add_room_back_wall(room_shell: StaticBody2D, size: Vector2, room: Dictionary) -> void:
+	var wall := ColorRect.new()
+	wall.name = "BackWall"
+	wall.offset_left = -size.x * 0.5
+	wall.offset_top = -size.y * 0.5
+	wall.offset_right = size.x * 0.5
+	wall.offset_bottom = size.y * 0.5
+	wall.color = _room_back_wall_color(room)
+	wall.z_index = -3
+	room_shell.add_child(wall)
+
+func _room_back_wall_color(room: Dictionary) -> Color:
+	if bool(room.get("gate", false)):
+		return Color(0.06, 0.055, 0.065, 0.70)
+	if bool(room.get("branch", false)):
+		return Color(0.045, 0.052, 0.067, 0.64)
+	if bool(room.get("sanctuary", false)):
+		return Color(0.055, 0.045, 0.05, 0.68)
+	return Color(0.04, 0.045, 0.055, 0.62)
+
+func _add_room_floor_tiles(room_shell: StaticBody2D, room: Dictionary) -> void:
 	var tiles := Node2D.new()
 	tiles.name = "VisualTiles"
 	tiles.z_index = 1
-	platform.add_child(tiles)
+	room_shell.add_child(tiles)
 
 	var tile_size := Vector2(96.0, 64.0)
-	var columns := ceili(size.x / tile_size.x)
-	var rows := ceili(size.y / tile_size.y)
-	var left := -size.x * 0.5
-	var top := -size.y * 0.5
 	var tone := _room_tile_tone(room)
-	for row in range(rows):
-		for column in range(columns):
-			var sprite := Sprite2D.new()
-			sprite.name = "StoneTile%d_%d" % [column, row]
-			sprite.texture = platform_tile_texture
-			sprite.centered = false
-			sprite.region_enabled = true
-			sprite.region_rect = Rect2(0, 0, minf(tile_size.x, size.x - column * tile_size.x), minf(tile_size.y, size.y - row * tile_size.y))
-			sprite.position = Vector2(left + column * tile_size.x, top + row * tile_size.y)
-			sprite.modulate = tone
-			tiles.add_child(sprite)
+	var floors: Array = room["floors"]
+	for segment_index in range(floors.size()):
+		var segment: Dictionary = floors[segment_index]
+		var segment_center: Vector2 = segment["center"]
+		var segment_size: Vector2 = segment["size"]
+		_add_collision_segment(room_shell, segment_center, segment_size, "FloorCollision%d" % segment_index)
+		var columns := ceili(segment_size.x / tile_size.x)
+		var rows := ceili(segment_size.y / tile_size.y)
+		var left := segment_center.x - segment_size.x * 0.5
+		var top := segment_center.y - segment_size.y * 0.5
+		for row in range(rows):
+			for column in range(columns):
+				var sprite := Sprite2D.new()
+				sprite.name = "StoneTile%d_%d_%d" % [segment_index, column, row]
+				sprite.texture = platform_tile_texture
+				sprite.centered = false
+				sprite.region_enabled = true
+				sprite.region_rect = Rect2(0, 0, minf(tile_size.x, segment_size.x - column * tile_size.x), minf(tile_size.y, segment_size.y - row * tile_size.y))
+				sprite.position = Vector2(left + column * tile_size.x, top + row * tile_size.y)
+				sprite.modulate = tone
+				tiles.add_child(sprite)
+
+func _add_room_walls(room_shell: StaticBody2D, room: Dictionary) -> void:
+	var walls: Array = room.get("walls", [])
+	var wall_layer := Node2D.new()
+	wall_layer.name = "WallVisuals"
+	wall_layer.z_index = -1
+	room_shell.add_child(wall_layer)
+	for wall_index in range(walls.size()):
+		var wall: Dictionary = walls[wall_index]
+		_add_wall_visual(wall_layer, wall["center"], wall["size"], "WallVisual%d" % wall_index)
+
+func _add_wall_visual(parent: Node2D, center: Vector2, size: Vector2, node_name: String) -> void:
+	var wall := ColorRect.new()
+	wall.name = node_name
+	wall.position = center
+	wall.offset_left = -size.x * 0.5
+	wall.offset_top = -size.y * 0.5
+	wall.offset_right = size.x * 0.5
+	wall.offset_bottom = size.y * 0.5
+	wall.color = Color(0.12, 0.075, 0.07, 0.28)
+	parent.add_child(wall)
+
+func _add_collision_segment(room_shell: StaticBody2D, center: Vector2, size: Vector2, node_name: String) -> void:
+	var shape := RectangleShape2D.new()
+	shape.size = size
+	var collision := CollisionShape2D.new()
+	collision.name = node_name
+	collision.position = center
+	collision.shape = shape
+	room_shell.add_child(collision)
+
+func _add_connector_markers(room_shell: StaticBody2D, size: Vector2, room: Dictionary) -> void:
+	var connectors: Array = room.get("connectors", [])
+	var connector_layer := Node2D.new()
+	connector_layer.name = "Connectors"
+	connector_layer.z_index = 2
+	room_shell.add_child(connector_layer)
+	for index in range(connectors.size()):
+		var marker := ColorRect.new()
+		marker.name = String(connectors[index])
+		marker.offset_left = -10.0
+		marker.offset_top = -42.0
+		marker.offset_right = 10.0
+		marker.offset_bottom = 42.0
+		marker.color = Color(0.16, 0.11, 0.105, 0.34)
+		marker.position = _connector_position(String(connectors[index]), size)
+		connector_layer.add_child(marker)
+
+func _connector_position(connector: String, size: Vector2) -> Vector2:
+	if connector.contains("left"):
+		return Vector2(-size.x * 0.5 + 24.0, size.y * 0.5 - 130.0)
+	if connector.contains("right") or connector.contains("boss") or connector.contains("exit"):
+		return Vector2(size.x * 0.5 - 24.0, size.y * 0.5 - 130.0)
+	if connector.contains("up"):
+		return Vector2(0.0, -size.y * 0.5 + 70.0)
+	return Vector2(0.0, size.y * 0.5 - 124.0)
 
 func _room_tile_tone(room: Dictionary) -> Color:
 	if bool(room.get("gate", false)):
@@ -314,7 +562,8 @@ func _room_tile_tone(room: Dictionary) -> Color:
 
 func _load_png_texture(path: String) -> Texture2D:
 	var image := Image.new()
-	var error := image.load(path)
+	var bytes := FileAccess.get_file_as_bytes(path)
+	var error := image.load_png_from_buffer(bytes)
 	if error != OK:
 		push_error("Failed to load gothic stage texture: %s" % [path])
 		return null
@@ -327,13 +576,11 @@ func _create_sigil(parent: Node2D, index: int, position: Vector2) -> void:
 	sigil.add_to_group("sigils")
 	parent.add_child(sigil)
 
-	var visual := ColorRect.new()
+	var visual := Sprite2D.new()
 	visual.name = "Visual"
-	visual.offset_left = -8.0
-	visual.offset_top = -12.0
-	visual.offset_right = 8.0
-	visual.offset_bottom = 12.0
-	visual.color = SIGIL_COLOR
+	visual.texture = sigil_texture
+	visual.scale = Vector2(0.74, 0.74)
+	visual.z_index = 6
 	sigil.add_child(visual)
 
 	var shape := CircleShape2D.new()

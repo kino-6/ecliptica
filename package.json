@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "node tools/runGodotGame.mjs",
+    "game": "node tools/runGodotGame.mjs",
     "test": "node --test",
     "test:e2e": "node --test test/godotE2E.test.mjs",
     "test:window": "RUN_GODOT_WINDOW_E2E=1 node --test test/godotWindowE2E.test.mjs",

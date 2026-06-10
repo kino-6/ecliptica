@@ -5,20 +5,21 @@ const JUMP_VELOCITY := -660.0
 const GRAVITY := 1900.0
 const MAX_FALL := 980.0
 const FRAME_SIZE := Vector2i(192, 384)
-const ATTACK_FRAME_SIZE := Vector2i(128, 128)
 const IDLE_FRAME_COUNT := 10
 const WALK_FRAME_COUNT := 24
-const ATTACK_FRAME_COUNT := 8
-const ATTACK_BODY_FRAME_COUNT := 6
+const ATTACK_BODY_FRAME_COUNT := 8
 const COMBO_STEP_COUNT := 3
 const SHOOT_FRAME_COUNT := 8
-const ATTACK_DURATION := 0.34
-const ATTACK_ACTIVE_START := 0.08
-const ATTACK_ACTIVE_END := 0.22
-const ATTACK_HITBOX_OFFSET := Vector2(62, -36)
-const ATTACK_HITBOX_SIZE := Vector2(96, 72)
-const ATTACK_ARC_OFFSET := ATTACK_HITBOX_OFFSET
-const ATTACK_ARC_SCALE := Vector2(0.72, 0.56)
+const ATTACK_ANIMATION_FPS := 16.0
+const ATTACK_DURATION := 0.50
+const ATTACK_ACTIVE_START := 0.25
+const ATTACK_ACTIVE_END := 0.37
+const ATTACK_HITBOX_OFFSETS := [Vector2(76, -48), Vector2(82, -58), Vector2(88, -42)]
+const ATTACK_HITBOX_SIZES := [Vector2(126, 88), Vector2(136, 104), Vector2(146, 96)]
+const AXE_BASE_POSITION := Vector2(-2, -68)
+const AXE_ATTACK_POSITION := Vector2(28, -70)
+const AXE_BASE_SCALE := Vector2(0.3, 0.3)
+const AXE_ATTACK_SCALE := Vector2(0.52, 0.52)
 const KNOCKBACK_DURATION := 0.24
 const KNOCKBACK_VELOCITY := Vector2(360, -260)
 const ATTACK_RECOVERY_SPEED_SCALE := 0.35
@@ -29,17 +30,23 @@ const FOCUS_REGEN_PER_SECOND := 0.75
 const SHOT_COST := 1.0
 const SHOT_SPEED := 820.0
 const SHOT_LIFETIME := 0.85
-const SHOT_OFFSET := Vector2(56, -44)
-const SHOT_SIZE := Vector2(42, 14)
+const SHOT_OFFSET := Vector2(86, -45)
+const SHOT_SIZE := Vector2(54, 18)
+const SHOT_FRAME_SIZE := Vector2i(160, 72)
+const SHOT_VFX_FRAME_COUNT := 6
+const SHOT_VFX_FPS := 24.0
 const IDLE_TEXTURE := preload("res://assets/player-idle-sheet-10.png")
 const WALK_TEXTURE := preload("res://assets/player-walk-sheet-24.png")
-const ATTACK_BODY_TEXTURE := preload("res://assets/player-attack-combo-sheet-18.png")
+const ATTACK_BODY_TEXTURE_PATH := "res://assets/player-attack-combo-sheet-24.png"
 const SHOOT_TEXTURE := preload("res://assets/player-shoot-sheet-8.png")
-const ATTACK_TEXTURE := preload("res://assets/axe-swing-sheet-8.png")
-const SHOT_TEXTURE_PATH := "res://assets/player-shot.png"
+const AXE_IDLE_TEXTURE_PATH := "res://assets/player-axe-idle-sheet-10.png"
+const AXE_WALK_TEXTURE_PATH := "res://assets/player-axe-walk-sheet-24.png"
+const AXE_ATTACK_TEXTURE_PATH := "res://assets/player-axe-attack-combo-sheet-24.png"
+const AXE_SHOOT_TEXTURE_PATH := "res://assets/player-axe-shoot-sheet-8.png"
+const SHOT_TEXTURE_PATH := "res://assets/player-shot-sheet-6.png"
 
 @onready var player_sprite: AnimatedSprite2D = $PlayerSprite
-@onready var attack_arc: AnimatedSprite2D = $AttackArc
+@onready var axe_sprite: AnimatedSprite2D = $AxeSprite
 @onready var attack_hitbox: Area2D = $AttackHitbox
 @onready var projectile_container: Node2D = $"../Projectiles"
 
@@ -59,13 +66,22 @@ var knockback_timer := 0.0
 var knockback_velocity := Vector2.ZERO
 var hit_targets := {}
 var shot_texture: Texture2D
+var attack_body_texture: Texture2D
+var axe_idle_texture: Texture2D
+var axe_walk_texture: Texture2D
+var axe_attack_texture: Texture2D
+var axe_shoot_texture: Texture2D
 
 func _ready() -> void:
 	add_to_group("player")
 	spawn_position = global_position
+	attack_body_texture = _load_png_texture(ATTACK_BODY_TEXTURE_PATH)
 	shot_texture = _load_png_texture(SHOT_TEXTURE_PATH)
+	axe_idle_texture = _load_png_texture(AXE_IDLE_TEXTURE_PATH)
+	axe_walk_texture = _load_png_texture(AXE_WALK_TEXTURE_PATH)
+	axe_attack_texture = _load_png_texture(AXE_ATTACK_TEXTURE_PATH)
+	axe_shoot_texture = _load_png_texture(AXE_SHOOT_TEXTURE_PATH)
 	_setup_animations()
-	_setup_attack_animation()
 	_configure_attack_hitbox_shape()
 	attack_hitbox.area_entered.connect(_on_attack_area_entered)
 	_update_animation()
@@ -116,7 +132,6 @@ func reset_to_spawn() -> void:
 	knockback_timer = 0.0
 	knockback_velocity = Vector2.ZERO
 	attack_hitbox.monitoring = false
-	attack_arc.visible = false
 	_update_animation()
 
 func e2e_set_axis(axis: float) -> void:
@@ -141,7 +156,6 @@ func attack() -> void:
 	hit_targets = {}
 	_play_attack_body_animation(current_attack_step)
 	_sync_attack_geometry()
-	attack_arc.visible = false
 
 func shoot() -> bool:
 	if not can_shoot():
@@ -175,64 +189,91 @@ func _setup_animations() -> void:
 		_add_sheet_animation_range(
 			sprite_frames,
 			StringName("attack%d" % [step + 1]),
-			ATTACK_BODY_TEXTURE,
+			attack_body_texture,
 			step * ATTACK_BODY_FRAME_COUNT,
 			ATTACK_BODY_FRAME_COUNT,
-			22.0,
+			ATTACK_ANIMATION_FPS,
 			false,
 		)
 	_add_sheet_animation(sprite_frames, "shoot", SHOOT_TEXTURE, SHOOT_FRAME_COUNT, 22.0, false)
 	player_sprite.sprite_frames = sprite_frames
 	player_sprite.play("idle")
+	_setup_axe_animations()
 
-func _setup_attack_animation() -> void:
+func _setup_axe_animations() -> void:
 	var sprite_frames := SpriteFrames.new()
-	sprite_frames.add_animation("swing")
-	sprite_frames.set_animation_loop("swing", false)
-	sprite_frames.set_animation_speed("swing", 24.0)
-	for frame in range(ATTACK_FRAME_COUNT):
-		var atlas := AtlasTexture.new()
-		atlas.atlas = ATTACK_TEXTURE
-		atlas.region = Rect2(frame * ATTACK_FRAME_SIZE.x, 0, ATTACK_FRAME_SIZE.x, ATTACK_FRAME_SIZE.y)
-		sprite_frames.add_frame("swing", atlas)
-	attack_arc.sprite_frames = sprite_frames
-	attack_arc.visible = false
+	_add_sheet_animation(sprite_frames, "idle", axe_idle_texture, IDLE_FRAME_COUNT, 7.0)
+	_add_sheet_animation(sprite_frames, "walk", axe_walk_texture, WALK_FRAME_COUNT, 18.0)
+	for step in range(COMBO_STEP_COUNT):
+		_add_sheet_animation_range(
+			sprite_frames,
+			StringName("attack%d" % [step + 1]),
+			axe_attack_texture,
+			step * ATTACK_BODY_FRAME_COUNT,
+			ATTACK_BODY_FRAME_COUNT,
+			ATTACK_ANIMATION_FPS,
+			false,
+		)
+	_add_sheet_animation(sprite_frames, "shoot", axe_shoot_texture, SHOOT_FRAME_COUNT, 22.0, false)
+	axe_sprite.sprite_frames = sprite_frames
+	axe_sprite.play("idle")
 
 func _update_animation() -> void:
 	var walking := absf(velocity.x) > 1.0 and is_on_floor()
 	player_sprite.flip_h = facing_left
+	axe_sprite.flip_h = facing_left
 	_sync_attack_geometry()
 	if is_attacking():
 		player_sprite.speed_scale = 1.0
+		axe_sprite.speed_scale = 1.0
 		return
 	if is_shooting():
 		player_sprite.speed_scale = 1.0
+		axe_sprite.speed_scale = 1.0
 		if player_sprite.animation != "shoot":
 			player_sprite.play("shoot")
+		if axe_sprite.animation != "shoot":
+			axe_sprite.play("shoot")
 		return
 	if walking:
 		player_sprite.speed_scale = clampf(absf(velocity.x) / SPEED, 0.85, 1.35)
+		axe_sprite.speed_scale = player_sprite.speed_scale
 		if player_sprite.animation != "walk":
 			player_sprite.play("walk")
+		if axe_sprite.animation != "walk":
+			axe_sprite.play("walk")
 	else:
 		player_sprite.speed_scale = 1.0
+		axe_sprite.speed_scale = 1.0
 		if player_sprite.animation != "idle":
 			player_sprite.play("idle")
+		if axe_sprite.animation != "idle":
+			axe_sprite.play("idle")
 
 func _configure_attack_hitbox_shape() -> void:
+	_set_attack_hitbox_size(ATTACK_HITBOX_SIZES[0])
+
+func _set_attack_hitbox_size(size: Vector2) -> void:
 	var collision_shape := attack_hitbox.get_node_or_null("CollisionShape2D") as CollisionShape2D
 	if collision_shape == null:
 		return
 	var rectangle := collision_shape.shape as RectangleShape2D
 	if rectangle != null:
-		rectangle.size = ATTACK_HITBOX_SIZE
+		rectangle.size = size
 
 func _sync_attack_geometry() -> void:
 	var direction := -1.0 if facing_left else 1.0
-	attack_arc.flip_h = facing_left
-	attack_arc.position = Vector2(ATTACK_ARC_OFFSET.x * direction, ATTACK_ARC_OFFSET.y)
-	attack_arc.scale = ATTACK_ARC_SCALE
-	attack_hitbox.position = Vector2(ATTACK_HITBOX_OFFSET.x * direction, ATTACK_HITBOX_OFFSET.y)
+	var profile_index := clampi(current_attack_step - 1, 0, COMBO_STEP_COUNT - 1)
+	var hitbox_offset: Vector2 = ATTACK_HITBOX_OFFSETS[profile_index]
+	var hitbox_size: Vector2 = ATTACK_HITBOX_SIZES[profile_index]
+	attack_hitbox.position = Vector2(hitbox_offset.x * direction, hitbox_offset.y)
+	_set_attack_hitbox_size(hitbox_size)
+	if is_attacking():
+		axe_sprite.position = Vector2(AXE_ATTACK_POSITION.x * direction, AXE_ATTACK_POSITION.y)
+		axe_sprite.scale = AXE_ATTACK_SCALE
+	else:
+		axe_sprite.position = Vector2(AXE_BASE_POSITION.x * direction, AXE_BASE_POSITION.y)
+		axe_sprite.scale = AXE_BASE_SCALE
 
 func _update_knockback(delta: float) -> float:
 	if knockback_timer <= 0.0:
@@ -251,11 +292,16 @@ func _advance_combo_step() -> int:
 
 func _play_attack_body_animation(step: int) -> void:
 	player_sprite.speed_scale = 1.0
-	player_sprite.play(StringName("attack%d" % [clampi(step, 1, COMBO_STEP_COUNT)]))
+	axe_sprite.speed_scale = 1.0
+	var animation_name := StringName("attack%d" % [clampi(step, 1, COMBO_STEP_COUNT)])
+	player_sprite.play(animation_name)
+	axe_sprite.play(animation_name)
 
 func _play_shoot_body_animation() -> void:
 	player_sprite.speed_scale = 1.0
+	axe_sprite.speed_scale = 1.0
 	player_sprite.play("shoot")
+	axe_sprite.play("shoot")
 
 func _update_combo(delta: float) -> void:
 	if combo_reset_timer <= 0.0:
@@ -281,7 +327,7 @@ func _update_attack(delta: float) -> void:
 		_strike_overlapping_targets()
 	if attack_timer <= 0.0:
 		attack_hitbox.monitoring = false
-		attack_arc.visible = false
+		_sync_attack_geometry()
 
 func _on_attack_area_entered(area: Area2D) -> void:
 	_strike_target(area)
@@ -313,9 +359,10 @@ func _create_projectile() -> Area2D:
 	projectile.area_entered.connect(_on_projectile_area_entered.bind(projectile))
 	projectile_container.add_child(projectile)
 
-	var visual := Sprite2D.new()
+	var visual := AnimatedSprite2D.new()
 	visual.name = "Visual"
-	visual.texture = shot_texture
+	visual.sprite_frames = _build_projectile_sprite_frames()
+	visual.play("fly")
 	visual.flip_h = direction < 0.0
 	visual.z_index = 8
 	projectile.add_child(visual)
@@ -327,6 +374,19 @@ func _create_projectile() -> Area2D:
 	collision.shape = shape
 	projectile.add_child(collision)
 	return projectile
+
+func _build_projectile_sprite_frames() -> SpriteFrames:
+	var sprite_frames := SpriteFrames.new()
+	var animation_name := StringName("fly")
+	sprite_frames.add_animation(animation_name)
+	sprite_frames.set_animation_loop(animation_name, false)
+	sprite_frames.set_animation_speed(animation_name, SHOT_VFX_FPS)
+	for frame in range(SHOT_VFX_FRAME_COUNT):
+		var atlas := AtlasTexture.new()
+		atlas.atlas = shot_texture
+		atlas.region = Rect2(frame * SHOT_FRAME_SIZE.x, 0, SHOT_FRAME_SIZE.x, SHOT_FRAME_SIZE.y)
+		sprite_frames.add_frame(animation_name, atlas)
+	return sprite_frames
 
 func _update_projectiles(delta: float) -> void:
 	if projectile_container == null:
@@ -402,7 +462,8 @@ func _add_sheet_animation_range(sprite_frames: SpriteFrames, animation_name: Str
 
 func _load_png_texture(path: String) -> Texture2D:
 	var image := Image.new()
-	var error := image.load(path)
+	var bytes := FileAccess.get_file_as_bytes(path)
+	var error := image.load_png_from_buffer(bytes)
 	if error != OK:
 		push_error("Failed to load player projectile texture: %s" % [path])
 		return null

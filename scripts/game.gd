@@ -9,17 +9,23 @@ const DAMAGE_INVULNERABILITY := 0.75
 const CAMERA_Y := 500.0
 const GATE_SEALED_COLOR := Color(0.08, 0.09, 0.13, 0.82)
 const GATE_OPEN_COLOR := Color(0.55, 0.08, 0.13, 0.82)
+const GATE_SEALED_TEXTURE_PATH := "res://assets/gate-sealed.png"
+const GATE_OPEN_TEXTURE_PATH := "res://assets/gate-open.png"
+const TRAINING_DUMMY_TEXTURE_PATH := "res://assets/training-reliquary.png"
 const BASE_RUN_SEED := 1337
+const GAME_REV_FALLBACK := "0.1.0-dev"
 const ROGUELIKE_RUN_SCRIPT := preload("res://scripts/roguelike_run.gd")
 
 @onready var player: CharacterBody2D = $Player
 @onready var camera: Camera2D = $Camera2D
 @onready var gate: Area2D = $Goal
-@onready var gate_visual: ColorRect = $Goal/GateVisual
+@onready var gate_visual: Sprite2D = $Goal/GateVisual
+@onready var training_dummy_visual: Sprite2D = $TrainingDummy/Visual
 @onready var health_fill: ColorRect = $CanvasLayer/HUDPanel/HealthBar/HealthFill
 @onready var focus_fill: ColorRect = $CanvasLayer/HUDPanel/FocusBar/FocusFill
 @onready var sigil_pips: HBoxContainer = $CanvasLayer/HUDPanel/SigilPips
 @onready var state_label: Label = $CanvasLayer/HUDPanel/StateLabel
+@onready var run_info_label: Label = $CanvasLayer/RunInfoLabel
 @onready var stage_generator: Node = $StageGenerator
 @onready var background: Sprite2D = $Background
 
@@ -39,14 +45,19 @@ var run_curse_level := 0
 var run_rewards := []
 var pending_reward_choices := []
 var selected_reward := {}
+var gate_sealed_texture: Texture2D
+var gate_open_texture: Texture2D
+var training_dummy_texture: Texture2D
 
 func _ready() -> void:
 	_apply_window_size()
 	RenderingServer.set_default_clear_color(Color(0.025, 0.028, 0.032, 1.0))
 	camera.zoom = CAMERA_ZOOM
+	_load_runtime_textures()
 	_ensure_input_actions()
 	_generate_stage()
 	_configure_background()
+	_configure_static_sprites()
 	_connect_collectibles()
 	_connect_enemies()
 	_update_camera()
@@ -80,7 +91,8 @@ func collect_sigil(sigil: Area2D) -> void:
 
 func open_gate() -> void:
 	gate_open = true
-	gate_visual.color = GATE_OPEN_COLOR
+	gate_visual.texture = gate_open_texture
+	gate_visual.modulate = GATE_OPEN_COLOR
 	_update_hud()
 
 func damage_player(source: Node = null) -> void:
@@ -165,6 +177,7 @@ func _on_goal_body_entered(body: Node) -> void:
 func _update_hud() -> void:
 	_update_hud_bars()
 	_update_sigil_pips()
+	_update_run_info()
 	var gate_text := "OPEN" if gate_open else "SEALED"
 	var reward_text := ""
 	if won and not selected_reward.is_empty():
@@ -172,6 +185,17 @@ func _update_hud() -> void:
 	var win_text := " / WON%s / N TO DESCEND" % [reward_text] if won else ""
 	var state_text := " / GAME OVER / R TO RETRY" if game_over else win_text
 	state_label.text = "RUN %d / %s%s" % [run_stage_index, gate_text, state_text]
+
+func _update_run_info() -> void:
+	run_info_label.text = "GAME REV %s\nSEED %d" % [game_revision(), current_display_seed()]
+
+func game_revision() -> String:
+	return String(ProjectSettings.get_setting("application/config/version", GAME_REV_FALLBACK))
+
+func current_display_seed() -> int:
+	if generated_stage_summary.has("seed"):
+		return int(generated_stage_summary["seed"])
+	return run_model.stage_seed_for(run_seed, run_stage_index)
 
 func _update_player_damage_feedback() -> void:
 	if damage_invulnerability_timer <= 0.0 or game_over:
@@ -253,6 +277,30 @@ func _configure_background() -> void:
 	background.scale = Vector2(2.85, 1.22)
 	background.z_index = -100
 
+func _configure_static_sprites() -> void:
+	gate_visual.texture = gate_sealed_texture
+	gate_visual.scale = Vector2(0.74, 0.74)
+	gate_visual.z_index = 7
+	gate_visual.modulate = GATE_SEALED_COLOR
+	training_dummy_visual.texture = training_dummy_texture
+	training_dummy_visual.position = Vector2(0, -4)
+	training_dummy_visual.scale = Vector2(0.76, 0.76)
+	training_dummy_visual.z_index = 4
+
+func _load_runtime_textures() -> void:
+	gate_sealed_texture = _load_png_texture(GATE_SEALED_TEXTURE_PATH)
+	gate_open_texture = _load_png_texture(GATE_OPEN_TEXTURE_PATH)
+	training_dummy_texture = _load_png_texture(TRAINING_DUMMY_TEXTURE_PATH)
+
+func _load_png_texture(path: String) -> Texture2D:
+	var image := Image.new()
+	var bytes := FileAccess.get_file_as_bytes(path)
+	var error := image.load_png_from_buffer(bytes)
+	if error != OK:
+		push_error("Failed to load game texture: %s" % [path])
+		return null
+	return ImageTexture.create_from_image(image)
+
 func _reset_run_state() -> void:
 	sigils_total = 0
 	sigils_collected = 0
@@ -274,7 +322,8 @@ func _reset_player_for_stage() -> void:
 	player.shoot_focus = player.FOCUS_MAX
 
 func _reset_gate_visual() -> void:
-	gate_visual.color = GATE_SEALED_COLOR
+	gate_visual.texture = gate_sealed_texture
+	gate_visual.modulate = GATE_SEALED_COLOR
 
 func _refresh_stage_view() -> void:
 	_update_camera()

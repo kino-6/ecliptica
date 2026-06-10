@@ -5,7 +5,11 @@ import { inflateSync } from 'node:zlib';
 
 test('stage and ranged attack assets are production gothic sprites instead of flat debug blocks', () => {
   const platform = parsePng(readFileSync('assets/platform-stone-tile.png'));
-  const shot = parsePng(readFileSync('assets/player-shot.png'));
+  const shot = parsePng(readFileSync('assets/player-shot-sheet-6.png'));
+  const sigil = parsePng(readFileSync('assets/sigil-relic.png'));
+  const gateSealed = parsePng(readFileSync('assets/gate-sealed.png'));
+  const gateOpen = parsePng(readFileSync('assets/gate-open.png'));
+  const dummy = parsePng(readFileSync('assets/training-reliquary.png'));
 
   assert.equal(platform.width, 96, 'platform tile should be a 96px gothic stone module');
   assert.equal(platform.height, 64, 'platform tile should be 64px tall');
@@ -15,14 +19,40 @@ test('stage and ranged attack assets are production gothic sprites instead of fl
   assert.ok(countCrimsonPixels(platform) > 20, 'platform tile should include restrained crimson staining');
   assert.ok(longestFlatRun(platform) < 44, 'platform tile should not be a flat rectangle fill');
 
-  assert.equal(shot.width, 96, 'shot sprite should be wide enough to read as a gothic gunshot trail');
-  assert.equal(shot.height, 40, 'shot sprite should have enough height for muzzle smoke and sparks');
-  assert.ok(countVisiblePixels(shot) > 980, 'shot should have a readable smoke-and-flash silhouette');
-  assert.ok(countQuantizedColors(shot) > 20, 'shot should use a multi-tone brass/smoke palette');
-  assert.ok(countBrassPixels(shot) > 130, 'shot should include a bright brass muzzle core');
-  assert.ok(countSmokePixels(shot) > 520, 'shot should include dark smoke instead of a plain line');
-  assert.ok(visibleHeight(shot) >= 22, 'shot should not collapse into a one-pixel laser line');
-  assert.ok(longestFlatRun(shot) < 18, 'shot should not be a flat debug bar');
+  assert.equal(shot.width, 960, 'shot VFX should be a 6 frame 160px sheet');
+  assert.equal(shot.height, 72, 'shot VFX should have enough height for muzzle smoke, sparks, and recoil flash');
+  assert.ok(countVisiblePixels(shot) > 12000, 'shot VFX sheet should have readable smoke-and-flash silhouettes');
+  assert.ok(countQuantizedColors(shot) > 120, 'shot VFX should use a painterly brass/smoke palette');
+  assert.ok(countBrassPixels(shot) > 900, 'shot VFX should include a bright brass muzzle core in the early frames');
+  assert.ok(countSmokePixels(shot) > 9000, 'shot VFX should include dark smoke instead of a plain line');
+  assert.ok(visibleHeight(shot) >= 44, 'shot VFX should not collapse into a one-pixel laser line');
+  assert.ok(longestFlatRun(shot) < 32, 'shot VFX should not be a flat debug bar');
+  const shotFrames = Array.from({ length: 6 }, (_, index) => extractFrame(shot, index, 160, 72));
+  assert.ok(countBrassPixels(shotFrames[0]) > countBrassPixels(shotFrames[3]), 'muzzle flash should be strongest at the first impact frames');
+  assert.ok(countSmokePixels(shotFrames[5]) > countBrassPixels(shotFrames[5]) * 20, 'late shot frames should decay into smoke rather than stay as a glowing rectangle');
+  assert.ok(shotFrames.every((frame) => longestFlatRun(frame) < 32), 'no shot frame should contain a long flat rectangular run');
+
+  assert.equal(sigil.width, 48, 'sigil relic should use a compact 48px sprite');
+  assert.equal(sigil.height, 64, 'sigil relic should be 64px tall');
+  assert.ok(countVisiblePixels(sigil) > 900, 'sigil relic should have a readable painted body');
+  assert.ok(countCrimsonPixels(sigil) > 360, 'sigil relic should carry the blood-red objective color');
+  assert.ok(countBrassPixels(sigil) > 35, 'sigil relic should include brass/ember detail');
+  assert.ok(longestFlatRun(sigil) < 12, 'sigil relic should not be a red rectangle');
+
+  assert.equal(gateSealed.width, 96, 'sealed gate should use a 96px sprite');
+  assert.equal(gateSealed.height, 160, 'sealed gate should be 160px tall');
+  assert.equal(gateOpen.width, 96, 'open gate should use a matching 96px sprite');
+  assert.equal(gateOpen.height, 160, 'open gate should be 160px tall');
+  assert.ok(countVisiblePixels(gateSealed) > 5600, 'sealed gate should read as a full gothic gate');
+  assert.ok(countVisiblePixels(gateOpen) > 5600, 'open gate should read as a full gothic gate');
+  assert.ok(countCrimsonPixels(gateOpen) > countCrimsonPixels(gateSealed), 'open gate should visibly glow red');
+  assert.ok(countQuantizedColors(gateOpen) > 18, 'open gate should have painterly variation');
+
+  assert.equal(dummy.width, 64, 'training reliquary should use a 64px sprite');
+  assert.equal(dummy.height, 96, 'training reliquary should be 96px tall');
+  assert.ok(countVisiblePixels(dummy) > 1400, 'training reliquary should replace the flat dummy block');
+  assert.ok(countBrassPixels(dummy) > 70, 'training reliquary should include aged metal focal detail');
+  assert.ok(longestFlatRun(dummy) < 18, 'training reliquary should not be a plain rectangle');
 });
 
 function parsePng(buffer) {
@@ -74,6 +104,16 @@ function parsePng(buffer) {
   }
 
   return { width, height, pixels };
+}
+
+function extractFrame(png, frameIndex, frameWidth, frameHeight) {
+  const pixels = Buffer.alloc(frameWidth * frameHeight * 4);
+  for (let y = 0; y < frameHeight; y += 1) {
+    const sourceStart = (y * png.width + frameIndex * frameWidth) * 4;
+    const targetStart = y * frameWidth * 4;
+    png.pixels.copy(pixels, targetStart, sourceStart, sourceStart + frameWidth * 4);
+  }
+  return { width: frameWidth, height: frameHeight, pixels };
 }
 
 function countVisiblePixels(png) {

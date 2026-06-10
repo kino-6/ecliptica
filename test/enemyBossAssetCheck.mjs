@@ -89,6 +89,16 @@ for (const contract of contracts) {
   }
 }
 
+const enemySource = parsePng(readFileSync('assets/source/enemy-ghoul-source.png'));
+const sourceBounds = visibleBounds(enemySource, 0, enemySource.width, enemySource.height);
+assert.ok(sourceBounds, 'enemy source should contain an opaque generated creature');
+assert.ok((sourceBounds.maxX - sourceBounds.minX + 1) / (sourceBounds.maxY - sourceBounds.minY + 1) > 0.68, 'enemy source should be a hunched creature with horizontal claw/torso reach, not a narrow upright protagonist silhouette');
+
+const enemyIdle = parsePng(readFileSync('assets/enemy-idle-sheet-8.png'));
+assert.ok(countVisiblePixels(enemyIdle, 0, 130, 66, 190) > 2100, 'enemy idle frame should push long claw/face mass forward');
+assert.ok(countVisiblePixels(enemyIdle, 132, 130, 56, 190) > 3200, 'enemy idle frame should retain rear rag/cage mass for a bestial silhouette');
+assert.ok(countBonePixelsInRect(enemyIdle, 0, 68, 64, 56, 88) > 80, 'enemy idle frame should keep a readable bone mask focal point');
+
 function parsePng(buffer) {
   assert.equal(buffer.toString('ascii', 1, 4), 'PNG', 'expected PNG');
 
@@ -167,6 +177,25 @@ function countVisiblePixels(png, x, y, width, height) {
   return count;
 }
 
+function visibleBounds(png, x, width, height) {
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let yy = 0; yy < height; yy += 1) {
+    for (let localX = 0; localX < width; localX += 1) {
+      const alpha = png.pixels[(yy * png.width + x + localX) * 4 + 3];
+      if (alpha <= 24) continue;
+      minX = Math.min(minX, localX);
+      minY = Math.min(minY, yy);
+      maxX = Math.max(maxX, localX);
+      maxY = Math.max(maxY, yy);
+    }
+  }
+  if (maxX < 0) return null;
+  return { minX, minY, maxX, maxY };
+}
+
 function countCrimsonPixels(png) {
   let count = 0;
   for (let yy = 0; yy < png.height; yy += 1) {
@@ -186,6 +215,18 @@ function countBonePixels(png) {
       const i = (yy * png.width + xx) * 4;
       const [r, g, b, a] = [png.pixels[i], png.pixels[i + 1], png.pixels[i + 2], png.pixels[i + 3]];
       if (a > 24 && r > 110 && g > 88 && b > 50 && r > b * 1.35) count += 1;
+    }
+  }
+  return count;
+}
+
+function countBonePixelsInRect(png, x, y, width, height) {
+  let count = 0;
+  for (let yy = y; yy < y + height; yy += 1) {
+    for (let xx = x; xx < x + width; xx += 1) {
+      const i = (yy * png.width + xx) * 4;
+      const [r, g, b, a] = [png.pixels[i], png.pixels[i + 1], png.pixels[i + 2], png.pixels[i + 3]];
+      if (a > 45 && r > 118 && g > 103 && b > 82 && r > b * 1.05 && Math.abs(r - g) < 70) count += 1;
     }
   }
   return count;

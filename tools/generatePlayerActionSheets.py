@@ -9,13 +9,13 @@ from pathlib import Path
 FRAME_WIDTH = 192
 FRAME_HEIGHT = 384
 IDLE_FRAME_COUNT = 10
-ATTACK_BODY_FRAME_COUNT = 6
+ATTACK_BODY_FRAME_COUNT = 8
 COMBO_STEP_COUNT = 3
 SHOOT_FRAME_COUNT = 8
 GUTTER = 8
 
 IDLE_IN = Path("assets/player-idle-sheet-10.png")
-ATTACK_OUT = Path("assets/player-attack-combo-sheet-18.png")
+ATTACK_OUT = Path("assets/player-attack-combo-sheet-24.png")
 SHOOT_OUT = Path("assets/player-shoot-sheet-8.png")
 
 
@@ -49,33 +49,25 @@ def main() -> None:
 
 
 def make_attack_frame(source: bytearray, step: int, local_frame: int) -> bytearray:
-    progress = local_frame / (ATTACK_BODY_FRAME_COUNT - 1)
-    timing = [0.00, 0.08, 0.46, 0.82, 1.00, 0.90][local_frame]
-    windup = 1.0 if local_frame in [1, 2] else max(0.0, 1.0 - timing)
-    snap = 1.0 if local_frame in [3, 4] else math.sin(min(timing * 1.3, 1.0) * math.pi)
-    impact = 1.0 if local_frame == 3 else 0.0
-    follow = 1.0 if local_frame >= 4 else 0.0
+    timing = [0.00, 0.05, 0.12, 0.15, 0.68, 1.00, 0.88, 0.72][local_frame]
+    windup = 1.0 if local_frame in [1, 2, 3] else max(0.0, 1.0 - timing)
+    snap = 1.0 if local_frame in [4, 5] else math.sin(min(timing * 1.2, 1.0) * math.pi)
+    impact = 1.0 if local_frame == 5 else 0.0
+    follow = 1.0 if local_frame >= 6 else 0.0
     step_biases = [
         {"lean": 14.0, "shear": 9.0, "lift": -1.0, "start": -1.28, "end": 0.28},
         {"lean": 18.0, "shear": 12.0, "lift": -5.0, "start": -1.68, "end": 0.12},
         {"lean": 22.0, "shear": 14.0, "lift": -8.0, "start": -2.02, "end": -0.06},
     ][step]
 
-    lean = -8.0 * windup + step_biases["lean"] * timing + impact * 8.0 + follow * 3.0
-    shear = -5.0 * windup + (timing - 0.32) * step_biases["shear"] + impact * 5.0
+    held_weight = 1.0 if local_frame == 3 else 0.0
+    lean = -9.0 * windup + step_biases["lean"] * timing + impact * 9.0 + follow * 3.0
+    shear = -6.0 * windup + (timing - 0.32) * step_biases["shear"] + impact * 5.0
     upper_lift = step_biases["lift"] * (windup * 0.8 + impact * 0.35)
+    lean -= held_weight * 2.0
+    upper_lift -= held_weight * 1.5
     dest = warp_body(source, lean, upper_lift, shear)
 
-    x0 = 94 + step * 3 + timing * 17 + impact * 8
-    y0 = 174 - step * 12 - windup * 15 + follow * 5
-    angle = step_biases["start"] + timing * (step_biases["end"] - step_biases["start"])
-    hand_reach = 24 + step * 3 + snap * 8 + impact * 3
-    hand_x = x0 + math.cos(angle) * hand_reach
-    hand_y = y0 + math.sin(angle) * hand_reach
-    draw_line(dest, x0 - 12, y0 + 23, hand_x, hand_y, 7, (17, 12, 12, 228))
-    draw_line(dest, x0 - 10, y0 + 20, hand_x - 1, hand_y - 1, 4, (81, 48, 43, 190))
-    draw_circle(dest, hand_x, hand_y, 5, (96, 67, 55, 186))
-    draw_cloth_pull(dest, step, progress)
     clear_gutters(dest)
     return dest
 
