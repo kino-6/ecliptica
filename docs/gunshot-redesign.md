@@ -18,15 +18,16 @@ Real gunfire gives a side-view action game several readable ingredients:
 
 Classic 16-bit and later 2D action games usually exaggerate those ingredients:
 
-- The first one or two frames carry the flash silhouette.
+- The first one or two frames carry a compact muzzle core, not a cartoon X flash.
 - Later frames remove most of the light and leave smoke/embers.
 - The projectile should not be a full-width bar; direction comes from asymmetrical smoke and a short tracer.
 - The collision shape remains simple, but it must not define the visible art.
 
 ## Asset Contract
 
-- Projectile VFX: `assets/player-shot-sheet-6.png`
+- Projectile VFX: `assets/production/player-shot-sheet-6.png`
 - Sheet layout: 6 horizontal frames, `160x72` each, total `960x72`
+- Active path: `player_shot_vfx` in `assets/manifest.yaml`
 - Runtime node: `AnimatedSprite2D` named `Visual` with non-looping `fly` animation
 - Visible design: early brass/white flash, mid-frame red ember/tracer, late dark smoke
 - Collision: invisible `RectangleShape2D`, `54x18`, centered near the damaging bullet core
@@ -37,4 +38,3 @@ Classic 16-bit and later 2D action games usually exaggerate those ingredients:
 - The projectile visual must be animated image art, never a `ColorRect` or hand-drawn debug shape.
 - The projectile can use a compact collision box while the VFX sheet remains wider for smoke and readability.
 - Headless verification checks that the projectile has a `fly` animation, uses all 6 frames, and destroys a ranged enemy.
-

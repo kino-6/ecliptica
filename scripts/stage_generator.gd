@@ -30,14 +30,16 @@ const BRANCH_CHALLENGE_COUNT := 2
 const RECOVERY_WINDOW_COUNT := 2
 const STAGE_PACING := "first_stage_two_try"
 const ENEMY_SCRIPT := preload("res://scripts/enemy.gd")
-const ENEMY_IDLE_TEXTURE_PATH := "res://assets/enemy-idle-sheet-8.png"
-const ENEMY_WALK_TEXTURE_PATH := "res://assets/enemy-walk-sheet-12.png"
-const ENEMY_ATTACK_TEXTURE_PATH := "res://assets/enemy-attack-sheet-8.png"
-const BOSS_TEXTURE_PATH := "res://assets/boss-idle-sheet-8.png"
-const PLATFORM_TILE_TEXTURE_PATH := "res://assets/platform-stone-tile.png"
-const SIGIL_TEXTURE_PATH := "res://assets/sigil-relic.png"
+const ASSET_MANIFEST_SCRIPT := preload("res://scripts/asset_manifest.gd")
+const ENEMY_IDLE_ASSET_ID := "enemy_idle"
+const ENEMY_WALK_ASSET_ID := "enemy_walk"
+const ENEMY_ATTACK_ASSET_ID := "enemy_attack"
+const BOSS_ASSET_ID := "boss_idle"
+const PLATFORM_TILE_ASSET_ID := "platform_stone_tile"
+const SIGIL_ASSET_ID := "sigil_relic"
+const SHOWCASE_BACKDROP_ASSET_ID := "showcase_backdrop"
 const ENEMY_SPAWN_SLOTS := [
-	{"room": "lower_cloister", "floor": 0, "x": 960.0},
+	{"room": "entrance_sanctuary", "floor": 2, "x": 430.0},
 	{"room": "crypt_descent", "floor": 0, "x": 1660.0},
 	{"room": "boss_antechamber", "floor": 0, "x": 2055.0},
 ]
@@ -61,12 +63,20 @@ const ROOM_GRAPH := [
 		"archetype": "entrance_sanctuary",
 		"size": Vector2(620, 420),
 		"center": Vector2(260, 438),
-		"floors": [{"center": Vector2(0, 162), "size": Vector2(620, 72)}],
-		"walls": [{"center": Vector2(-310, 0), "size": Vector2(34, 420)}],
+		"floors": [
+			{"center": Vector2(-180, 162), "size": Vector2(270, 72)},
+			{"center": Vector2(-12, 161), "size": Vector2(226, 70)},
+			{"center": Vector2(210, 162), "size": Vector2(250, 72)}
+		],
+		"walls": [
+			{"center": Vector2(-310, 0), "size": Vector2(34, 420)},
+			{"center": Vector2(308, 4), "size": Vector2(24, 332)}
+		],
 		"sigil": Vector2(338, 508),
 		"sanctuary": true,
+		"showcase": true,
 		"critical_path": true,
-		"connectors": ["right_door"],
+		"connectors": ["left_door", "right_door"],
 	},
 	{
 		"name": "gatehouse_hall",
@@ -181,6 +191,8 @@ var enemy_walk_texture: Texture2D
 var enemy_attack_texture: Texture2D
 var boss_texture: Texture2D
 var sigil_texture: Texture2D
+var showcase_backdrop_texture: Texture2D
+var asset_manifest
 
 func generate_stage(game: Node2D) -> Dictionary:
 	var platforms: Node2D = game.get_node("Platforms")
@@ -190,12 +202,15 @@ func generate_stage(game: Node2D) -> Dictionary:
 	var goal: Area2D = game.get_node("Goal")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = stage_seed
-	platform_tile_texture = _load_png_texture(PLATFORM_TILE_TEXTURE_PATH)
-	enemy_idle_texture = _load_png_texture(ENEMY_IDLE_TEXTURE_PATH)
-	enemy_walk_texture = _load_png_texture(ENEMY_WALK_TEXTURE_PATH)
-	enemy_attack_texture = _load_png_texture(ENEMY_ATTACK_TEXTURE_PATH)
-	boss_texture = _load_png_texture(BOSS_TEXTURE_PATH)
-	sigil_texture = _load_png_texture(SIGIL_TEXTURE_PATH)
+	asset_manifest = ASSET_MANIFEST_SCRIPT.new()
+	asset_manifest.load_from_file()
+	platform_tile_texture = _load_asset_texture(PLATFORM_TILE_ASSET_ID)
+	enemy_idle_texture = _load_asset_texture(ENEMY_IDLE_ASSET_ID)
+	enemy_walk_texture = _load_asset_texture(ENEMY_WALK_ASSET_ID)
+	enemy_attack_texture = _load_asset_texture(ENEMY_ATTACK_ASSET_ID)
+	boss_texture = _load_asset_texture(BOSS_ASSET_ID)
+	sigil_texture = _load_asset_texture(SIGIL_ASSET_ID)
+	showcase_backdrop_texture = _load_asset_texture(SHOWCASE_BACKDROP_ASSET_ID)
 
 	_clear_children(platforms)
 	_clear_children(collectibles)
@@ -276,6 +291,9 @@ func generate_stage(game: Node2D) -> Dictionary:
 		"enemy_count": enemy_count,
 		"standard_enemy_count": standard_enemy_count,
 		"boss_count": boss_count,
+		"showcase_room_floor_segments": _floor_segment_count("entrance_sanctuary"),
+		"showcase_enemy_count": _enemy_count_in_room(enemy_spawn_slots, "entrance_sanctuary"),
+		"showcase_has_backdrop": showcase_backdrop_texture != null,
 		"goal_position": goal.global_position,
 		"balance": _first_stage_balance(enemy_count),
 		"theme": "cathedral_keep",
@@ -314,6 +332,16 @@ func _count_rooms_with_flag(flag_name: String) -> int:
 	var count := 0
 	for room in ROOM_GRAPH:
 		if bool(room.get(flag_name, false)):
+			count += 1
+	return count
+
+func _floor_segment_count(room_name: String) -> int:
+	return (_room_by_name(room_name)["floors"] as Array).size()
+
+func _enemy_count_in_room(enemy_slots: Array, room_name: String) -> int:
+	var count := 0
+	for slot in enemy_slots:
+		if String(slot["room"]) == room_name:
 			count += 1
 	return count
 
@@ -436,6 +464,7 @@ func _create_room_shell(parent: Node2D, room: Dictionary, center: Vector2) -> vo
 	visual.visible = false
 	room_shell.add_child(visual)
 	_add_room_back_wall(room_shell, size, room)
+	_add_showcase_backdrop(room_shell, size, room)
 	_add_room_floor_tiles(room_shell, room)
 	_add_room_walls(room_shell, room)
 	_add_connector_markers(room_shell, size, room)
@@ -455,8 +484,22 @@ func _add_room_back_wall(room_shell: StaticBody2D, size: Vector2, room: Dictiona
 	wall.offset_right = size.x * 0.5
 	wall.offset_bottom = size.y * 0.5
 	wall.color = _room_back_wall_color(room)
+	if bool(room.get("showcase", false)):
+		wall.visible = false
 	wall.z_index = -3
 	room_shell.add_child(wall)
+
+func _add_showcase_backdrop(room_shell: StaticBody2D, size: Vector2, room: Dictionary) -> void:
+	if not bool(room.get("showcase", false)) or showcase_backdrop_texture == null:
+		return
+	var backdrop := Sprite2D.new()
+	backdrop.name = "ShowcaseBackdrop"
+	backdrop.texture = showcase_backdrop_texture
+	backdrop.centered = true
+	backdrop.position = Vector2.ZERO
+	backdrop.scale = Vector2(size.x / showcase_backdrop_texture.get_width(), size.y / showcase_backdrop_texture.get_height())
+	backdrop.z_index = -4
+	room_shell.add_child(backdrop)
 
 func _room_back_wall_color(room: Dictionary) -> Color:
 	if bool(room.get("gate", false)):
@@ -559,6 +602,9 @@ func _room_tile_tone(room: Dictionary) -> Color:
 	if bool(room.get("branch", false)):
 		return Color(0.86, 0.92, 1.03, 1.0)
 	return Color(1.0, 1.0, 1.0, 1.0)
+
+func _load_asset_texture(asset_id: String) -> Texture2D:
+	return _load_png_texture(asset_manifest.texture_path(asset_id))
 
 func _load_png_texture(path: String) -> Texture2D:
 	var image := Image.new()

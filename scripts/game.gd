@@ -7,11 +7,18 @@ const HUD_BAR_WIDTH := 240.0
 const PLAYER_MAX_HEALTH := 3
 const DAMAGE_INVULNERABILITY := 0.75
 const CAMERA_Y := 500.0
+const CAMERA_LOOKAHEAD_X := 96.0
+const CAMERA_VERTICAL_DEADZONE := 74.0
+const CAMERA_VERTICAL_FOLLOW := 0.18
+const CAMERA_IMPULSE_DURATION := 0.16
+const CAMERA_IMPULSE_PIXELS := 10.0
 const GATE_SEALED_COLOR := Color(0.08, 0.09, 0.13, 0.82)
 const GATE_OPEN_COLOR := Color(0.55, 0.08, 0.13, 0.82)
-const GATE_SEALED_TEXTURE_PATH := "res://assets/gate-sealed.png"
-const GATE_OPEN_TEXTURE_PATH := "res://assets/gate-open.png"
-const TRAINING_DUMMY_TEXTURE_PATH := "res://assets/training-reliquary.png"
+const ASSET_MANIFEST_SCRIPT := preload("res://scripts/asset_manifest.gd")
+const BACKGROUND_ASSET_ID := "background_city"
+const GATE_SEALED_ASSET_ID := "gate_sealed"
+const GATE_OPEN_ASSET_ID := "gate_open"
+const TRAINING_DUMMY_ASSET_ID := "training_reliquary"
 const BASE_RUN_SEED := 1337
 const GAME_REV_FALLBACK := "0.1.0-dev"
 const ROGUELIKE_RUN_SCRIPT := preload("res://scripts/roguelike_run.gd")
@@ -48,6 +55,10 @@ var selected_reward := {}
 var gate_sealed_texture: Texture2D
 var gate_open_texture: Texture2D
 var training_dummy_texture: Texture2D
+var background_texture: Texture2D
+var asset_manifest
+var camera_impulse_timer := 0.0
+var camera_impulse_strength := 0.0
 
 func _ready() -> void:
 	_apply_window_size()
@@ -71,6 +82,7 @@ func _process(delta: float) -> void:
 		advance_to_next_stage()
 		return
 	damage_invulnerability_timer = maxf(damage_invulnerability_timer - delta, 0.0)
+	camera_impulse_timer = maxf(camera_impulse_timer - delta, 0.0)
 	if player.global_position.y > LEVEL_HEIGHT + 80.0:
 		damage_player()
 	_update_player_damage_feedback()
@@ -187,7 +199,10 @@ func _update_hud() -> void:
 	state_label.text = "RUN %d / %s%s" % [run_stage_index, gate_text, state_text]
 
 func _update_run_info() -> void:
-	run_info_label.text = "GAME REV %s\nSEED %d" % [game_revision(), current_display_seed()]
+	var text := "GAME REV %s\nSEED %d" % [game_revision(), current_display_seed()]
+	if asset_manifest != null and asset_manifest.has_placeholder_assets():
+		text += "\n%s" % [asset_manifest.warning_text]
+	run_info_label.text = text
 
 func game_revision() -> String:
 	return String(ProjectSettings.get_setting("application/config/version", GAME_REV_FALLBACK))
@@ -196,6 +211,10 @@ func current_display_seed() -> int:
 	if generated_stage_summary.has("seed"):
 		return int(generated_stage_summary["seed"])
 	return run_model.stage_seed_for(run_seed, run_stage_index)
+
+func request_camera_impulse(strength: float) -> void:
+	camera_impulse_timer = CAMERA_IMPULSE_DURATION
+	camera_impulse_strength = clampf(strength, 0.0, 1.0)
 
 func _update_player_damage_feedback() -> void:
 	if damage_invulnerability_timer <= 0.0 or game_over:
@@ -272,6 +291,7 @@ func _generate_stage() -> void:
 	player.spawn_position = player.global_position
 
 func _configure_background() -> void:
+	background.texture = background_texture
 	background.centered = true
 	background.position = Vector2(1420.0, 540.0)
 	background.scale = Vector2(2.85, 1.22)
@@ -288,9 +308,15 @@ func _configure_static_sprites() -> void:
 	training_dummy_visual.z_index = 4
 
 func _load_runtime_textures() -> void:
-	gate_sealed_texture = _load_png_texture(GATE_SEALED_TEXTURE_PATH)
-	gate_open_texture = _load_png_texture(GATE_OPEN_TEXTURE_PATH)
-	training_dummy_texture = _load_png_texture(TRAINING_DUMMY_TEXTURE_PATH)
+	asset_manifest = ASSET_MANIFEST_SCRIPT.new()
+	asset_manifest.load_from_file()
+	background_texture = _load_asset_texture(BACKGROUND_ASSET_ID)
+	gate_sealed_texture = _load_asset_texture(GATE_SEALED_ASSET_ID)
+	gate_open_texture = _load_asset_texture(GATE_OPEN_ASSET_ID)
+	training_dummy_texture = _load_asset_texture(TRAINING_DUMMY_ASSET_ID)
+
+func _load_asset_texture(asset_id: String) -> Texture2D:
+	return _load_png_texture(asset_manifest.texture_path(asset_id))
 
 func _load_png_texture(path: String) -> Texture2D:
 	var image := Image.new()
@@ -343,4 +369,18 @@ func _complete_roguelike_stage() -> void:
 func _update_camera() -> void:
 	var half_width := TARGET_WINDOW_SIZE.x / (2.0 * CAMERA_ZOOM.x)
 	var max_x := maxf(half_width, gate.global_position.x - half_width)
-	camera.global_position = Vector2(clampf(player.global_position.x, half_width, max_x), CAMERA_Y)
+	var facing_direction := -1.0 if bool(player.get("facing_left")) else 1.0
+	var target_x := player.global_position.x + CAMERA_LOOKAHEAD_X * facing_direction
+	var target_y := CAMERA_Y
+	var vertical_delta := player.global_position.y - CAMERA_Y
+	if absf(vertical_delta) > CAMERA_VERTICAL_DEADZONE:
+		target_y += (absf(vertical_delta) - CAMERA_VERTICAL_DEADZONE) * signf(vertical_delta) * CAMERA_VERTICAL_FOLLOW
+	var impulse := _camera_impulse_offset()
+	camera.global_position = Vector2(clampf(target_x, half_width, max_x), target_y) + impulse
+
+func _camera_impulse_offset() -> Vector2:
+	if camera_impulse_timer <= 0.0:
+		return Vector2.ZERO
+	var progress := camera_impulse_timer / CAMERA_IMPULSE_DURATION
+	var kick := sin(progress * PI * 5.0) * progress * CAMERA_IMPULSE_PIXELS * camera_impulse_strength
+	return Vector2(kick, -absf(kick) * 0.35)

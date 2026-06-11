@@ -10,6 +10,7 @@ const requiredFiles = [
   'scenes/platform.tscn',
   'scenes/collectible.tscn',
   'scripts/game.gd',
+  'scripts/asset_manifest.gd',
   'scripts/roguelike_run.gd',
   'scripts/stage_generator.gd',
   'scripts/enemy.gd',
@@ -17,14 +18,23 @@ const requiredFiles = [
   'scripts/e2e_runner.gd',
   'scripts/window_e2e_runner.gd',
   'scripts/llm_verify.gd',
+  'scripts/showcase_screenshot.gd',
   'assets/background-city.png',
+  'assets/style-bible.md',
+  'assets/manifest.yaml',
+  '.agents/skills/weapon-vfx-quality-gate/SKILL.md',
+  '.agents/skills/weapon-vfx-quality-gate/agents/openai.yaml',
   'assets/platform-stone-tile.png',
+  'assets/production/showcase-room-backdrop.png',
   'assets/player-shot-sheet-6.png',
+  'assets/production/hit-spark-sheet-4.png',
   'assets/sigil-relic.png',
   'assets/gate-sealed.png',
   'assets/gate-open.png',
   'assets/training-reliquary.png',
   'tools/runGodotGame.mjs',
+  'tools/checkReleaseAssets.mjs',
+  'tools/showcaseScreenshotRunner.mjs',
   'tools/stabilizePlayerWalkSheet.py',
   'tools/generateStageVisualAssets.py',
   'tools/generatePlayerAxeSheets.py',
@@ -141,9 +151,12 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(game, /player_health/);
   assert.match(game, /PLAYER_MAX_HEALTH := 3/);
   assert.match(game, /GATE_SEALED_COLOR/);
-  assert.match(game, /GATE_SEALED_TEXTURE_PATH := "res:\/\/assets\/gate-sealed\.png"/);
-  assert.match(game, /GATE_OPEN_TEXTURE_PATH := "res:\/\/assets\/gate-open\.png"/);
-  assert.match(game, /TRAINING_DUMMY_TEXTURE_PATH := "res:\/\/assets\/training-reliquary\.png"/);
+  assert.match(game, /ASSET_MANIFEST_SCRIPT := preload\("res:\/\/scripts\/asset_manifest\.gd"\)/);
+  assert.match(game, /BACKGROUND_ASSET_ID := "background_city"/);
+  assert.match(game, /GATE_SEALED_ASSET_ID := "gate_sealed"/);
+  assert.match(game, /GATE_OPEN_ASSET_ID := "gate_open"/);
+  assert.match(game, /TRAINING_DUMMY_ASSET_ID := "training_reliquary"/);
+  assert.match(game, /PLACEHOLDER ASSET|placeholder_assets|has_placeholder_assets/);
   assert.match(game, /func _configure_static_sprites/);
   assert.match(game, /Input\.is_action_just_pressed\("retry"\)/);
   assert.match(game, /Input\.is_action_just_pressed\("next_stage"\)/);
@@ -152,6 +165,10 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(game, /KEY_ENTER/);
   assert.match(game, /TARGET_WINDOW_SIZE := Vector2i\(1920, 1080\)/);
   assert.match(game, /CAMERA_ZOOM := Vector2\(2\.2, 2\.2\)/);
+  assert.match(game, /CAMERA_LOOKAHEAD_X := 96\.0/);
+  assert.match(game, /CAMERA_VERTICAL_DEADZONE := 74\.0/);
+  assert.match(game, /CAMERA_IMPULSE_PIXELS := 10\.0/);
+  assert.match(game, /func request_camera_impulse/);
   assert.match(game, /GAME_REV_FALLBACK := "0\.1\.0-dev"/);
   assert.match(game, /run_info_label/);
   assert.match(game, /func game_revision/);
@@ -200,9 +217,14 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(generator, /enemy_spawn_overlap_count/);
   assert.match(generator, /enemy_spawn_out_of_floor_count/);
   assert.match(generator, /boss_spawn_grounded/);
+  assert.match(generator, /showcase_room_floor_segments/);
+  assert.match(generator, /showcase_enemy_count/);
+  assert.match(generator, /showcase_has_backdrop/);
   assert.match(generator, /DEFAULT_STAGE_SEED := 1337/);
-  assert.match(generator, /PLATFORM_TILE_TEXTURE_PATH := "res:\/\/assets\/platform-stone-tile\.png"/);
-  assert.match(generator, /SIGIL_TEXTURE_PATH := "res:\/\/assets\/sigil-relic\.png"/);
+  assert.match(generator, /ASSET_MANIFEST_SCRIPT := preload\("res:\/\/scripts\/asset_manifest\.gd"\)/);
+  assert.match(generator, /PLATFORM_TILE_ASSET_ID := "platform_stone_tile"/);
+  assert.match(generator, /SHOWCASE_BACKDROP_ASSET_ID := "showcase_backdrop"/);
+  assert.match(generator, /SIGIL_ASSET_ID := "sigil_relic"/);
   assert.match(generator, /FileAccess\.get_file_as_bytes\(path\)/);
   assert.match(generator, /load_png_from_buffer/);
   assert.doesNotMatch(generator, /image\.load\(path\)/);
@@ -228,12 +250,12 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(generator, /boss_count/);
   assert.match(generator, /func _create_enemy/);
   assert.match(generator, /ENEMY_SCRIPT/);
-  assert.match(generator, /ENEMY_IDLE_TEXTURE_PATH := "res:\/\/assets\/enemy-idle-sheet-8\.png"/);
-  assert.match(generator, /ENEMY_WALK_TEXTURE_PATH := "res:\/\/assets\/enemy-walk-sheet-12\.png"/);
-  assert.match(generator, /ENEMY_ATTACK_TEXTURE_PATH := "res:\/\/assets\/enemy-attack-sheet-8\.png"/);
+  assert.match(generator, /ENEMY_IDLE_ASSET_ID := "enemy_idle"/);
+  assert.match(generator, /ENEMY_WALK_ASSET_ID := "enemy_walk"/);
+  assert.match(generator, /ENEMY_ATTACK_ASSET_ID := "enemy_attack"/);
   assert.match(generator, /configure_patrol/);
   assert.match(generator, /func _create_boss/);
-  assert.match(generator, /BOSS_TEXTURE_PATH := "res:\/\/assets\/boss-idle-sheet-8\.png"/);
+  assert.match(generator, /BOSS_ASSET_ID := "boss_idle"/);
   assert.match(generator, /AnimatedSprite2D/);
   assert.match(generator, /hit_points/);
   assert.match(enemy, /extends Area2D/);
@@ -245,6 +267,7 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(enemy, /ATTACK_STATE := "attack"/);
   assert.match(enemy, /func _can_move_to_x/);
   assert.match(enemy, /func _has_floor_at/);
+  assert.match(enemy, /func apply_hit_reaction/);
   assert.match(enemy, /get_first_node_in_group\("player"\)/);
   assert.match(player, /func _physics_process/);
   assert.match(player, /add_to_group\("player"\)/);
@@ -254,17 +277,18 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(player, /ATTACK_BODY_FRAME_COUNT := 8/);
   assert.match(player, /COMBO_STEP_COUNT := 3/);
   assert.match(player, /SHOOT_FRAME_COUNT := 8/);
-  assert.match(player, /player-idle-sheet-10\.png/);
-  assert.match(player, /player-walk-sheet-24\.png/);
-  assert.match(player, /player-attack-combo-sheet-24\.png/);
-  assert.match(player, /player-shoot-sheet-8\.png/);
-  assert.match(player, /player-axe-idle-sheet-10\.png/);
-  assert.match(player, /player-axe-walk-sheet-24\.png/);
-  assert.match(player, /player-axe-attack-combo-sheet-24\.png/);
-  assert.match(player, /player-axe-shoot-sheet-8\.png/);
+  assert.match(player, /IDLE_ASSET_ID := "player_idle"/);
+  assert.match(player, /WALK_ASSET_ID := "player_walk"/);
+  assert.match(player, /ATTACK_BODY_ASSET_ID := "player_attack_body"/);
+  assert.match(player, /SHOOT_ASSET_ID := "player_shoot_body"/);
+  assert.match(player, /AXE_IDLE_ASSET_ID := "player_axe_idle"/);
+  assert.match(player, /AXE_WALK_ASSET_ID := "player_axe_walk"/);
+  assert.match(player, /AXE_ATTACK_ASSET_ID := "player_axe_attack"/);
+  assert.match(player, /AXE_SHOOT_ASSET_ID := "player_axe_shoot"/);
   assert.match(player, /@onready var axe_sprite: AnimatedSprite2D = \$AxeSprite/);
   assert.match(player, /func _setup_axe_animations/);
-  assert.match(player, /SHOT_TEXTURE_PATH := "res:\/\/assets\/player-shot-sheet-6\.png"/);
+  assert.match(player, /ASSET_MANIFEST_SCRIPT := preload\("res:\/\/scripts\/asset_manifest\.gd"\)/);
+  assert.match(player, /SHOT_ASSET_ID := "player_shot_vfx"/);
   assert.match(player, /SHOT_VFX_FRAME_COUNT := 6/);
   assert.match(player, /SHOT_FRAME_SIZE := Vector2i\(160, 72\)/);
   assert.match(player, /FileAccess\.get_file_as_bytes\(path\)/);
@@ -273,10 +297,20 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.doesNotMatch(player, /axe-swing-sheet-8\.png/);
   assert.doesNotMatch(player, /const ATTACK_TEXTURE :=/);
   assert.match(player, /ATTACK_ANIMATION_FPS := 16\.0/);
+  assert.match(player, /ATTACK_STARTUP_FRAMES := 4/);
+  assert.match(player, /ATTACK_ACTIVE_FRAME_START := 4/);
+  assert.match(player, /ATTACK_ACTIVE_FRAME_END := 5/);
+  assert.match(player, /ATTACK_RECOVERY_FRAMES := 2/);
   assert.match(player, /ATTACK_ACTIVE_START := 0\.25/);
-  assert.match(player, /ATTACK_HITBOX_OFFSETS := \[Vector2\(76, -48\), Vector2\(82, -58\), Vector2\(88, -42\)\]/);
-  assert.match(player, /ATTACK_HITBOX_SIZES := \[Vector2\(126, 88\), Vector2\(136, 104\), Vector2\(146, 96\)\]/);
-  assert.match(player, /AXE_ATTACK_SCALE := Vector2\(0\.52, 0\.52\)/);
+  assert.match(player, /ATTACK_ACTIVE_END := 0\.375/);
+  assert.match(player, /ATTACK_HITBOX_OFFSETS := \[/);
+  assert.match(player, /Vector2\(48, -82\), Vector2\(68, -50\)/);
+  assert.match(player, /ATTACK_HITBOX_SIZES := \[/);
+  assert.match(player, /Vector2\(96, 78\), Vector2\(112, 86\)/);
+  assert.match(player, /AXE_ATTACK_SCALE := Vector2\(0\.46, 0\.46\)/);
+  assert.match(player, /ATTACK_MOVE_SPEED_SCALE := 0\.18/);
+  assert.match(player, /HITSTOP_IMPACT_FRAMES := 5/);
+  assert.match(player, /HIT_SPARK_ASSET_ID := "hit_spark"/);
   assert.doesNotMatch(player, /attack_arc/);
   assert.match(player, /func _sync_attack_geometry/);
   assert.match(player, /func attack/);
@@ -293,6 +327,8 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(player, /AnimatedSprite2D\.new\(\)/);
   assert.match(player, /func _build_projectile_sprite_frames/);
   assert.match(player, /func _damage_attack_target/);
+  assert.match(player, /func _apply_hit_feedback/);
+  assert.match(player, /func _spawn_hit_spark/);
   assert.match(player, /func apply_damage_knockback/);
   assert.match(player, /KNOCKBACK_DURATION := 0\.24/);
   assert.match(player, /KNOCKBACK_VELOCITY := Vector2\(360, -260\)/);
@@ -320,7 +356,7 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(e2e, /combo should advance through three attack body animations/);
   assert.match(e2e, /dedicated image-based axe animation/);
   assert.match(e2e, /attack should not use a separate drawn arc object/);
-  assert.match(e2e, /attack should enlarge the image-based axe layer/);
+  assert.match(e2e, /attack should use the image-based axe layer scale contract/);
   assert.match(e2e, /combo should advance through three dedicated axe animations/);
   assert.match(e2e, /shoot body animation should become active/);
   assert.match(e2e, /focus should regenerate over time/);
@@ -328,12 +364,17 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.equal(packageJson.scripts.start, 'node tools/runGodotGame.mjs');
   assert.equal(packageJson.scripts.game, 'node tools/runGodotGame.mjs');
   assert.equal(packageJson.scripts['test:window'], 'RUN_GODOT_WINDOW_E2E=1 node --test test/godotWindowE2E.test.mjs');
+  assert.equal(packageJson.scripts['screenshot:showcase'], 'node tools/showcaseScreenshotRunner.mjs');
+  assert.equal(packageJson.scripts['release:check'], 'node tools/checkReleaseAssets.mjs');
   assert.match(windowE2e, /func run_window_e2e/);
   assert.match(windowE2e, /DisplayServer\.screen_get_scale/);
   assert.match(windowE2e, /WINDOW_E2E_OK/);
   assert.match(llmVerify, /LLM_VERIFY_JSON/);
   assert.match(llmVerify, /llm_headless_verify/);
   assert.match(llmVerify, /run_info_text/);
+  assert.match(llmVerify, /attack_startup_frames/);
+  assert.match(llmVerify, /hitstop_triggered/);
+  assert.match(llmVerify, /enemy_hit_flash_triggered/);
   assert.match(llmVerify, /dedicated image-based axe animation/);
   assert.match(llmVerify, /ranged/);
   assert.match(llmVerify, /projectile_visual_is_animated/);

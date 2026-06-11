@@ -59,6 +59,7 @@ func _base_summary() -> Dictionary:
 		"camera": {},
 		"enemy": {},
 		"attack": {},
+		"feel": {},
 		"ranged": {},
 		"combat": {},
 		"balance": {},
@@ -124,6 +125,9 @@ func _record_stage(scene: Node, game: Node, summary: Dictionary, failures: Array
 		"enemy_spawn_overlap_count": int(stage_summary.get("enemy_spawn_overlap_count", -1)),
 		"enemy_spawn_out_of_floor_count": int(stage_summary.get("enemy_spawn_out_of_floor_count", -1)),
 		"boss_spawn_grounded": bool(stage_summary.get("boss_spawn_grounded", false)),
+		"showcase_room_floor_segments": int(stage_summary.get("showcase_room_floor_segments", 0)),
+		"showcase_enemy_count": int(stage_summary.get("showcase_enemy_count", 0)),
+		"showcase_has_backdrop": bool(stage_summary.get("showcase_has_backdrop", false)),
 		"platform_count": platform_count,
 		"sigil_count": sigil_count,
 		"enemy_count": enemy_count,
@@ -152,6 +156,9 @@ func _record_stage(scene: Node, game: Node, summary: Dictionary, failures: Array
 	_expect(int(stage_summary.get("enemy_spawn_overlap_count", -1)) == 0, "generated enemies should not spawn intersecting floors", failures)
 	_expect(int(stage_summary.get("enemy_spawn_out_of_floor_count", -1)) == 0, "generated enemies should spawn within floor segments", failures)
 	_expect(bool(stage_summary.get("boss_spawn_grounded", false)), "generated boss should spawn grounded on the boss room floor", failures)
+	_expect(int(stage_summary.get("showcase_room_floor_segments", 0)) >= 3, "showcase room should use multiple floor segments instead of a single flat hallway", failures)
+	_expect(int(stage_summary.get("showcase_enemy_count", 0)) == 1, "showcase room should contain exactly one standard enemy for spacing evaluation", failures)
+	_expect(bool(stage_summary.get("showcase_has_backdrop", false)), "showcase room should load a non-colliding painted backdrop", failures)
 	_expect(platform_count == int(stage_summary.get("room_count", -1)), "room container should match generated room count", failures)
 	_expect(sigil_count == 7, "stage should generate seven sigils across the sanctuary wing", failures)
 	_expect(enemy_count >= 3, "stage should generate enemies", failures)
@@ -164,7 +171,9 @@ func _verify_visual_quality(scene: Node, summary: Dictionary, failures: Array) -
 	var first_platform := scene.get_node("Platforms").get_child(0)
 	var platform_flat_visual := first_platform.get_node_or_null("Visual") as ColorRect
 	var platform_tiles := first_platform.get_node_or_null("VisualTiles")
-	var room_back_wall := first_platform.get_node_or_null("BackWall") as ColorRect
+	var showcase_backdrop := first_platform.get_node_or_null("ShowcaseBackdrop") as Sprite2D
+	var showcase_back_wall := first_platform.get_node_or_null("BackWall") as ColorRect
+	var room_back_wall_present := _any_visible_named_descendant(scene.get_node("Platforms"), "BackWall")
 	var connectors := first_platform.get_node_or_null("Connectors")
 	var wall_visuals := first_platform.get_node_or_null("WallVisuals")
 	var blocking_wall_collision_count := _count_named_descendants(scene.get_node("Platforms"), "WallCollision")
@@ -190,6 +199,8 @@ func _verify_visual_quality(scene: Node, summary: Dictionary, failures: Array) -
 		boss_frame_texture = boss_sprite.sprite_frames.get_frame_texture("idle", 0)
 
 	var platform_rect_hidden := platform_flat_visual != null and not platform_flat_visual.visible
+	var showcase_uses_painted_backdrop := showcase_backdrop != null and showcase_backdrop.texture != null
+	var showcase_debug_wall_hidden := showcase_back_wall != null and not showcase_back_wall.visible
 	var sigil_uses_sprite := first_sigil_visual != null and first_sigil_visual.texture != null
 	var gate_uses_sprite := gate_visual != null and gate_visual.texture != null and gate_visual.texture.get_height() >= 150
 	var dummy_uses_sprite := dummy_visual != null and dummy_visual.texture != null and dummy_visual.texture.get_height() >= 90
@@ -199,7 +210,9 @@ func _verify_visual_quality(scene: Node, summary: Dictionary, failures: Array) -
 	summary["visuals"] = {
 		"platform_flat_rect_hidden": platform_rect_hidden,
 		"platform_tiles_present": platform_tiles != null,
-		"room_back_wall_present": room_back_wall != null and room_back_wall.visible,
+		"room_back_wall_present": room_back_wall_present,
+		"showcase_backdrop_present": showcase_uses_painted_backdrop,
+		"showcase_debug_back_wall_hidden": showcase_debug_wall_hidden,
 		"room_connectors_present": connectors != null,
 		"wall_visuals_present": wall_visuals != null,
 		"blocking_wall_collision_count": blocking_wall_collision_count,
@@ -212,7 +225,9 @@ func _verify_visual_quality(scene: Node, summary: Dictionary, failures: Array) -
 
 	_expect(platform_rect_hidden, "platform flat fallback rectangle should be hidden behind gothic tile sprites", failures)
 	_expect(platform_tiles != null, "room floors should expose gothic tile sprites", failures)
-	_expect(room_back_wall != null and room_back_wall.visible, "rooms should include a visible gothic back wall shell", failures)
+	_expect(room_back_wall_present, "non-showcase rooms should include visible gothic back wall shells", failures)
+	_expect(showcase_uses_painted_backdrop, "showcase room should use a painted non-colliding backdrop instead of a debug wall", failures)
+	_expect(showcase_debug_wall_hidden, "showcase room fallback ColorRect back wall should not be visible", failures)
 	_expect(connectors != null, "rooms should include connector markers for doors and shortcuts", failures)
 	_expect(blocking_wall_collision_count == 0, "decorative room wall markers should not create blocking player collisions", failures)
 	_expect(sigil_uses_sprite, "sigils should use gothic relic sprite assets instead of ColorRect blocks", failures)
@@ -274,17 +289,21 @@ func _verify_player_movement(scene: Node, player: CharacterBody2D, summary: Dict
 
 	var game: Node = scene
 	var camera: Camera2D = scene.get_node("Camera2D")
+	player.facing_left = false
 	player.global_position = Vector2(1300.0, player.global_position.y)
 	game._update_camera()
 	var camera_followed := camera.global_position.x > 1000.0
+	var camera_lookahead := camera.global_position.x - player.global_position.x
 	var visible_world_width := float(ProjectSettings.get_setting("display/window/size/viewport_width")) / camera.zoom.x
 	summary["camera"] = {
 		"x": camera.global_position.x,
 		"followed_player": camera_followed,
+		"lookahead_x": snappedf(camera_lookahead, 0.01),
 		"zoom": _vector_summary(camera.zoom),
 		"visible_world_width": snappedf(visible_world_width, 0.01),
 	}
 	_expect(camera_followed, "camera should follow the player across the stage", failures)
+	_expect(camera_lookahead >= 80.0 and camera_lookahead <= 110.0, "camera should include action-game look-ahead in the facing direction", failures)
 	_expect(camera.zoom == Vector2(2.2, 2.2), "camera should use close gothic action framing", failures)
 	_expect(visible_world_width <= 900.0, "camera should keep the visible world width tight enough to read character detail", failures)
 
@@ -326,6 +345,7 @@ func _verify_attack(scene: Node, player: CharacterBody2D, summary: Dictionary, f
 	var dummy: Area2D = scene.get_node_or_null("TrainingDummy")
 	var axe_sprite: AnimatedSprite2D = scene.get_node("Player/AxeSprite")
 	var attack_hitbox: Area2D = scene.get_node("Player/AttackHitbox")
+	var projectiles: Node2D = scene.get_node("Projectiles")
 
 	if dummy == null:
 		_expect(false, "training dummy should exist", failures)
@@ -350,6 +370,79 @@ func _verify_attack(scene: Node, player: CharacterBody2D, summary: Dictionary, f
 	player.facing_left = false
 	player._sync_attack_geometry()
 
+	var previous_position := player.global_position
+	var timing_samples: Array = []
+	var active_hitbox_samples: Array = []
+	var illegal_startup_active := false
+	var illegal_recovery_active := false
+	var active_frames_seen: Array[int] = []
+	player.global_position = Vector2(-900.0, 420.0)
+	player.attack_timer = 0.0
+	player.hitstop_timer = 0.0
+	player.attack()
+	for tick in 42:
+		await physics_frame
+		var attack_frame: int = int(player.current_attack_frame())
+		var monitoring: bool = attack_hitbox.monitoring
+		if monitoring and not active_frames_seen.has(attack_frame):
+			active_frames_seen.append(attack_frame)
+			active_hitbox_samples.append({
+				"frame": attack_frame,
+				"position": _vector_summary(attack_hitbox.position),
+				"size": _shape_size_summary(attack_hitbox),
+			})
+		if monitoring and attack_frame >= 0 and attack_frame < player.attack_startup_frames():
+			illegal_startup_active = true
+		if monitoring and attack_frame > player.attack_active_frames()[1]:
+			illegal_recovery_active = true
+		timing_samples.append({
+			"frame": attack_frame,
+			"monitoring": monitoring,
+		})
+	player.attack_timer = 0.0
+	player.hitstop_timer = 0.0
+	attack_hitbox.monitoring = false
+	player.global_position = previous_position
+
+	var enemies := get_nodes_in_group("enemies")
+	var hitstop_triggered := false
+	var enemy_flash_triggered := false
+	var enemy_knockback_triggered := false
+	var hit_spark_spawned := false
+	var camera_impulse_triggered := false
+	var enemy_hp_after_hit := 0
+	if not enemies.is_empty():
+		var feedback_enemy: Area2D = enemies[0]
+		feedback_enemy.visible = true
+		feedback_enemy.monitoring = true
+		feedback_enemy.monitorable = true
+		feedback_enemy.set_physics_process(false)
+		feedback_enemy.set_meta("destroyed", false)
+		feedback_enemy.set_meta("hit_points", 2)
+		feedback_enemy.set_meta("hit_flash_started", false)
+		feedback_enemy.set_meta("hit_knockback_started", false)
+		feedback_enemy.global_position = player.global_position + Vector2(76.0, -42.0)
+		player.attack_timer = 0.0
+		player.hitstop_timer = 0.0
+		player.attack()
+		for tick in 28:
+			await physics_frame
+			enemy_hp_after_hit = int(feedback_enemy.get_meta("hit_points", 0))
+			if enemy_hp_after_hit == 1:
+				hitstop_triggered = hitstop_triggered or player.hitstop_timer > 0.0
+				enemy_flash_triggered = enemy_flash_triggered or bool(feedback_enemy.get_meta("hit_flash_started", false))
+				enemy_knockback_triggered = enemy_knockback_triggered or bool(feedback_enemy.get_meta("hit_knockback_started", false))
+				camera_impulse_triggered = camera_impulse_triggered or float(scene.get("camera_impulse_timer")) > 0.0
+				hit_spark_spawned = hit_spark_spawned or projectiles.get_node_or_null("HitSpark") != null
+				break
+		feedback_enemy.monitoring = false
+		feedback_enemy.monitorable = false
+		feedback_enemy.visible = false
+		feedback_enemy.set_meta("destroyed", true)
+		player.attack_timer = 0.0
+		player.hitstop_timer = 0.0
+		attack_hitbox.monitoring = false
+
 	dummy.visible = true
 	dummy.monitoring = true
 	dummy.monitorable = true
@@ -363,23 +456,26 @@ func _verify_attack(scene: Node, player: CharacterBody2D, summary: Dictionary, f
 	var animation_seen := String(player.get_node("PlayerSprite").animation).begins_with("attack")
 	var axe_animation_seen := String(axe_sprite.animation).begins_with("attack")
 	var axe_attack_scale := _vector_summary(axe_sprite.scale)
-	var heavy_scale_seen := axe_sprite.scale.distance_to(player.AXE_ATTACK_SCALE) <= 0.01
+	var axe_scale_contract_seen := axe_sprite.scale.distance_to(player.AXE_ATTACK_SCALE) <= 0.01
 	var hitbox_enabled := false
 	for frame in 32:
 		await physics_frame
 		animation_seen = animation_seen or String(player.get_node("PlayerSprite").animation).begins_with("attack")
 		axe_animation_seen = axe_animation_seen or String(axe_sprite.animation).begins_with("attack")
-		heavy_scale_seen = heavy_scale_seen or axe_sprite.scale.distance_to(player.AXE_ATTACK_SCALE) <= 0.01
+		axe_scale_contract_seen = axe_scale_contract_seen or axe_sprite.scale.distance_to(player.AXE_ATTACK_SCALE) <= 0.01
 		hitbox_enabled = hitbox_enabled or attack_hitbox.monitoring
 
 	var destroyed := bool(dummy.get_meta("destroyed", false))
+	player.hitstop_timer = 0.0
+	player.attack_timer = 0.0
+	attack_hitbox.monitoring = false
 	summary["attack"] = {
 		"available": player.has_method("attack"),
 		"animation_seen": animation_seen,
 		"axe_animation_seen": axe_animation_seen,
 		"axe_visible": axe_sprite.visible,
 		"axe_attack_scale": axe_attack_scale,
-		"heavy_scale_seen": heavy_scale_seen,
+		"axe_scale_contract_seen": axe_scale_contract_seen,
 		"hitbox_enabled_during_attack": hitbox_enabled,
 		"uses_legacy_attack_arc": scene.get_node_or_null("Player/AttackArc") != null,
 		"axe_position_right": axe_position_right,
@@ -388,15 +484,57 @@ func _verify_attack(scene: Node, player: CharacterBody2D, summary: Dictionary, f
 		"axe_position_left": axe_position_left,
 		"hitbox_position_left": hitbox_position_left,
 		"training_dummy_destroyed": destroyed,
+		"startup_frames": player.attack_startup_frames(),
+		"active_frames": player.attack_active_frames(),
+		"recovery_frames": player.attack_recovery_frames(),
+		"active_frames_seen": active_frames_seen,
+		"active_hitbox_samples": active_hitbox_samples,
+		"timing_samples": timing_samples,
+		"illegal_startup_active": illegal_startup_active,
+		"illegal_recovery_active": illegal_recovery_active,
+		"hitstop_triggered": hitstop_triggered,
+		"enemy_hp_after_hit": enemy_hp_after_hit,
+		"enemy_hit_flash_triggered": enemy_flash_triggered,
+		"enemy_hit_knockback_triggered": enemy_knockback_triggered,
+		"hit_spark_spawned": hit_spark_spawned,
+		"camera_impulse_triggered": camera_impulse_triggered,
+	}
+	summary["feel"] = {
+		"move_max_speed": player.MOVE_MAX_SPEED,
+		"ground_acceleration": player.GROUND_ACCELERATION,
+		"ground_deceleration": player.GROUND_DECELERATION,
+		"air_acceleration": player.AIR_ACCELERATION,
+		"air_deceleration": player.AIR_DECELERATION,
+		"jump_velocity": player.JUMP_VELOCITY,
+		"landing_recovery_seconds": player.LANDING_RECOVERY_DURATION,
+		"attack_move_speed_scale": player.ATTACK_MOVE_SPEED_SCALE,
+		"attack_startup_frames": player.attack_startup_frames(),
+		"attack_active_frames": player.attack_active_frames(),
+		"attack_recovery_frames": player.attack_recovery_frames(),
+		"hitstop_glancing_frames": player.hitstop_glancing_frames(),
+		"hitstop_impact_frames": player.hitstop_impact_frames(),
+		"camera_lookahead_x": scene.CAMERA_LOOKAHEAD_X,
+		"camera_impulse_pixels": scene.CAMERA_IMPULSE_PIXELS,
 	}
 
 	_expect(player.has_method("attack"), "player should expose attack action", failures)
 	_expect(animation_seen, "attack should use the player body axe animation instead of drawing a second axe arc", failures)
 	_expect(axe_animation_seen, "attack should use the dedicated image-based axe animation", failures)
-	_expect(heavy_scale_seen, "attack should enlarge the image-based axe layer for a heavy swing", failures)
+	_expect(axe_scale_contract_seen, "attack should use the image-based axe layer scale contract", failures)
 	_expect(hitbox_enabled, "attack hitbox should enable during active attack frames", failures)
 	_expect(scene.get_node_or_null("Player/AttackArc") == null, "attack should not use a separate drawn arc object", failures)
 	_expect(destroyed, "attack should destroy training dummy", failures)
+	_expect(player.attack_startup_frames() == 4, "axe attack should reserve four startup frames for anticipation", failures)
+	_expect(player.attack_active_frames() == [4, 5], "axe attack hitbox should only be active on frames four and five", failures)
+	_expect(player.attack_recovery_frames() == 2, "axe attack should keep two recovery frames after impact", failures)
+	_expect(active_frames_seen == [4, 5], "attack hitbox should only monitor during frame 4 and frame 5", failures)
+	_expect(not illegal_startup_active, "attack hitbox should be disabled during startup frames 0-3", failures)
+	_expect(not illegal_recovery_active, "attack hitbox should be disabled during recovery frames", failures)
+	_expect(hitstop_triggered, "enemy hit should trigger hitstop", failures)
+	_expect(enemy_flash_triggered, "enemy hit should trigger a short white flash", failures)
+	_expect(enemy_knockback_triggered, "enemy hit should trigger knockback reaction", failures)
+	_expect(hit_spark_spawned, "enemy hit should spawn an image-based hit spark", failures)
+	_expect(camera_impulse_triggered, "enemy hit should trigger a small camera impulse", failures)
 
 func _verify_ranged_attack(scene: Node, player: CharacterBody2D, summary: Dictionary, failures: Array) -> void:
 	for frame in 24:
@@ -416,6 +554,8 @@ func _verify_ranged_attack(scene: Node, player: CharacterBody2D, summary: Dictio
 		return
 
 	player.e2e_set_axis(0.0)
+	player.hitstop_timer = 0.0
+	player.attack_timer = 0.0
 	player.facing_left = false
 	player.shoot_focus = player.FOCUS_MAX
 	var enemy: Area2D = enemies[1]
@@ -423,6 +563,7 @@ func _verify_ranged_attack(scene: Node, player: CharacterBody2D, summary: Dictio
 	enemy.monitoring = true
 	enemy.monitorable = true
 	enemy.set_meta("destroyed", false)
+	enemy.set_meta("hit_points", 1)
 	enemy.global_position = player.global_position + Vector2(240.0, -44.0)
 	enemy.set_physics_process(false)
 
@@ -442,12 +583,12 @@ func _verify_ranged_attack(scene: Node, player: CharacterBody2D, summary: Dictio
 			var atlas := shot_visual.sprite_frames.get_frame_texture("fly", 0) as AtlasTexture
 			if atlas != null and atlas.atlas != null:
 				projectile_vfx_sheet_size = Vector2i(atlas.atlas.get_width(), atlas.atlas.get_height())
-	for frame in 30:
-		await process_frame
+	for frame in 40:
+		await physics_frame
 
 	var destroyed := bool(enemy.get_meta("destroyed", false))
 	for frame in 60:
-		await process_frame
+		await physics_frame
 	var focus_after_regen: float = player.shoot_focus
 
 	summary["ranged"] = {
@@ -641,6 +782,14 @@ func _count_named_descendants(root: Node, prefix: String) -> int:
 			count += 1
 		count += _count_named_descendants(child, prefix)
 	return count
+
+func _any_visible_named_descendant(root: Node, exact_name: String) -> bool:
+	for child in root.get_children():
+		if String(child.name) == exact_name and child is CanvasItem and (child as CanvasItem).visible:
+			return true
+		if _any_visible_named_descendant(child, exact_name):
+			return true
+	return false
 
 func _shape_size_summary(area: Area2D) -> Dictionary:
 	var collision_shape := area.get_node_or_null("CollisionShape2D") as CollisionShape2D

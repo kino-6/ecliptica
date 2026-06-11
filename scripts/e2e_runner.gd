@@ -147,13 +147,13 @@ func run_e2e() -> void:
 		return
 	if not _expect(String(axe_sprite.animation).begins_with("attack"), "attack should use the dedicated image-based axe animation"):
 		return
-	var heavy_scale_seen := axe_sprite.scale.distance_to(player.AXE_ATTACK_SCALE) <= 0.01
+	var axe_scale_contract_seen := axe_sprite.scale.distance_to(player.AXE_ATTACK_SCALE) <= 0.01
 	var hitbox_enabled := false
 	for frame in 32:
 		await physics_frame
-		heavy_scale_seen = heavy_scale_seen or axe_sprite.scale.distance_to(player.AXE_ATTACK_SCALE) <= 0.01
+		axe_scale_contract_seen = axe_scale_contract_seen or axe_sprite.scale.distance_to(player.AXE_ATTACK_SCALE) <= 0.01
 		hitbox_enabled = hitbox_enabled or scene.get_node("Player/AttackHitbox").monitoring
-	if not _expect(heavy_scale_seen, "attack should enlarge the image-based axe layer to match the heavy hitbox"):
+	if not _expect(axe_scale_contract_seen, "attack should use the image-based axe layer scale contract"):
 		return
 	if not _expect(hitbox_enabled, "attack hitbox should enable during active frames"):
 		return

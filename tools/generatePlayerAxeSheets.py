@@ -17,10 +17,10 @@ GUTTER = 8
 
 SOURCE_KEY = Path("assets/source/player-axe-source-key.png")
 SOURCE_ALPHA = Path("assets/source/player-axe-source.png")
-IDLE_OUT = Path("assets/player-axe-idle-sheet-10.png")
-WALK_OUT = Path("assets/player-axe-walk-sheet-24.png")
-SHOOT_OUT = Path("assets/player-axe-shoot-sheet-8.png")
-ATTACK_OUT = Path("assets/player-axe-attack-combo-sheet-24.png")
+IDLE_OUTS = [Path("assets/production/player-axe-idle-sheet-10.png"), Path("assets/player-axe-idle-sheet-10.png")]
+WALK_OUTS = [Path("assets/production/player-axe-walk-sheet-24.png"), Path("assets/player-axe-walk-sheet-24.png")]
+SHOOT_OUTS = [Path("assets/production/player-axe-shoot-sheet-8.png"), Path("assets/player-axe-shoot-sheet-8.png")]
+ATTACK_OUTS = [Path("assets/production/player-axe-attack-combo-sheet-24.png"), Path("assets/player-axe-attack-combo-sheet-24.png")]
 
 
 def main() -> None:
@@ -31,18 +31,18 @@ def main() -> None:
     crop_width = bounds[2] - bounds[0] + 1
     crop_height = bounds[3] - bounds[1] + 1
     axe = resize_to_width(cropped, crop_width, crop_height, 166)
-    attack_axe = resize_to_width(cropped, crop_width, crop_height, 158)
+    attack_axe = resize_to_width(cropped, crop_width, crop_height, 176)
     SOURCE_ALPHA.write_bytes(encode_png(crop_width, crop_height, cropped))
 
-    write_sheet(IDLE_OUT, [make_idle_frame(axe, i) for i in range(IDLE_FRAME_COUNT)])
-    write_sheet(WALK_OUT, [make_walk_frame(axe, i) for i in range(WALK_FRAME_COUNT)])
-    write_sheet(SHOOT_OUT, [make_shoot_frame(axe, i) for i in range(SHOOT_FRAME_COUNT)])
+    write_sheet_all(IDLE_OUTS, [make_idle_frame(axe, i) for i in range(IDLE_FRAME_COUNT)])
+    write_sheet_all(WALK_OUTS, [make_walk_frame(axe, i) for i in range(WALK_FRAME_COUNT)])
+    write_sheet_all(SHOOT_OUTS, [make_shoot_frame(axe, i) for i in range(SHOOT_FRAME_COUNT)])
 
     attack_frames: list[bytearray] = []
     for step in range(COMBO_STEP_COUNT):
         for local_frame in range(ATTACK_BODY_FRAME_COUNT):
             attack_frames.append(make_attack_frame(attack_axe, step, local_frame))
-    write_sheet(ATTACK_OUT, attack_frames)
+    write_sheet_all(ATTACK_OUTS, attack_frames)
 
 
 def make_idle_frame(axe: Sprite, frame: int) -> bytearray:
@@ -77,30 +77,30 @@ def make_attack_frame(axe: Sprite, step: int, local_frame: int) -> bytearray:
             (101.0, 151.0, -156.0, 0.82),
             (98.0, 136.0, -178.0, 0.86),
             (100.0, 134.0, -180.0, 0.87),
-            (84.0, 139.0, -80.0, 1.05),
-            (111.0, 158.0, -8.0, 1.12),
-            (119.0, 183.0, 34.0, 1.02),
-            (101.0, 179.0, 18.0, 0.92),
+            (82.0, 153.0, -82.0, 1.00),
+            (111.0, 184.0, -12.0, 1.08),
+            (119.0, 203.0, 32.0, 1.00),
+            (101.0, 190.0, 16.0, 0.92),
         ],
         [
             (108.0, 174.0, -142.0, 0.78),
             (104.0, 140.0, -170.0, 0.86),
             (100.0, 122.0, -190.0, 0.90),
             (102.0, 121.0, -193.0, 0.91),
-            (89.0, 126.0, -98.0, 1.09),
-            (118.0, 149.0, -18.0, 1.16),
-            (126.0, 180.0, 36.0, 1.07),
-            (104.0, 178.0, 18.0, 0.95),
+            (88.0, 146.0, -98.0, 1.05),
+            (119.0, 176.0, -20.0, 1.12),
+            (126.0, 198.0, 34.0, 1.04),
+            (104.0, 188.0, 16.0, 0.94),
         ],
         [
             (110.0, 172.0, -150.0, 0.80),
             (106.0, 135.0, -182.0, 0.90),
             (102.0, 116.0, -204.0, 0.95),
             (104.0, 115.0, -207.0, 0.96),
-            (93.0, 133.0, -104.0, 1.14),
-            (126.0, 164.0, -6.0, 1.20),
-            (132.0, 195.0, 42.0, 1.10),
-            (106.0, 182.0, 20.0, 0.97),
+            (92.0, 150.0, -104.0, 1.10),
+            (126.0, 188.0, -8.0, 1.16),
+            (132.0, 210.0, 40.0, 1.06),
+            (106.0, 194.0, 18.0, 0.96),
         ],
     ]
     x, y, angle, scale = pose_sets[step][local_frame]
@@ -295,6 +295,7 @@ def blank_frame() -> bytearray:
 
 
 def write_sheet(path: Path, frames: list[bytearray]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     width = FRAME_WIDTH * len(frames)
     pixels = bytearray(width * FRAME_HEIGHT * 4)
     for frame, frame_pixels in enumerate(frames):
@@ -303,6 +304,11 @@ def write_sheet(path: Path, frames: list[bytearray]) -> None:
             src = y * FRAME_WIDTH * 4
             pixels[dst : dst + FRAME_WIDTH * 4] = frame_pixels[src : src + FRAME_WIDTH * 4]
     path.write_bytes(encode_png(width, FRAME_HEIGHT, pixels))
+
+
+def write_sheet_all(paths: list[Path], frames: list[bytearray]) -> None:
+    for path in paths:
+        write_sheet(path, frames)
 
 
 def draw_line(pixels: bytearray, x0: float, y0: float, x1: float, y1: float, radius: int, color: tuple[int, int, int, int]) -> None:

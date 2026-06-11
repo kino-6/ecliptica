@@ -160,7 +160,7 @@ func _probe_movement(player: CharacterBody2D, reaction_frames: int, action_inter
 	await _wait_frames(reaction_frames)
 	var start_x := player.global_position.x
 	player.e2e_set_axis(1.0)
-	await _wait_frames(maxi(action_interval_frames, 30))
+	await _wait_frames(maxi(action_interval_frames * 2, 45))
 	player.e2e_set_axis(0.0)
 	var moved_by := player.global_position.x - start_x
 	var ok := moved_by >= 36.0

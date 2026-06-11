@@ -1,0 +1,236 @@
+version: 1
+asset_root: res://assets
+profile: production
+placeholder_warning: PLACEHOLDER ASSET
+assets:
+  background_city:
+    usage: stage_background
+    path: res://assets/production/background-city.png
+    kind: production
+    frame_size: [1920, 1080]
+    frame_count: 1
+    pivot: [960, 540]
+    baseline: null
+    animation_fps: 0
+    required_states: [static]
+    replacement_checklist: [production_path, no_debug_shapes, dark_background, non_colliding]
+  showcase_backdrop:
+    usage: showcase_room_backdrop
+    path: res://assets/production/showcase-room-backdrop.png
+    kind: production
+    frame_size: [620, 420]
+    frame_count: 1
+    pivot: [310, 210]
+    baseline: null
+    animation_fps: 0
+    required_states: [static]
+    replacement_checklist: [production_path, non_colliding, separates_silhouette, no_copied_layout]
+  platform_stone_tile:
+    usage: room_floor_tile
+    path: res://assets/production/platform-stone-tile.png
+    kind: production
+    frame_size: [96, 64]
+    frame_count: 1
+    pivot: [48, 32]
+    baseline: 64
+    animation_fps: 0
+    required_states: [static]
+    replacement_checklist: [production_path, readable_collision_surface, no_flat_debug_color]
+  player_idle:
+    usage: player_body_idle
+    path: res://assets/production/player-idle-sheet-10.png
+    kind: production
+    frame_size: [192, 384]
+    frame_count: 10
+    pivot: [96, 344]
+    baseline: 344
+    animation_fps: 7
+    required_states: [idle]
+    replacement_checklist: [production_path, transparent_gutter, stable_feet, stable_core_body, cloth_or_hair_motion_only]
+  player_walk:
+    usage: player_body_walk
+    path: res://assets/production/player-walk-sheet-24.png
+    kind: production
+    frame_size: [192, 384]
+    frame_count: 24
+    pivot: [96, 344]
+    baseline: 344
+    animation_fps: 18
+    required_states: [walk]
+    replacement_checklist: [production_path, transparent_gutter, stable_baseline, low_center_drift, in_place_cycle]
+  player_attack_body:
+    usage: player_body_axe_attack_combo
+    path: res://assets/production/player-attack-combo-sheet-24.png
+    kind: production
+    frame_size: [192, 384]
+    frame_count: 24
+    pivot: [96, 344]
+    baseline: 344
+    animation_fps: 16
+    required_states: [attack1, attack2, attack3]
+    replacement_checklist: [production_path, eight_frame_contract, anticipation, active_frame_4_5, recovery_frame_6_7]
+  player_shoot_body:
+    usage: player_body_shoot
+    path: res://assets/production/player-shoot-sheet-8.png
+    kind: production
+    frame_size: [192, 384]
+    frame_count: 8
+    pivot: [96, 344]
+    baseline: 344
+    animation_fps: 22
+    required_states: [shoot]
+    replacement_checklist: [production_path, transparent_gutter, stable_baseline, readable_muzzle_pose]
+  player_axe_idle:
+    usage: player_axe_idle_layer
+    path: res://assets/production/player-axe-idle-sheet-10.png
+    kind: production
+    frame_size: [192, 384]
+    frame_count: 10
+    pivot: [96, 344]
+    baseline: 344
+    animation_fps: 7
+    required_states: [idle]
+    replacement_checklist: [production_path, accessory_layer_only, aligns_with_player_idle]
+  player_axe_walk:
+    usage: player_axe_walk_layer
+    path: res://assets/production/player-axe-walk-sheet-24.png
+    kind: production
+    frame_size: [192, 384]
+    frame_count: 24
+    pivot: [96, 344]
+    baseline: 344
+    animation_fps: 18
+    required_states: [walk]
+    replacement_checklist: [production_path, accessory_layer_only, aligns_with_player_walk]
+  player_axe_attack:
+    usage: player_axe_attack_layer
+    path: res://assets/production/player-axe-attack-combo-sheet-24.png
+    kind: production
+    frame_size: [192, 384]
+    frame_count: 24
+    pivot: [96, 344]
+    baseline: 344
+    animation_fps: 16
+    required_states: [attack1, attack2, attack3]
+    replacement_checklist: [production_path, image_based_weapon, no_debug_arc, aligns_with_hitbox_frame_4_5]
+  player_axe_shoot:
+    usage: player_axe_shoot_layer
+    path: res://assets/production/player-axe-shoot-sheet-8.png
+    kind: production
+    frame_size: [192, 384]
+    frame_count: 8
+    pivot: [96, 344]
+    baseline: 344
+    animation_fps: 22
+    required_states: [shoot]
+    replacement_checklist: [production_path, accessory_layer_only, aligns_with_player_shoot]
+  player_shot_vfx:
+    usage: player_gunshot_vfx
+    path: res://assets/production/player-shot-sheet-6.png
+    kind: production
+    frame_size: [160, 72]
+    frame_count: 6
+    pivot: [40, 36]
+    baseline: null
+    animation_fps: 24
+    required_states: [fly]
+    replacement_checklist: [production_path, animated_flash_smoke, no_color_rect_projectile]
+  hit_spark:
+    usage: melee_hit_spark
+    path: res://assets/production/hit-spark-sheet-4.png
+    kind: production
+    frame_size: [64, 64]
+    frame_count: 4
+    pivot: [32, 32]
+    baseline: null
+    animation_fps: 30
+    required_states: [burst]
+    replacement_checklist: [production_path, short_lived, warm_impact_peak, no_debug_shape]
+  enemy_idle:
+    usage: enemy_idle
+    path: res://assets/production/enemy-idle-sheet-8.png
+    kind: production
+    frame_size: [192, 384]
+    frame_count: 8
+    pivot: [96, 344]
+    baseline: 344
+    animation_fps: 8
+    required_states: [idle]
+    replacement_checklist: [production_path, distinct_from_player, hunched_silhouette, stable_feet]
+  enemy_walk:
+    usage: enemy_walk
+    path: res://assets/production/enemy-walk-sheet-12.png
+    kind: production
+    frame_size: [192, 384]
+    frame_count: 12
+    pivot: [96, 344]
+    baseline: 344
+    animation_fps: 12
+    required_states: [walk]
+    replacement_checklist: [production_path, distinct_from_player, grounded_cycle, low_slide]
+  enemy_attack:
+    usage: enemy_attack
+    path: res://assets/production/enemy-attack-sheet-8.png
+    kind: production
+    frame_size: [192, 384]
+    frame_count: 8
+    pivot: [96, 344]
+    baseline: 344
+    animation_fps: 16
+    required_states: [attack]
+    replacement_checklist: [production_path, readable_lunge, anticipation, no_debug_shape]
+  boss_idle:
+    usage: boss_idle
+    path: res://assets/production/boss-idle-sheet-8.png
+    kind: production
+    frame_size: [256, 384]
+    frame_count: 8
+    pivot: [128, 344]
+    baseline: 344
+    animation_fps: 7
+    required_states: [idle]
+    replacement_checklist: [production_path, boss_silhouette, not_oversized_placeholder, no_copied_design]
+  sigil_relic:
+    usage: collectible_sigil
+    path: res://assets/production/sigil-relic.png
+    kind: production
+    frame_size: [72, 96]
+    frame_count: 1
+    pivot: [36, 48]
+    baseline: null
+    animation_fps: 0
+    required_states: [static]
+    replacement_checklist: [production_path, readable_pickup, warm_accent, no_color_rect]
+  gate_sealed:
+    usage: goal_gate_sealed
+    path: res://assets/production/gate-sealed.png
+    kind: production
+    frame_size: [176, 224]
+    frame_count: 1
+    pivot: [88, 112]
+    baseline: 224
+    animation_fps: 0
+    required_states: [sealed]
+    replacement_checklist: [production_path, readable_exit, gothic_material, no_debug_rectangle]
+  gate_open:
+    usage: goal_gate_open
+    path: res://assets/production/gate-open.png
+    kind: production
+    frame_size: [176, 224]
+    frame_count: 1
+    pivot: [88, 112]
+    baseline: 224
+    animation_fps: 0
+    required_states: [open]
+    replacement_checklist: [production_path, readable_exit, clear_open_state, no_debug_rectangle]
+  training_reliquary:
+    usage: training_dummy
+    path: res://assets/production/training-reliquary.png
+    kind: production
+    frame_size: [112, 128]
+    frame_count: 1
+    pivot: [56, 96]
+    baseline: 112
+    animation_fps: 0
+    required_states: [static]
+    replacement_checklist: [production_path, readable_hit_target, no_color_rect]

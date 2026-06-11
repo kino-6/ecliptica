@@ -16,7 +16,7 @@ Ecliptica は、ローグライク要素を持つ悪魔城ドラキュラ風の 
 - クリア報酬、最大 HP 強化、次 seed/variant ステージへ進むローグライク run loop
 - 初回ステージは「中級以上のアクションゲーム経験者が 2 回前後のトライでクリア」想定のバランス指標つき
 - 5 段階の人間反応速度つき AI プロファイルによる headless プレイテスト
-- 読みやすい寄りカメラ、HP/FOCUS バー、シジルピップ、敵接触ダメージ、被弾時リスポーン
+- 読みやすい寄りカメラ、HP/FOCUS バー、シジルピップ、敵接触ダメージ、被弾時ノックバックと短い無敵時間
 - Godot headless E2E による起動、移動、近接/遠隔攻撃、被弾、収集、ゲート開放、勝利確認
 
 ## 必要なもの
@@ -92,6 +92,26 @@ GODOT_BIN=/Applications/Godot.app/Contents/MacOS/Godot npm run start
 - クリティカルパス部屋: 6
 - 立て直し区間: 2
 
+## Vertical Slice 操作感
+
+今回の品質改善では、新しい武器や敵を足さず、最初の 1 部屋、通常敵 1 体、移動、ジャンプ、斧攻撃、被弾、カメラだけに絞って手触りを調整しています。
+
+- 移動最大速度: `210 px/s`
+- 地上加速 / 減速: `1180 px/s^2` / `1560 px/s^2`
+- 空中加速 / 減速: `620 px/s^2` / `430 px/s^2`
+- ジャンプ初速: `-620 px/s`
+- 着地硬直: `0.10s`、硬直中の移動倍率 `0.42`
+- 斧攻撃中の移動倍率: `0.18`
+- 斧攻撃: 8 frames at `16 fps`
+- Startup: frames `0-3`
+- Active: frames `4-5` のみ
+- Recovery: frames `6-7`
+- Hitstop: 通常接触 `3 frames`、強い impact `5 frames`
+- Hit feedback: 敵ノックバック、短い白フラッシュ、4 フレーム hit spark、小さな camera impulse
+- Camera: 進行方向 `96 px` look-ahead、上下追従 deadzone `74 px`、hit 時 impulse `10 px`
+
+斧攻撃の見える表現は `AxeSprite` の画像アニメーションだけで行います。`AttackArc`、`ColorRect`、単色矩形のようなデバッグ用視覚表現は、ゲーム画面上の攻撃アートとして使いません。
+
 ## ローグライク Run Loop
 
 現在の最小 loop は `docs/roguelike-plan.md` に沿って実装しています。
@@ -105,19 +125,21 @@ GODOT_BIN=/Applications/Godot.app/Contents/MacOS/Godot npm run start
 
 ## キャラクターアセット規格
 
+アセットの受け入れ規格は `assets/style-bible.md`、実際に Godot が読む配置は `assets/manifest.yaml` で管理します。画像を差し替えるときは scene を直接編集せず、`assets/production/` に置いた画像と manifest entry を更新します。
+
 - フレームサイズ: `192x384`
 - ガター: 各フレーム上下左右 `12px` 以上を透明にする
 - 基準位置: 人物中心 `x=96`、足元 baseline `y=344`
-- Idle: `assets/player-idle-sheet-10.png`、10 frames
-- Walk: `assets/player-walk-sheet-24.png`、24 frames
-- Axe attack body: `assets/player-attack-combo-sheet-24.png`、3 steps x 8 frames
-- Shoot body: `assets/player-shoot-sheet-8.png`、8 frames
-- Shot VFX: `assets/player-shot-sheet-6.png`、6 frames x `160x72`
+- Idle: `assets/production/player-idle-sheet-10.png`、10 frames
+- Walk: `assets/production/player-walk-sheet-24.png`、24 frames
+- Axe attack body: `assets/production/player-attack-combo-sheet-24.png`、3 steps x 8 frames
+- Shoot body: `assets/production/player-shoot-sheet-8.png`、8 frames
+- Shot VFX: `assets/production/player-shot-sheet-6.png`、6 frames x `160x72`
 - Axe source: `assets/source/player-axe-source-key.png` から `tools/generatePlayerAxeSheets.py` で透明化、縮小、回転合成する
-- Axe accessory: `assets/player-axe-idle-sheet-10.png`、`assets/player-axe-walk-sheet-24.png`、`assets/player-axe-attack-combo-sheet-24.png`、`assets/player-axe-shoot-sheet-8.png`
-- Enemy: `assets/enemy-idle-sheet-8.png`、`assets/enemy-walk-sheet-12.png`、`assets/enemy-attack-sheet-8.png`、`192x384`
-- Boss: `assets/boss-idle-sheet-8.png`、`256x384`
-- Stage relics: `assets/sigil-relic.png`、`assets/gate-sealed.png`、`assets/gate-open.png`、`assets/training-reliquary.png`
+- Axe accessory: `assets/production/player-axe-idle-sheet-10.png`、`assets/production/player-axe-walk-sheet-24.png`、`assets/production/player-axe-attack-combo-sheet-24.png`、`assets/production/player-axe-shoot-sheet-8.png`
+- Enemy: `assets/production/enemy-idle-sheet-8.png`、`assets/production/enemy-walk-sheet-12.png`、`assets/production/enemy-attack-sheet-8.png`、`192x384`
+- Boss: `assets/production/boss-idle-sheet-8.png`、`256x384`
+- Stage relics: `assets/production/sigil-relic.png`、`assets/production/gate-sealed.png`、`assets/production/gate-open.png`、`assets/production/training-reliquary.png`
 - Godot 表示: `PlayerSprite` と `AxeSprite` の 2 つの `AnimatedSprite2D` を同期し、`idle` / `walk` / `attack1` / `attack2` / `attack3` / `shoot` を切り替える
 - 攻撃表示: 斧本体は `AxeSprite` の画像ベースアクセサリだけで描画する。攻撃時は専用 8 フレームシートで構え、溜め、急加速、接触、振り抜きを表現し、`AttackArc` のような別描画オブジェクトは使わない。
 - 斧攻撃設計: `docs/axe-attack-redesign.md`
@@ -140,6 +162,14 @@ GODOT_BIN=/Applications/Godot.app/Contents/MacOS/Godot npm run start
 npm run test
 ```
 
+Release asset check:
+
+```bash
+npm run release:check
+```
+
+`assets/manifest.yaml` の active entry が `assets/placeholder/` または `kind: placeholder` を指している場合は失敗します。実行中に placeholder が混ざる場合は画面右上に `PLACEHOLDER ASSET` と表示します。
+
 Godot headless E2E のみ:
 
 ```bash
@@ -151,6 +181,14 @@ Headless AI プレイテスト:
 ```bash
 npm run playtest:ai
 ```
+
+最初の showcase room スクリーンショット:
+
+```bash
+npm run screenshot:showcase
+```
+
+保存先は `artifacts/showcase/showcase-room.png` です。
 
 実ウィンドウ E2E:
 
@@ -174,7 +212,7 @@ npm run verify:llm
 LLM_VERIFY_JSON {"mode":"llm_headless_verify","status":"pass",...}
 ```
 
-JSON にはプロジェクト名、ビューポート、画面右上に出す game revision と display seed、生成ステージの seed、足場数、シジル数、敵数、バランス指標、カメラ追従、プレイヤー移動量、HP、被弾リスポーン、攻撃表示、攻撃判定、銃撃 VFX のアニメーション契約、FOCUS 消費/回復、敵/訓練用ターゲット破壊、ゲート開放、勝利状態、失敗理由の配列が含まれます。失敗時も `failures` に理由を入れて出力するため、LLM が次の修正対象を読み取りやすくなります。
+JSON にはプロジェクト名、ビューポート、画面右上に出す game revision と display seed、生成ステージの seed、足場数、シジル数、敵数、バランス指標、カメラ追従、プレイヤー移動量、HP、被弾リスポーン、攻撃表示、startup/active/recovery のフレーム契約、hitstop、敵フラッシュ、敵ノックバック、hit spark、camera impulse、銃撃 VFX のアニメーション契約、FOCUS 消費/回復、敵/訓練用ターゲット破壊、ゲート開放、勝利状態、失敗理由の配列が含まれます。失敗時も `failures` に理由を入れて出力するため、LLM が次の修正対象を読み取りやすくなります。
 
 ## Headless AI プレイテスト
 
@@ -199,7 +237,11 @@ AI_PLAYTEST_WORKERS=2 npm run playtest:ai
 - `project.godot` - Godot プロジェクト設定
 - `scenes/` - Godot シーン
 - `scripts/` - GDScript
-- `assets/` - Godot が実際に使うゲームアセット
+- `assets/manifest.yaml` - Godot が読むアセット manifest
+- `assets/style-bible.md` - 外部制作アセットを受け入れるための画風・規格
+- `assets/production/` - Godot が実際に読む production アセット
+- `assets/placeholder/` - 仮素材置き場。release/check では active 使用を禁止
+- `.agents/skills/weapon-vfx-quality-gate/` - 武器/VFX を画像、hitbox、hitstop、ノックバック込みで検証する Skill
 - `images/` - 参照画像やプロトタイプ素材。Godot からは `.gdignore` で除外
 - `src/`, `index.html` - 旧 HTML/Canvas 版
 - `test/` - Node と Godot E2E テスト
@@ -207,4 +249,4 @@ AI_PLAYTEST_WORKERS=2 npm run playtest:ai
 
 ## 注意
 
-Godot が初回起動時に `.godot/` や `*.import` を生成します。ゲームで使う画像は `assets/` に置いてください。`images/` は参考素材置き場です。
+Godot が初回起動時に `.godot/` や `*.import` を生成します。ゲームで使う画像は `assets/production/` に置き、`assets/manifest.yaml` で差し替えてください。`images/` は参考素材置き場です。

@@ -5,13 +5,13 @@ import { inflateSync } from 'node:zlib';
 const FRAME_WIDTH = 192;
 const FRAME_HEIGHT = 384;
 const GUTTER = 8;
-const ATTACK_SCALE = 0.52;
+const ATTACK_SCALE = 0.46;
 const ATTACK_POSITION_X = 28;
-const ATTACK_POSITION_Y = -70;
+const ATTACK_POSITION_Y = -42;
 const ATTACK_HITBOXES_RIGHT = [
-  { x: 76, y: -48, w: 126, h: 88 },
-  { x: 82, y: -58, w: 136, h: 104 },
-  { x: 88, y: -42, w: 146, h: 96 },
+  { x: 68, y: -50, w: 112, h: 86 },
+  { x: 78, y: -56, w: 124, h: 96 },
+  { x: 88, y: -46, w: 136, h: 92 },
 ];
 
 const contracts = [

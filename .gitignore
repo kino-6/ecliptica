@@ -16,6 +16,9 @@ venv/
 node_modules/
 npm-debug.log*
 
+# Generated outputs
+artifacts/
+
 # OS/editor
 .DS_Store
 .vscode/

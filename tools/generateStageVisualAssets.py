@@ -6,27 +6,33 @@ import zlib
 from pathlib import Path
 
 
-PLATFORM_OUT = Path("assets/platform-stone-tile.png")
-SHOT_OUT = Path("assets/player-shot.png")
-SHOT_SHEET_OUT = Path("assets/player-shot-sheet-6.png")
-SIGIL_OUT = Path("assets/sigil-relic.png")
-GATE_SEALED_OUT = Path("assets/gate-sealed.png")
-GATE_OPEN_OUT = Path("assets/gate-open.png")
-TRAINING_DUMMY_OUT = Path("assets/training-reliquary.png")
+PLATFORM_OUTS = [Path("assets/production/platform-stone-tile.png"), Path("assets/platform-stone-tile.png")]
+SHOT_OUTS = [Path("assets/production/player-shot.png"), Path("assets/player-shot.png")]
+SHOT_SHEET_OUTS = [Path("assets/production/player-shot-sheet-6.png"), Path("assets/player-shot-sheet-6.png")]
+SIGIL_OUTS = [Path("assets/production/sigil-relic.png"), Path("assets/sigil-relic.png")]
+GATE_SEALED_OUTS = [Path("assets/production/gate-sealed.png"), Path("assets/gate-sealed.png")]
+GATE_OPEN_OUTS = [Path("assets/production/gate-open.png"), Path("assets/gate-open.png")]
+TRAINING_DUMMY_OUTS = [Path("assets/production/training-reliquary.png"), Path("assets/training-reliquary.png")]
+HIT_SPARK_OUTS = [Path("assets/production/hit-spark-sheet-4.png")]
+SHOWCASE_BACKDROP_OUTS = [Path("assets/production/showcase-room-backdrop.png")]
 SHOT_FRAME_WIDTH = 160
 SHOT_FRAME_HEIGHT = 72
 SHOT_FRAME_COUNT = 6
+HIT_SPARK_FRAME_WIDTH = 64
+HIT_SPARK_FRAME_HEIGHT = 64
+HIT_SPARK_FRAME_COUNT = 4
 
 
 def main() -> None:
-    PLATFORM_OUT.parent.mkdir(parents=True, exist_ok=True)
-    PLATFORM_OUT.write_bytes(encode_png(96, 64, platform_pixels()))
-    SHOT_OUT.write_bytes(encode_png(96, 40, shot_pixels()))
-    SHOT_SHEET_OUT.write_bytes(encode_png(SHOT_FRAME_WIDTH * SHOT_FRAME_COUNT, SHOT_FRAME_HEIGHT, shot_sheet_pixels()))
-    SIGIL_OUT.write_bytes(encode_png(48, 64, sigil_pixels()))
-    GATE_SEALED_OUT.write_bytes(encode_png(96, 160, gate_pixels(opened=False)))
-    GATE_OPEN_OUT.write_bytes(encode_png(96, 160, gate_pixels(opened=True)))
-    TRAINING_DUMMY_OUT.write_bytes(encode_png(64, 96, training_reliquary_pixels()))
+    write_all(PLATFORM_OUTS, encode_png(96, 64, platform_pixels()))
+    write_all(SHOT_OUTS, encode_png(96, 40, shot_pixels()))
+    write_all(SHOT_SHEET_OUTS, encode_png(SHOT_FRAME_WIDTH * SHOT_FRAME_COUNT, SHOT_FRAME_HEIGHT, shot_sheet_pixels()))
+    write_all(SIGIL_OUTS, encode_png(48, 64, sigil_pixels()))
+    write_all(GATE_SEALED_OUTS, encode_png(96, 160, gate_pixels(opened=False)))
+    write_all(GATE_OPEN_OUTS, encode_png(96, 160, gate_pixels(opened=True)))
+    write_all(TRAINING_DUMMY_OUTS, encode_png(64, 96, training_reliquary_pixels()))
+    write_all(HIT_SPARK_OUTS, encode_png(HIT_SPARK_FRAME_WIDTH * HIT_SPARK_FRAME_COUNT, HIT_SPARK_FRAME_HEIGHT, hit_spark_sheet_pixels()))
+    write_all(SHOWCASE_BACKDROP_OUTS, encode_png(620, 420, showcase_backdrop_pixels()))
 
 
 def platform_pixels() -> bytearray:
@@ -133,6 +139,88 @@ def shot_sheet_pixels() -> bytearray:
     return sheet
 
 
+def hit_spark_sheet_pixels() -> bytearray:
+    sheet = bytearray(HIT_SPARK_FRAME_WIDTH * HIT_SPARK_FRAME_COUNT * HIT_SPARK_FRAME_HEIGHT * 4)
+    for frame in range(HIT_SPARK_FRAME_COUNT):
+        frame_pixels = hit_spark_frame_pixels(frame)
+        paste_frame(sheet, HIT_SPARK_FRAME_WIDTH * HIT_SPARK_FRAME_COUNT, frame, frame_pixels, HIT_SPARK_FRAME_WIDTH, HIT_SPARK_FRAME_HEIGHT)
+    return sheet
+
+
+def hit_spark_frame_pixels(frame: int) -> bytearray:
+    width = HIT_SPARK_FRAME_WIDTH
+    height = HIT_SPARK_FRAME_HEIGHT
+    pixels = bytearray(width * height * 4)
+    cx = width * 0.5
+    cy = height * 0.48
+    strength = [1.0, 0.76, 0.42, 0.14][frame]
+    radius = 9 + frame * 8
+
+    draw_ellipse(pixels, width, cx, cy, 10 + frame * 3, 5 + frame, (118, 23, 20, int(132 * strength)))
+    draw_line(pixels, width, round(cx - radius), round(cy), round(cx + radius * 0.9), round(cy - 3), 2, (247, 210, 126, int(218 * strength)))
+    draw_line(pixels, width, round(cx - radius * 0.38), round(cy - radius * 0.42), round(cx + radius * 0.52), round(cy + radius * 0.36), 2, (189, 67, 43, int(176 * strength)))
+    draw_line(pixels, width, round(cx - radius * 0.28), round(cy + radius * 0.38), round(cx + radius * 0.56), round(cy - radius * 0.34), 1, (255, 238, 176, int(155 * strength)))
+    for i in range(10):
+        angle = (i / 10.0) * math.tau + frame * 0.18
+        distance = 8 + frame * 5 + (hash_noise(i, frame, 313) % 8)
+        x = cx + math.cos(angle) * distance
+        y = cy + math.sin(angle) * distance * 0.72
+        draw_ellipse(pixels, width, x, y, 2.2 - frame * 0.25, 1.3, (226, 143, 70, int(116 * strength)))
+    return pixels
+
+
+def showcase_backdrop_pixels() -> bytearray:
+    width = 620
+    height = 420
+    pixels = bytearray(width * height * 4)
+
+    for y in range(height):
+        for x in range(width):
+            depth = y / height
+            noise = hash_noise(x, y, 401) % 13 - 6
+            r = clamp(int(13 + depth * 12 + noise))
+            g = clamp(int(17 + depth * 14 + noise))
+            b = clamp(int(23 + depth * 18 + noise))
+            set_pixel(pixels, width, x, y, (r, g, b, 235))
+
+    for column_x, column_w, shade in [(60, 34, -8), (206, 28, 2), (386, 32, -4), (544, 38, -10)]:
+        for y in range(36, height):
+            for x in range(column_x - column_w // 2, column_x + column_w // 2):
+                if 0 <= x < width:
+                    noise = hash_noise(x, y, 419) % 16 - 8
+                    color = (clamp(33 + shade + noise), clamp(38 + shade + noise), clamp(46 + shade + noise), 212)
+                    blend_pixel(pixels, width, x, y, color)
+        draw_line(pixels, width, column_x - column_w // 2 - 5, 42, column_x + column_w // 2 + 5, 42, 3, (82, 78, 65, 126))
+
+    for arch_x, arch_w, arch_h in [(142, 116, 170), (304, 142, 196), (478, 124, 178)]:
+        for y in range(90, 315):
+            for x in range(arch_x - arch_w // 2, arch_x + arch_w // 2):
+                dx = (x - arch_x) / (arch_w * 0.5)
+                dy = (y - 212) / arch_h
+                arch = dx * dx + dy * dy
+                if arch < 1.0 and y > 114:
+                    blend_pixel(pixels, width, x, y, (5, 7, 10, 92))
+                elif abs(arch - 1.0) < 0.035 and y > 100:
+                    blend_pixel(pixels, width, x, y, (74, 75, 72, 132))
+
+    for i in range(34):
+        x = 22 + hash_noise(i, 4, 443) % 560
+        y = 56 + hash_noise(i, 7, 443) % 210
+        draw_line(pixels, width, x, y, x + (hash_noise(i, 9, 443) % 36 - 18), y + 70 + hash_noise(i, 11, 443) % 62, 1, (13, 17, 20, 86))
+
+    for lamp_x, lamp_y in [(92, 122), (512, 142)]:
+        draw_line(pixels, width, lamp_x, lamp_y - 42, lamp_x, lamp_y - 4, 2, (34, 28, 24, 170))
+        draw_ellipse(pixels, width, lamp_x, lamp_y, 10, 16, (132, 91, 48, 92))
+        draw_ellipse(pixels, width, lamp_x, lamp_y, 4, 8, (240, 182, 99, 115))
+        draw_ellipse(pixels, width, lamp_x, lamp_y + 20, 28, 34, (92, 55, 34, 35))
+
+    for x in range(width):
+        for y in range(height - 70, height):
+            blend_pixel(pixels, width, x, y, (3, 5, 8, 84 + (y - (height - 70))))
+
+    return pixels
+
+
 def gunshot_frame_pixels(frame: int) -> bytearray:
     width = SHOT_FRAME_WIDTH
     height = SHOT_FRAME_HEIGHT
@@ -140,41 +228,41 @@ def gunshot_frame_pixels(frame: int) -> bytearray:
     cy = height // 2
     progress = frame / max(SHOT_FRAME_COUNT - 1, 1)
 
-    flash_strengths = [1.0, 0.78, 0.34, 0.14, 0.0, 0.0]
-    smoke_strengths = [0.20, 0.45, 0.72, 0.86, 0.70, 0.50]
-    trail_strengths = [0.78, 0.92, 0.62, 0.32, 0.16, 0.0]
+    flash_strengths = [1.0, 0.76, 0.28, 0.06, 0.0, 0.0]
+    smoke_strengths = [0.10, 0.34, 0.66, 0.86, 0.76, 0.54]
+    trail_strengths = [0.58, 0.74, 0.45, 0.20, 0.08, 0.0]
     flash = flash_strengths[frame]
     smoke = smoke_strengths[frame]
     trail = trail_strengths[frame]
 
     # Rear smoke expands and cools after the first flash; it should read as a burst, not a solid bar.
-    for i in range(28):
-        drift = i * 2.9 + progress * 24.0
+    for i in range(32):
+        drift = i * 2.4 + progress * 18.0
         x = 12 + drift + (hash_noise(i, frame, 31) % 9 - 4)
-        y = cy + math.sin(i * 0.7 + frame * 0.8) * (4 + frame * 0.9) + (hash_noise(i, 7, frame + 13) % 7 - 3)
-        rx = 8.0 + (i % 5) * 1.5 + frame * 1.6
-        ry = 4.0 + (i % 4) * 0.8 + frame * 0.7
+        y = cy + math.sin(i * 0.7 + frame * 0.8) * (3.4 + frame * 0.75) + (hash_noise(i, 7, frame + 13) % 7 - 3)
+        rx = 5.5 + (i % 5) * 1.2 + frame * 1.85
+        ry = 3.2 + (i % 4) * 0.7 + frame * 0.86
         alpha = int((80 - i * 1.3) * smoke)
         color_bias = hash_noise(i, frame, 71) % 14
         draw_ellipse(pixels, width, x, y, rx, ry, (30 + color_bias, 36 + color_bias, 42 + color_bias, max(0, alpha)))
 
     # A short heated pressure wave and ember line carries the bullet direction for two frames.
     if trail > 0:
-        for i in range(18):
-            x = 38 + i * 5.4 + frame * 9.0
-            y = cy + math.sin(i * 0.9) * 2.6
-            draw_ellipse(pixels, width, x, y, 8.5 - i * 0.22, 2.4, (105, 58, 35, int(92 * trail)))
+        for i in range(16):
+            x = 42 + i * 5.0 + frame * 7.0
+            y = cy + math.sin(i * 0.9) * 2.1
+            draw_ellipse(pixels, width, x, y, 5.8 - i * 0.14, 1.7, (105, 58, 35, int(76 * trail)))
             if i % 3 == 0:
-                draw_ellipse(pixels, width, x + 5, y - 4, 2.0, 1.2, (226, 139, 65, int(96 * trail)))
-        draw_line(pixels, width, 40, cy - 5, 132, cy - 1, 1, (70, 35, 29, int(120 * trail)))
-        draw_line(pixels, width, 52, cy + 6, 123, cy + 2, 1, (20, 26, 31, int(116 * trail)))
+                draw_ellipse(pixels, width, x + 5, y - 3, 1.7, 1.0, (226, 139, 65, int(90 * trail)))
+        draw_line(pixels, width, 42, cy - 3, 126, cy - 1, 1, (70, 35, 29, int(92 * trail)))
+        draw_line(pixels, width, 50, cy + 4, 116, cy + 2, 1, (20, 26, 31, int(84 * trail)))
 
     # Classic 16-bit readability: a single violent flash, then it collapses into smoke.
     if flash > 0:
-        draw_star_flash(pixels, width, 64 + frame * 7, cy, flash)
-        draw_ellipse(pixels, width, 75 + frame * 8, cy, 25 - frame * 3.0, 7.0 - frame * 0.8, (213, 151, 67, int(210 * flash)))
-        draw_ellipse(pixels, width, 86 + frame * 8, cy - 1, 14 - frame * 1.8, 4.2, (251, 224, 139, int(236 * flash)))
-        draw_ellipse(pixels, width, 96 + frame * 9, cy, 4.6, 2.0, (255, 247, 194, int(250 * flash)))
+        draw_muzzle_bloom(pixels, width, 58 + frame * 6, cy, flash)
+        draw_ellipse(pixels, width, 70 + frame * 7, cy, 24 - frame * 3.0, 6.8 - frame * 0.8, (218, 160, 72, int(214 * flash)))
+        draw_ellipse(pixels, width, 80 + frame * 7, cy - 1, 14 - frame * 1.8, 4.4, (252, 224, 128, int(230 * flash)))
+        draw_ellipse(pixels, width, 90 + frame * 7, cy, 5.2, 2.0, (255, 247, 194, int(238 * flash)))
 
     for i in range(13):
         spark_life = max(0.0, flash + trail * 0.5 - i * 0.025)
@@ -195,13 +283,14 @@ def gunshot_frame_pixels(frame: int) -> bytearray:
     return pixels
 
 
-def draw_star_flash(pixels: bytearray, width: int, cx: float, cy: float, strength: float) -> None:
-    alpha = int(180 * strength)
-    draw_line(pixels, width, round(cx - 25), round(cy), round(cx + 28), round(cy), 2, (247, 209, 118, alpha))
-    draw_line(pixels, width, round(cx - 12), round(cy - 13), round(cx + 17), round(cy + 13), 2, (211, 121, 57, int(alpha * 0.82)))
-    draw_line(pixels, width, round(cx - 8), round(cy + 12), round(cx + 18), round(cy - 11), 1, (255, 239, 177, int(alpha * 0.75)))
-    draw_ellipse(pixels, width, cx, cy, 15, 7, (125, 35, 29, int(alpha * 0.72)))
-    draw_ellipse(pixels, width, cx + 5, cy, 8, 4, (255, 238, 170, int(alpha * 0.92)))
+def draw_muzzle_bloom(pixels: bytearray, width: int, cx: float, cy: float, strength: float) -> None:
+    alpha = int(170 * strength)
+    draw_ellipse(pixels, width, cx - 10, cy, 18, 8, (86, 31, 24, int(alpha * 0.52)))
+    draw_ellipse(pixels, width, cx, cy, 22, 7, (208, 133, 55, int(alpha * 0.84)))
+    draw_ellipse(pixels, width, cx + 11, cy - 1, 13, 4.2, (255, 228, 149, int(alpha * 0.96)))
+    draw_ellipse(pixels, width, cx + 17, cy, 7, 2.4, (255, 240, 162, int(alpha * 0.88)))
+    draw_line(pixels, width, round(cx - 15), round(cy - 4), round(cx + 26), round(cy - 1), 1, (242, 190, 91, int(alpha * 0.62)))
+    draw_line(pixels, width, round(cx - 9), round(cy + 5), round(cx + 22), round(cy + 2), 1, (132, 48, 34, int(alpha * 0.54)))
 
 
 def paste_frame(sheet: bytearray, sheet_width: int, frame: int, frame_pixels: bytearray, frame_width: int, frame_height: int) -> None:
@@ -210,6 +299,12 @@ def paste_frame(sheet: bytearray, sheet_width: int, frame: int, frame_pixels: by
         dst_start = (y * sheet_width + x0) * 4
         src_start = y * frame_width * 4
         sheet[dst_start : dst_start + frame_width * 4] = frame_pixels[src_start : src_start + frame_width * 4]
+
+
+def write_all(paths: list[Path], data: bytes) -> None:
+    for path in paths:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
 
 
 def sigil_pixels() -> bytearray:

@@ -8,6 +8,9 @@ const FLOOR_SNAP_DISTANCE := 12.0
 const FLOOR_PROBE_UP := 28.0
 const FLOOR_PROBE_DOWN := 96.0
 const FOOT_OFFSET_Y := 29.0
+const HIT_FLASH_DURATION := 0.12
+const HIT_REACTION_DURATION := 0.16
+const DEATH_HOLD_DURATION := 0.10
 
 var patrol_origin := Vector2.ZERO
 var patrol_radius := 74.0
@@ -18,6 +21,10 @@ var facing_left := true
 var direction := -1.0
 var vertical_velocity := 0.0
 var grounded := false
+var hit_flash_timer := 0.0
+var hit_reaction_timer := 0.0
+var hit_knockback_velocity := 0.0
+var death_hold_timer := 0.0
 
 @onready var sprite: AnimatedSprite2D = get_node_or_null("EnemySprite")
 
@@ -34,7 +41,12 @@ func configure_patrol(radius: float, speed: float, detection: float, lunge: floa
 	lunge_speed = lunge
 
 func _physics_process(delta: float) -> void:
-	if bool(get_meta("destroyed", false)) or not visible:
+	if not visible:
+		return
+	if bool(get_meta("destroyed", false)):
+		_update_hit_reaction(delta)
+		_update_hit_feedback(delta)
+		_update_death_hold(delta)
 		return
 
 	var player := get_tree().get_first_node_in_group("player") as Node2D
@@ -43,7 +55,9 @@ func _physics_process(delta: float) -> void:
 		_update_lunge(player, delta)
 	else:
 		_update_patrol(delta)
+	_update_hit_reaction(delta)
 	_apply_gravity(delta, previous_y)
+	_update_hit_feedback(delta)
 	_update_facing()
 
 func _can_lunge_at(player: Node2D) -> bool:
@@ -97,6 +111,47 @@ func _update_facing() -> void:
 	facing_left = direction < 0.0
 	if sprite != null:
 		sprite.flip_h = not facing_left
+
+func apply_hit_reaction(source_position: Vector2, force: float, lethal: bool) -> void:
+	hit_flash_timer = HIT_FLASH_DURATION
+	hit_reaction_timer = HIT_REACTION_DURATION
+	hit_knockback_velocity = force
+	if source_position.x > global_position.x:
+		direction = -1.0
+	else:
+		direction = 1.0
+	if lethal:
+		death_hold_timer = DEATH_HOLD_DURATION
+	set_meta("hit_flash_started", true)
+	set_meta("hit_knockback_started", true)
+
+func _update_hit_reaction(delta: float) -> void:
+	if hit_reaction_timer <= 0.0:
+		hit_knockback_velocity = 0.0
+		return
+	var factor := hit_reaction_timer / HIT_REACTION_DURATION
+	hit_reaction_timer = maxf(hit_reaction_timer - delta, 0.0)
+	var proposed_x := global_position.x + hit_knockback_velocity * factor * delta
+	if _can_move_to_x(proposed_x):
+		global_position.x = proposed_x
+	else:
+		hit_reaction_timer = 0.0
+		hit_knockback_velocity = 0.0
+
+func _update_hit_feedback(delta: float) -> void:
+	if hit_flash_timer <= 0.0:
+		modulate = Color(1.0, 1.0, 1.0, 1.0)
+		return
+	hit_flash_timer = maxf(hit_flash_timer - delta, 0.0)
+	modulate = Color(1.65, 1.58, 1.45, 1.0)
+
+func _update_death_hold(delta: float) -> void:
+	if death_hold_timer <= 0.0:
+		visible = false
+		set_deferred("monitoring", false)
+		set_deferred("monitorable", false)
+		return
+	death_hold_timer = maxf(death_hold_timer - delta, 0.0)
 
 func _can_move_to_x(proposed_x: float) -> bool:
 	if not grounded:

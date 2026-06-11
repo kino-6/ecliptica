@@ -15,8 +15,11 @@ test('LLM verify mode is documented as a package script', async () => {
   const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
 
   assert.equal(packageJson.scripts['verify:llm'], 'node tools/llmVerifyRunner.mjs');
+  assert.equal(packageJson.scripts['screenshot:showcase'], 'node tools/showcaseScreenshotRunner.mjs');
   assert.equal(existsSync('scripts/llm_verify.gd'), true, 'scripts/llm_verify.gd should exist');
   assert.equal(existsSync('tools/llmVerifyRunner.mjs'), true, 'tools/llmVerifyRunner.mjs should exist');
+  assert.equal(existsSync('scripts/showcase_screenshot.gd'), true, 'scripts/showcase_screenshot.gd should exist');
+  assert.equal(existsSync('tools/showcaseScreenshotRunner.mjs'), true, 'tools/showcaseScreenshotRunner.mjs should exist');
 });
 
 test('LLM verify mode emits a machine-readable pass summary', async () => {
@@ -61,6 +64,9 @@ test('LLM verify mode emits a machine-readable pass summary', async () => {
   assert.equal(summary.stage.enemy_spawn_overlap_count, 0);
   assert.equal(summary.stage.enemy_spawn_out_of_floor_count, 0);
   assert.equal(summary.stage.boss_spawn_grounded, true);
+  assert.ok(summary.stage.showcase_room_floor_segments >= 3);
+  assert.equal(summary.stage.showcase_enemy_count, 1);
+  assert.equal(summary.stage.showcase_has_backdrop, true);
   assert.equal(summary.stage.sigil_count, 7);
   assert.ok(summary.stage.enemy_count >= 3);
   assert.equal(summary.stage.platform_count, summary.stage.room_count);
@@ -78,6 +84,8 @@ test('LLM verify mode emits a machine-readable pass summary', async () => {
   assert.equal(summary.visuals.platform_flat_rect_hidden, true);
   assert.equal(summary.visuals.platform_tiles_present, true);
   assert.equal(summary.visuals.room_back_wall_present, true);
+  assert.equal(summary.visuals.showcase_backdrop_present, true);
+  assert.equal(summary.visuals.showcase_debug_back_wall_hidden, true);
   assert.equal(summary.visuals.room_connectors_present, true);
   assert.equal(summary.visuals.blocking_wall_collision_count, 0);
   assert.equal(summary.visuals.sigil_uses_sprite, true);
@@ -90,6 +98,8 @@ test('LLM verify mode emits a machine-readable pass summary', async () => {
   assert.ok(summary.enemy.patrol_fell_by <= 8);
   assert.ok(['walk', 'attack'].includes(summary.enemy.animation_after_patrol));
   assert.equal(summary.camera.followed_player, true);
+  assert.ok(summary.camera.lookahead_x >= 80);
+  assert.ok(summary.camera.lookahead_x <= 110);
   assert.deepEqual(summary.camera.zoom, { x: 2.2, y: 2.2 });
   assert.ok(summary.camera.visible_world_width <= 900);
   assert.ok(summary.player.moved_right_by >= 40);
@@ -102,11 +112,39 @@ test('LLM verify mode emits a machine-readable pass summary', async () => {
   assert.equal(summary.attack.animation_seen, true);
   assert.equal(summary.attack.hitbox_enabled_during_attack, true);
   assert.equal(summary.attack.uses_legacy_attack_arc, false);
-  assert.deepEqual(summary.attack.axe_attack_scale, { x: 0.52, y: 0.52 });
-  assert.deepEqual(summary.attack.hitbox_position_right, { x: 76, y: -48 });
-  assert.deepEqual(summary.attack.hitbox_position_left, { x: -76, y: -48 });
-  assert.deepEqual(summary.attack.hitbox_size_right, { x: 126, y: 88 });
+  assert.deepEqual(summary.attack.axe_attack_scale, { x: 0.46, y: 0.46 });
+  assert.equal(summary.attack.startup_frames, 4);
+  assert.deepEqual(summary.attack.active_frames, [4, 5]);
+  assert.equal(summary.attack.recovery_frames, 2);
+  assert.deepEqual(summary.attack.active_frames_seen, [4, 5]);
+  assert.equal(summary.attack.illegal_startup_active, false);
+  assert.equal(summary.attack.illegal_recovery_active, false);
+  assert.equal(summary.attack.hitstop_triggered, true);
+  assert.equal(summary.attack.enemy_hp_after_hit, 1);
+  assert.equal(summary.attack.enemy_hit_flash_triggered, true);
+  assert.equal(summary.attack.enemy_hit_knockback_triggered, true);
+  assert.equal(summary.attack.hit_spark_spawned, true);
+  assert.equal(summary.attack.camera_impulse_triggered, true);
+  assert.deepEqual(summary.attack.hitbox_position_right, { x: 68, y: -50 });
+  assert.deepEqual(summary.attack.hitbox_position_left, { x: -68, y: -50 });
+  assert.deepEqual(summary.attack.hitbox_size_right, { x: 112, y: 86 });
+  assert.deepEqual(summary.attack.active_hitbox_samples.map((sample) => sample.frame), [4, 5]);
   assert.equal(summary.attack.training_dummy_destroyed, true);
+  assert.equal(summary.feel.move_max_speed, 210);
+  assert.equal(summary.feel.ground_acceleration, 1180);
+  assert.equal(summary.feel.ground_deceleration, 1560);
+  assert.equal(summary.feel.air_acceleration, 620);
+  assert.equal(summary.feel.air_deceleration, 430);
+  assert.equal(summary.feel.jump_velocity, -620);
+  assert.equal(summary.feel.landing_recovery_seconds, 0.1);
+  assert.equal(summary.feel.attack_move_speed_scale, 0.18);
+  assert.equal(summary.feel.attack_startup_frames, 4);
+  assert.deepEqual(summary.feel.attack_active_frames, [4, 5]);
+  assert.equal(summary.feel.attack_recovery_frames, 2);
+  assert.equal(summary.feel.hitstop_glancing_frames, 3);
+  assert.equal(summary.feel.hitstop_impact_frames, 5);
+  assert.equal(summary.feel.camera_lookahead_x, 96);
+  assert.equal(summary.feel.camera_impulse_pixels, 10);
   assert.equal(summary.ranged.available, true);
   assert.equal(summary.ranged.projectile_spawned, true);
   assert.equal(summary.ranged.projectile_visual_is_animated, true);
