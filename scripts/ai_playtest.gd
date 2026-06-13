@@ -183,30 +183,23 @@ func _probe_melee(scene: Node, player: CharacterBody2D, reaction_frames: int, ac
 	enemy.monitorable = true
 	enemy.set_meta("destroyed", false)
 	enemy.set_meta("hit_points", 1)
-	var attack_hitbox := player.get_node("AttackHitbox") as Area2D
+	enemy.global_position = player.global_position + Vector2(148.0, -44.0)
+	enemy.set_physics_process(false)
 	player.facing_left = false
 	player.attack_timer = 0.0
 	player._sync_attack_geometry()
-	enemy.global_position = attack_hitbox.global_position
-	enemy.set_physics_process(false)
-	await _wait_frames(reaction_frames)
-	player.attack()
-	var active_seen := false
-	var overlap_seen := false
-	for frame in range(maxi(action_interval_frames, _frames_for_seconds(player.ATTACK_ACTIVE_END) + 4)):
-		await physics_frame
-		active_seen = active_seen or attack_hitbox.monitoring
-		if attack_hitbox.monitoring and _area_center_inside_hitbox(enemy, attack_hitbox):
-			overlap_seen = true
-			if not bool(enemy.get_meta("destroyed", false)):
-				player._damage_attack_target(enemy)
-	var destroyed := bool(enemy.get_meta("destroyed", false))
+	var attempt := await _run_melee_attempt(scene, player, enemy, reaction_frames, action_interval_frames)
+	var destroyed := bool(attempt["enemy_destroyed"])
 	route_log.append({
 		"phase": "melee",
 		"target": enemy.name,
-		"active_seen": active_seen,
-		"overlap_seen": overlap_seen,
+		"approach_time": attempt["approach_time"],
+		"active_seen": attempt["active_seen"],
+		"miss_count": attempt["miss_count"],
+		"damage_taken": attempt["damage_taken"],
+		"enemy_destroyed": destroyed,
 		"result": "pass" if destroyed else "fail",
+		"reason": "" if destroyed else "missed melee timing",
 	})
 	return destroyed
 
@@ -249,22 +242,88 @@ func _probe_boss(scene: Node, player: CharacterBody2D, profile: Dictionary, reac
 	boss.set_meta("destroyed", false)
 	var max_hp := int(boss.get_meta("max_hit_points", 3))
 	boss.set_meta("hit_points", max_hp)
-	boss.global_position = player.global_position + Vector2(86.0, -42.0)
-	var hits_landed := 0
+	boss.global_position = player.global_position + Vector2(118.0, -42.0)
 	var allowed_hits: int = max_hp if _can_manage_boss(profile) else max(1, max_hp - 1)
-	for hit in range(allowed_hits):
-		await _wait_frames(reaction_frames)
-		player._damage_attack_target(boss)
-		hits_landed += 1
-		await _wait_frames(action_interval_frames)
-	var destroyed := bool(boss.get_meta("destroyed", false))
+	var attempt := await _run_boss_attempt(scene, player, boss, allowed_hits, reaction_frames, action_interval_frames)
+	var destroyed := bool(attempt["boss_destroyed"])
 	route_log.append({
 		"phase": "boss",
-		"hits_landed": hits_landed,
+		"hits_landed": attempt["hits_landed"],
 		"required_hits": max_hp,
+		"miss_count": attempt["miss_count"],
+		"damage_taken": attempt["damage_taken"],
+		"boss_destroyed": destroyed,
 		"result": "pass" if destroyed else "fail",
+		"reason": "" if destroyed else "boss not defeated within attempt window",
 	})
 	return destroyed
+
+func _run_melee_attempt(scene: Node, player: CharacterBody2D, enemy: Area2D, reaction_frames: int, action_interval_frames: int) -> Dictionary:
+	var game: Node = scene
+	var attack_hitbox := player.get_node("AttackHitbox") as Area2D
+	var health_before := int(game.get("player_health"))
+	var approach_frames := 0
+	await _wait_frames(reaction_frames)
+	player.e2e_set_axis(1.0)
+	for frame in range(maxi(action_interval_frames * 2, 72)):
+		await physics_frame
+		approach_frames += 1
+		if enemy.global_position.x - player.global_position.x <= 92.0:
+			break
+	player.e2e_set_axis(0.0)
+	await _wait_frames(4)
+	player.facing_left = enemy.global_position.x < player.global_position.x
+	var hp_before_hit := int(enemy.get_meta("hit_points", 1))
+	player.attack()
+	var active_seen := false
+	for frame in range(_frames_for_seconds(player.ATTACK_DURATION) + 6):
+		await physics_frame
+		active_seen = active_seen or attack_hitbox.monitoring
+		if bool(enemy.get_meta("destroyed", false)):
+			break
+	var hp_after_hit := int(enemy.get_meta("hit_points", hp_before_hit))
+	var destroyed := bool(enemy.get_meta("destroyed", false))
+	return {
+		"approach_time": approach_frames,
+		"active_seen": active_seen,
+		"miss_count": 0 if destroyed or hp_after_hit < hp_before_hit else 1,
+		"damage_taken": health_before - int(game.get("player_health")),
+		"enemy_destroyed": destroyed,
+	}
+
+func _run_boss_attempt(scene: Node, player: CharacterBody2D, boss: Area2D, allowed_hits: int, reaction_frames: int, action_interval_frames: int) -> Dictionary:
+	var game: Node = scene
+	var attack_hitbox := player.get_node("AttackHitbox") as Area2D
+	var health_before := int(game.get("player_health"))
+	var hits_landed := 0
+	var miss_count := 0
+	for hit in range(allowed_hits):
+		while player.is_attacking():
+			await physics_frame
+		await _wait_frames(reaction_frames)
+		player.e2e_set_axis(0.0)
+		player.facing_left = boss.global_position.x < player.global_position.x
+		var hp_before_hit := int(boss.get_meta("hit_points", 0))
+		player.attack()
+		var active_seen := false
+		for frame in range(maxi(action_interval_frames, _frames_for_seconds(player.ATTACK_DURATION) + 6)):
+			await physics_frame
+			active_seen = active_seen or attack_hitbox.monitoring
+			if not player.is_attacking():
+				break
+		var hp_after_hit := int(boss.get_meta("hit_points", hp_before_hit))
+		if hp_after_hit < hp_before_hit:
+			hits_landed += 1
+		elif active_seen:
+			miss_count += 1
+		if bool(boss.get_meta("destroyed", false)):
+			break
+	return {
+		"hits_landed": hits_landed,
+		"miss_count": miss_count,
+		"damage_taken": health_before - int(game.get("player_health")),
+		"boss_destroyed": bool(boss.get_meta("destroyed", false)),
+	}
 
 func _score_branch_challenges(profile: Dictionary, stage_summary: Dictionary, route_log: Array) -> int:
 	var balance: Dictionary = stage_summary.get("balance", {})

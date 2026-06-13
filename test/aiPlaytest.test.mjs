@@ -13,6 +13,19 @@ test('AI playtest mode is documented as a package script and skill', async () =>
   assert.equal(existsSync('.agents/skills/headless-ai-playtest/SKILL.md'), true, 'headless AI playtest skill should exist');
 });
 
+test('AI playtest combat probes use real player actions instead of direct target damage', async () => {
+  const script = await readFile('scripts/ai_playtest.gd', 'utf8');
+
+  assert.match(script, /func _run_melee_attempt/);
+  assert.match(script, /func _run_boss_attempt/);
+  assert.match(script, /miss_count/);
+  assert.match(script, /damage_taken/);
+  assert.match(script, /enemy_destroyed/);
+  assert.match(script, /boss_destroyed/);
+  assert.doesNotMatch(script, /enemy\.global_position = attack_hitbox\.global_position/);
+  assert.doesNotMatch(script, /player\._damage_attack_target\(boss\)/);
+});
+
 test('AI playtest mode evaluates five human-limited skill profiles', async () => {
   const result = await run('npm', ['run', 'playtest:ai']);
   const summary = parseSummary(result.stdout);

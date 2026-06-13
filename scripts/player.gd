@@ -9,6 +9,8 @@ const AIR_DECELERATION := 430.0
 const JUMP_VELOCITY := -620.0
 const GRAVITY := 1900.0
 const MAX_FALL := 980.0
+const COYOTE_TIME := 0.08
+const JUMP_BUFFER_TIME := 0.08
 const LANDING_RECOVERY_DURATION := 0.10
 const LANDING_CONTROL_SCALE := 0.42
 const FRAME_SIZE := Vector2i(192, 384)
@@ -21,18 +23,19 @@ const ATTACK_ANIMATION_FPS := 16.0
 const ATTACK_STARTUP_FRAMES := 4
 const ATTACK_ACTIVE_FRAME_START := 4
 const ATTACK_ACTIVE_FRAME_END := 5
+const ATTACK_ACTIVE_FRAMES_BY_STEP := [[4, 5], [4, 5], [4, 5]]
 const ATTACK_RECOVERY_FRAMES := 2
 const ATTACK_TOTAL_FRAMES := 8
 const ATTACK_DURATION := 0.50
 const ATTACK_ACTIVE_START := 0.25
 const ATTACK_ACTIVE_END := 0.375
 const ATTACK_HITBOX_OFFSETS := [
-	[Vector2(48, -82), Vector2(68, -50)],
+	[Vector2(56, -82), Vector2(78, -50)],
 	[Vector2(54, -90), Vector2(78, -56)],
 	[Vector2(60, -78), Vector2(88, -46)],
 ]
 const ATTACK_HITBOX_SIZES := [
-	[Vector2(96, 78), Vector2(112, 86)],
+	[Vector2(116, 84), Vector2(136, 92)],
 	[Vector2(104, 86), Vector2(124, 96)],
 	[Vector2(112, 82), Vector2(136, 92)],
 ]
@@ -40,7 +43,7 @@ const AXE_BASE_POSITION := Vector2(-2, -68)
 const AXE_ATTACK_POSITION := Vector2(28, -42)
 const AXE_BASE_SCALE := Vector2(0.3, 0.3)
 const AXE_ATTACK_SCALE := Vector2(0.46, 0.46)
-const ATTACK_MOVE_SPEED_SCALE := 0.18
+const ATTACK_MOVE_SPEED_SCALE := 0.24
 const HITSTOP_GLANCING_FRAMES := 3
 const HITSTOP_IMPACT_FRAMES := 5
 const HITSTOP_FRAME_RATE := 60.0
@@ -94,6 +97,8 @@ var shoot_focus := FOCUS_MAX
 var knockback_timer := 0.0
 var knockback_velocity := Vector2.ZERO
 var landing_recovery_timer := 0.0
+var coyote_timer := 0.0
+var jump_buffer_timer := 0.0
 var hitstop_timer := 0.0
 var hit_targets := {}
 var shot_texture: Texture2D
@@ -146,16 +151,20 @@ func _physics_process(delta: float) -> void:
 		shoot()
 	force_shoot = false
 
+	var jump_pressed := force_jump or Input.is_action_just_pressed("jump")
+	force_jump = false
 	var was_airborne := not is_on_floor()
 	_update_landing_recovery(delta)
+	_update_jump_assist(delta, jump_pressed)
 	var speed_scale := _movement_speed_scale()
 	if axis != 0.0:
 		facing_left = axis < 0.0
 
-	if (force_jump or Input.is_action_just_pressed("jump")) and is_on_floor() and landing_recovery_timer <= 0.0:
+	if _can_consume_jump():
 		velocity.y = JUMP_VELOCITY
 		landing_recovery_timer = 0.0
-	force_jump = false
+		coyote_timer = 0.0
+		jump_buffer_timer = 0.0
 
 	var knockback_factor := _update_knockback(delta)
 	var target_x := axis * MOVE_MAX_SPEED * speed_scale
@@ -165,7 +174,13 @@ func _physics_process(delta: float) -> void:
 	velocity.y = minf(velocity.y + GRAVITY * delta, MAX_FALL)
 	move_and_slide()
 	if was_airborne and is_on_floor():
-		landing_recovery_timer = LANDING_RECOVERY_DURATION
+		if jump_buffer_timer > 0.0:
+			velocity.y = JUMP_VELOCITY
+			landing_recovery_timer = 0.0
+			coyote_timer = 0.0
+			jump_buffer_timer = 0.0
+		else:
+			landing_recovery_timer = LANDING_RECOVERY_DURATION
 	_update_focus(delta)
 	_update_projectiles(delta)
 	_update_combo(delta)
@@ -188,6 +203,8 @@ func reset_to_spawn() -> void:
 	knockback_timer = 0.0
 	knockback_velocity = Vector2.ZERO
 	landing_recovery_timer = 0.0
+	coyote_timer = 0.0
+	jump_buffer_timer = 0.0
 	hitstop_timer = 0.0
 	attack_hitbox.monitoring = false
 	_update_animation()
@@ -315,7 +332,8 @@ func attack_startup_frames() -> int:
 	return ATTACK_STARTUP_FRAMES
 
 func attack_active_frames() -> Array[int]:
-	return [ATTACK_ACTIVE_FRAME_START, ATTACK_ACTIVE_FRAME_END]
+	var frames: Array = ATTACK_ACTIVE_FRAMES_BY_STEP[0]
+	return [int(frames[0]), int(frames[1])]
 
 func attack_recovery_frames() -> int:
 	return ATTACK_RECOVERY_FRAMES
@@ -366,6 +384,19 @@ func _update_knockback(delta: float) -> float:
 func _update_landing_recovery(delta: float) -> void:
 	if landing_recovery_timer > 0.0:
 		landing_recovery_timer = maxf(landing_recovery_timer - delta, 0.0)
+
+func _update_jump_assist(delta: float, jump_pressed: bool) -> void:
+	if is_on_floor():
+		coyote_timer = COYOTE_TIME
+	else:
+		coyote_timer = maxf(coyote_timer - delta, 0.0)
+	if jump_pressed:
+		jump_buffer_timer = JUMP_BUFFER_TIME
+	else:
+		jump_buffer_timer = maxf(jump_buffer_timer - delta, 0.0)
+
+func _can_consume_jump() -> bool:
+	return jump_buffer_timer > 0.0 and coyote_timer > 0.0 and landing_recovery_timer <= 0.0
 
 func _movement_speed_scale() -> float:
 	if is_attacking():
@@ -443,7 +474,8 @@ func _strike_target(area: Area2D) -> void:
 
 func _attack_hitbox_should_be_active() -> bool:
 	var frame := current_attack_frame()
-	return frame >= ATTACK_ACTIVE_FRAME_START and frame <= ATTACK_ACTIVE_FRAME_END
+	var frames: Array = ATTACK_ACTIVE_FRAMES_BY_STEP[clampi(current_attack_step - 1, 0, COMBO_STEP_COUNT - 1)]
+	return frame >= int(frames[0]) and frame <= int(frames[1])
 
 func _attack_hitbox_offset_for_frame() -> Vector2:
 	var profile_index := clampi(current_attack_step - 1, 0, COMBO_STEP_COUNT - 1)
@@ -456,10 +488,12 @@ func _attack_hitbox_size_for_frame() -> Vector2:
 	return ATTACK_HITBOX_SIZES[profile_index][active_index]
 
 func _attack_active_profile_index() -> int:
-	return 0 if current_attack_frame() == ATTACK_ACTIVE_FRAME_START else 1
+	var frames: Array = ATTACK_ACTIVE_FRAMES_BY_STEP[clampi(current_attack_step - 1, 0, COMBO_STEP_COUNT - 1)]
+	return 0 if current_attack_frame() == int(frames[0]) else 1
 
 func _is_attack_impact_frame() -> bool:
-	return current_attack_frame() == ATTACK_ACTIVE_FRAME_END
+	var frames: Array = ATTACK_ACTIVE_FRAMES_BY_STEP[clampi(current_attack_step - 1, 0, COMBO_STEP_COUNT - 1)]
+	return current_attack_frame() == int(frames[1])
 
 func _update_focus(delta: float) -> void:
 	shoot_focus = minf(shoot_focus + FOCUS_REGEN_PER_SECOND * delta, FOCUS_MAX)

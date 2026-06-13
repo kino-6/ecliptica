@@ -125,9 +125,9 @@ test('LLM verify mode emits a machine-readable pass summary', async () => {
   assert.equal(summary.attack.enemy_hit_knockback_triggered, true);
   assert.equal(summary.attack.hit_spark_spawned, true);
   assert.equal(summary.attack.camera_impulse_triggered, true);
-  assert.deepEqual(summary.attack.hitbox_position_right, { x: 68, y: -50 });
-  assert.deepEqual(summary.attack.hitbox_position_left, { x: -68, y: -50 });
-  assert.deepEqual(summary.attack.hitbox_size_right, { x: 112, y: 86 });
+  assert.deepEqual(summary.attack.hitbox_position_right, { x: 78, y: -50 });
+  assert.deepEqual(summary.attack.hitbox_position_left, { x: -78, y: -50 });
+  assert.deepEqual(summary.attack.hitbox_size_right, { x: 136, y: 92 });
   assert.deepEqual(summary.attack.active_hitbox_samples.map((sample) => sample.frame), [4, 5]);
   assert.equal(summary.attack.training_dummy_destroyed, true);
   assert.equal(summary.feel.move_max_speed, 210);
@@ -137,7 +137,7 @@ test('LLM verify mode emits a machine-readable pass summary', async () => {
   assert.equal(summary.feel.air_deceleration, 430);
   assert.equal(summary.feel.jump_velocity, -620);
   assert.equal(summary.feel.landing_recovery_seconds, 0.1);
-  assert.equal(summary.feel.attack_move_speed_scale, 0.18);
+  assert.equal(summary.feel.attack_move_speed_scale, 0.24);
   assert.equal(summary.feel.attack_startup_frames, 4);
   assert.deepEqual(summary.feel.attack_active_frames, [4, 5]);
   assert.equal(summary.feel.attack_recovery_frames, 2);

@@ -6,6 +6,7 @@ func _init() -> void:
 	call_deferred("run_window_e2e")
 
 func run_window_e2e() -> void:
+	print("WINDOW_E2E_START display=%s" % [DisplayServer.get_name()])
 	if not _expect(DisplayServer.get_name() != "headless", "window E2E must run without --headless"):
 		return
 

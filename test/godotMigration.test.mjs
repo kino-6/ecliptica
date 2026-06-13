@@ -304,11 +304,11 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(player, /ATTACK_ACTIVE_START := 0\.25/);
   assert.match(player, /ATTACK_ACTIVE_END := 0\.375/);
   assert.match(player, /ATTACK_HITBOX_OFFSETS := \[/);
-  assert.match(player, /Vector2\(48, -82\), Vector2\(68, -50\)/);
+  assert.match(player, /Vector2\(56, -82\), Vector2\(78, -50\)/);
   assert.match(player, /ATTACK_HITBOX_SIZES := \[/);
-  assert.match(player, /Vector2\(96, 78\), Vector2\(112, 86\)/);
+  assert.match(player, /Vector2\(116, 84\), Vector2\(136, 92\)/);
   assert.match(player, /AXE_ATTACK_SCALE := Vector2\(0\.46, 0\.46\)/);
-  assert.match(player, /ATTACK_MOVE_SPEED_SCALE := 0\.18/);
+  assert.match(player, /ATTACK_MOVE_SPEED_SCALE := 0\.24/);
   assert.match(player, /HITSTOP_IMPACT_FRAMES := 5/);
   assert.match(player, /HIT_SPARK_ASSET_ID := "hit_spark"/);
   assert.doesNotMatch(player, /attack_arc/);
@@ -385,6 +385,37 @@ test('player visuals flip sprites instead of scaling the physics body', async ()
 
   assert.doesNotMatch(player, /scale\.x\s*=/);
   assert.match(player, /flip_h/);
+});
+
+test('first-stage playability exposes forgiving controls and readable objectives', async () => {
+  const game = await readFile('scripts/game.gd', 'utf8');
+  const player = await readFile('scripts/player.gd', 'utf8');
+  const enemy = await readFile('scripts/enemy.gd', 'utf8');
+  const scene = await readFile('scenes/main.tscn', 'utf8');
+  const windowE2eTest = await readFile('test/godotWindowE2E.test.mjs', 'utf8');
+  const windowE2eScript = await readFile('scripts/window_e2e_runner.gd', 'utf8');
+
+  assert.match(player, /COYOTE_TIME := 0\.08/);
+  assert.match(player, /JUMP_BUFFER_TIME := 0\.08/);
+  assert.match(player, /func _can_consume_jump/);
+  assert.match(player, /ATTACK_ACTIVE_FRAMES_BY_STEP/);
+  assert.match(player, /ATTACK_MOVE_SPEED_SCALE := 0\.24/);
+
+  assert.match(enemy, /WINDUP_STATE := "windup"/);
+  assert.match(enemy, /WINDUP_DURATION :=/);
+  assert.match(enemy, /func _start_windup/);
+
+  assert.match(scene, /\[node name="SigilCountLabel" type="Label" parent="CanvasLayer\/HUDPanel"\]/);
+  assert.match(scene, /\[node name="TutorialLabel" type="Label" parent="CanvasLayer"\]/);
+  assert.match(scene, /\[node name="BossHealthPanel" type="Control" parent="CanvasLayer"\]/);
+  assert.match(game, /sigil_count_label/);
+  assert.match(game, /tutorial_label/);
+  assert.match(game, /boss_health_panel/);
+  assert.match(game, /gate_feedback_timer/);
+
+  assert.match(windowE2eTest, /WINDOW_E2E_TIMEOUT_MS/);
+  assert.match(windowE2eTest, /child\.kill\('SIGTERM'\)/);
+  assert.match(windowE2eScript, /WINDOW_E2E_START/);
 });
 
 test('walk atlas frames have transparent gutters for Godot hframes slicing', () => {

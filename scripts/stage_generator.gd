@@ -626,8 +626,17 @@ func _create_sigil(parent: Node2D, index: int, position: Vector2) -> void:
 	visual.name = "Visual"
 	visual.texture = sigil_texture
 	visual.scale = Vector2(0.74, 0.74)
+	visual.modulate = Color(1.22, 1.04, 0.92, 1.0)
 	visual.z_index = 6
 	sigil.add_child(visual)
+
+	var glow := Sprite2D.new()
+	glow.name = "Glow"
+	glow.texture = sigil_texture
+	glow.scale = Vector2(0.98, 0.98)
+	glow.modulate = Color(1.0, 0.28, 0.16, 0.28)
+	glow.z_index = 5
+	sigil.add_child(glow)
 
 	var shape := CircleShape2D.new()
 	shape.radius = 18.0

@@ -12,6 +12,8 @@ const CAMERA_VERTICAL_DEADZONE := 74.0
 const CAMERA_VERTICAL_FOLLOW := 0.18
 const CAMERA_IMPULSE_DURATION := 0.16
 const CAMERA_IMPULSE_PIXELS := 10.0
+const GATE_FEEDBACK_DURATION := 1.4
+const BOSS_HEALTH_BAR_WIDTH := 400.0
 const GATE_SEALED_COLOR := Color(0.08, 0.09, 0.13, 0.82)
 const GATE_OPEN_COLOR := Color(0.55, 0.08, 0.13, 0.82)
 const ASSET_MANIFEST_SCRIPT := preload("res://scripts/asset_manifest.gd")
@@ -31,8 +33,13 @@ const ROGUELIKE_RUN_SCRIPT := preload("res://scripts/roguelike_run.gd")
 @onready var health_fill: ColorRect = $CanvasLayer/HUDPanel/HealthBar/HealthFill
 @onready var focus_fill: ColorRect = $CanvasLayer/HUDPanel/FocusBar/FocusFill
 @onready var sigil_pips: HBoxContainer = $CanvasLayer/HUDPanel/SigilPips
+@onready var sigil_count_label: Label = $CanvasLayer/HUDPanel/SigilCountLabel
 @onready var state_label: Label = $CanvasLayer/HUDPanel/StateLabel
 @onready var run_info_label: Label = $CanvasLayer/RunInfoLabel
+@onready var tutorial_label: Label = $CanvasLayer/TutorialLabel
+@onready var boss_health_panel: Control = $CanvasLayer/BossHealthPanel
+@onready var boss_health_fill: ColorRect = $CanvasLayer/BossHealthPanel/BossHealthBack/BossHealthFill
+@onready var boss_health_label: Label = $CanvasLayer/BossHealthPanel/BossHealthLabel
 @onready var stage_generator: Node = $StageGenerator
 @onready var background: Sprite2D = $Background
 
@@ -59,6 +66,7 @@ var background_texture: Texture2D
 var asset_manifest
 var camera_impulse_timer := 0.0
 var camera_impulse_strength := 0.0
+var gate_feedback_timer := 0.0
 
 func _ready() -> void:
 	_apply_window_size()
@@ -83,6 +91,7 @@ func _process(delta: float) -> void:
 		return
 	damage_invulnerability_timer = maxf(damage_invulnerability_timer - delta, 0.0)
 	camera_impulse_timer = maxf(camera_impulse_timer - delta, 0.0)
+	gate_feedback_timer = maxf(gate_feedback_timer - delta, 0.0)
 	if player.global_position.y > LEVEL_HEIGHT + 80.0:
 		damage_player()
 	_update_player_damage_feedback()
@@ -103,8 +112,10 @@ func collect_sigil(sigil: Area2D) -> void:
 
 func open_gate() -> void:
 	gate_open = true
+	gate_feedback_timer = GATE_FEEDBACK_DURATION
 	gate_visual.texture = gate_open_texture
 	gate_visual.modulate = GATE_OPEN_COLOR
+	request_camera_impulse(0.42)
 	_update_hud()
 
 func damage_player(source: Node = null) -> void:
@@ -189,8 +200,12 @@ func _on_goal_body_entered(body: Node) -> void:
 func _update_hud() -> void:
 	_update_hud_bars()
 	_update_sigil_pips()
+	_update_boss_health()
+	_update_tutorial()
 	_update_run_info()
 	var gate_text := "OPEN" if gate_open else "SEALED"
+	if gate_feedback_timer > 0.0:
+		gate_text = "GATE OPEN"
 	var reward_text := ""
 	if won and not selected_reward.is_empty():
 		reward_text = " / %s" % [String(selected_reward.get("label", ""))]
@@ -238,6 +253,29 @@ func _update_sigil_pips() -> void:
 		var pip: ColorRect = sigil_pips.get_child(index)
 		pip.visible = index < sigils_total
 		pip.color = Color(0.72, 0.08, 0.13, 0.96) if index < sigils_collected else Color(0.10, 0.08, 0.09, 0.78)
+	sigil_count_label.text = "Sigils %d/%d" % [sigils_collected, sigils_total]
+
+func _update_tutorial() -> void:
+	tutorial_label.visible = run_stage_index == 1 and sigils_collected == 0 and not won and not game_over
+
+func _update_boss_health() -> void:
+	var boss: Area2D = _current_boss()
+	if boss == null or bool(boss.get_meta("destroyed", false)):
+		boss_health_panel.visible = false
+		return
+	var max_hp := maxi(1, int(boss.get_meta("max_hit_points", 1)))
+	var current_hp := clampi(int(boss.get_meta("hit_points", max_hp)), 0, max_hp)
+	var ratio := clampf(float(current_hp) / float(max_hp), 0.0, 1.0)
+	boss_health_panel.visible = true
+	boss_health_fill.offset_right = BOSS_HEALTH_BAR_WIDTH * ratio
+	boss_health_label.text = "BOSS %d/%d" % [current_hp, max_hp]
+
+func _current_boss() -> Area2D:
+	for node in get_tree().get_nodes_in_group("bosses"):
+		var boss := node as Area2D
+		if boss != null:
+			return boss
+	return null
 
 func _ensure_input_actions() -> void:
 	_add_key_action("move_left", [KEY_A, KEY_LEFT])

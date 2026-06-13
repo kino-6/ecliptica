@@ -1,6 +1,7 @@
 extends Area2D
 
 const PATROL_STATE := "walk"
+const WINDUP_STATE := "windup"
 const ATTACK_STATE := "attack"
 const GRAVITY := 1600.0
 const MAX_FALL_SPEED := 780.0
@@ -11,6 +12,7 @@ const FOOT_OFFSET_Y := 29.0
 const HIT_FLASH_DURATION := 0.12
 const HIT_REACTION_DURATION := 0.16
 const DEATH_HOLD_DURATION := 0.10
+const WINDUP_DURATION := 0.18
 
 var patrol_origin := Vector2.ZERO
 var patrol_radius := 74.0
@@ -25,6 +27,8 @@ var hit_flash_timer := 0.0
 var hit_reaction_timer := 0.0
 var hit_knockback_velocity := 0.0
 var death_hold_timer := 0.0
+var windup_timer := 0.0
+var windup_direction := -1.0
 
 @onready var sprite: AnimatedSprite2D = get_node_or_null("EnemySprite")
 
@@ -51,8 +55,15 @@ func _physics_process(delta: float) -> void:
 
 	var player := get_tree().get_first_node_in_group("player") as Node2D
 	var previous_y := global_position.y
-	if _can_lunge_at(player):
+	if windup_timer > 0.0:
+		_update_windup(delta)
+	elif _should_lunge_after_windup(player):
 		_update_lunge(player, delta)
+	elif _can_lunge_at(player):
+		if get_meta("ai_state", "") == ATTACK_STATE:
+			_update_lunge(player, delta)
+		else:
+			_start_windup(player)
 	else:
 		_update_patrol(delta)
 	_update_hit_reaction(delta)
@@ -74,6 +85,21 @@ func _update_lunge(player: Node2D, delta: float) -> void:
 	else:
 		direction *= -1.0
 	_set_state(ATTACK_STATE)
+
+func _start_windup(player: Node2D) -> void:
+	windup_direction = -1.0 if player.global_position.x < global_position.x else 1.0
+	direction = windup_direction
+	windup_timer = WINDUP_DURATION
+	set_meta("windup_started", true)
+	_set_state(WINDUP_STATE)
+
+func _update_windup(delta: float) -> void:
+	windup_timer = maxf(windup_timer - delta, 0.0)
+	direction = windup_direction
+	_set_state(WINDUP_STATE)
+
+func _should_lunge_after_windup(player: Node2D) -> bool:
+	return windup_timer <= 0.0 and get_meta("ai_state", "") == WINDUP_STATE and _can_lunge_at(player)
 
 func _update_patrol(delta: float) -> void:
 	var proposed_x := global_position.x + direction * patrol_speed * delta
@@ -140,6 +166,9 @@ func _update_hit_reaction(delta: float) -> void:
 
 func _update_hit_feedback(delta: float) -> void:
 	if hit_flash_timer <= 0.0:
+		if windup_timer > 0.0:
+			modulate = Color(1.28, 1.04, 0.82, 1.0)
+			return
 		modulate = Color(1.0, 1.0, 1.0, 1.0)
 		return
 	hit_flash_timer = maxf(hit_flash_timer - delta, 0.0)
@@ -172,5 +201,8 @@ func _set_state(state: StringName) -> void:
 	set_meta("ai_state", state)
 	if sprite == null:
 		return
-	if sprite.animation != state:
-		sprite.play(state)
+	var animation_name := state
+	if state == WINDUP_STATE:
+		animation_name = ATTACK_STATE
+	if sprite.animation != animation_name:
+		sprite.play(animation_name)
