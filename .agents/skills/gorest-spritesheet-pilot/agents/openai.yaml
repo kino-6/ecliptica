@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gorest Spritesheet Pilot"
+  short_description: "Pilot gorest spritesheets safely."
+  default_prompt: "Use the gorest spritesheet pilot workflow to evaluate or prepare a 2D animation spritesheet for Ecliptica while preserving local asset contracts and evidence gates."

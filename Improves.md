@@ -1,5 +1,141 @@
 # Ecliptica 改善メモ
 
+## 高品質な斧攻撃の定義
+
+ユーザー定義: 視覚的に納得感があり、重量物を振り回しているアニメーション、威力、人間の動きの緩急がある状態。
+
+このPJでは次の状態を目標にする。
+
+- 斧のサイズを伸縮させてごまかさない。
+- 足場、腰、肩、肘、手、斧頭が一つの運動連鎖として見える。
+- windup で重さを溜め、held frame で支え、active frame で急加速し、impact で刃と敵と spark が同じ接触点を示す。
+- follow-through で斧と布/髪/身体が遅れて流れ、recovery で自然に減速して戻る。
+- hitbox、hitstop、camera impulse、敵リアクションがアニメーション上の接触点と一致する。
+- 実ウィンドウ screenshot と JSON evidence なしに「高品質」と言わない。
+
+NG:
+
+- 斧や身体を適当に伸び縮みさせる。
+- 手元と斧頭が離れている。
+- 均等な回転で、溜め/急加速/衝突/余韻がない。
+- `hit=true` だけで手触りを肯定する。
+
+参考軸:
+
+- Animation principles: anticipation, arcs, slow-in/slow-out, follow-through。
+- Realistic heavy swing: 腕単体ではなく、身体全体の連鎖で重量物を加速させる。
+
+2026-06-15 PDCA:
+
+- `test/playerAxeAssetCheck.mjs` に scale abuse gate を追加。
+- `tools/generatePlayerAxeSheets.py` の attack pose scale を `0.97..1.05` に抑え、斧の伸縮で威力を作らないようにした。
+- Evidence: `artifacts/window-manual-play/20260615-183902-window-manual/summary.json`。
+- まだ未達: 腰/肩から斧頭へ力が伝わる運動連鎖、follow-through の迫力、Boss 戦中の斧視認性。次は body/axe を同じ kinematic definition から生成する。
+
+2026-06-15 follow-through PDCA:
+
+- `tools/attack_motion_contract.py` を共有モーション契約として使い、body/axe の frame 6/7 を同じ follow-through drive から生成するようにした。
+- `test/playerActionAssetCheck.mjs` に frame 6 でも肩、手、grip が接続される契約を追加した。
+- `scripts/window_manual_play_probe.gd` / `test/godotWindowManualPlay.test.mjs` で `window-attack-follow-through.png` を実ウィンドウ evidence として必須にした。
+- Evidence: `artifacts/window-manual-play/20260615-191330-window-manual/summary.json`。
+- Screenshots:
+  - `artifacts/window-manual-play/20260615-191330-window-manual/window-attack-active.png`
+  - `artifacts/window-manual-play/20260615-191330-window-manual/window-hit-spark.png`
+  - `artifacts/window-manual-play/20260615-191330-window-manual/window-attack-follow-through.png`
+- 言えること: 斧の伸縮ごまかしは gate 化され、命中後 frame 6 の手元接続と follow-through evidence は改善した。
+- まだ言えないこと: 身体全体の踏み込み、腰の回り込み、held weight の視覚的説得力は弱く、斧攻撃が高品質に達したとはまだ断言しない。
+
+## 斧アニメーションそのものの修正案 2026-06-17
+
+前回の評価は、身体側の踏み込み、腰、肩、held weight に寄りすぎていた。より根本には、斧レイヤー自体が「手に持った重量物」ではなく、別画像が回転・移動しているように見える問題がある。
+
+### 現状のおかしい点
+
+- 斧の pivot が握り手ではなく画像中心寄りに見え、手元から力が伝わっていない。
+- grip、柄、斧頭、刃先、重心がアニメーション上で設計されておらず、フレームごとの位置合わせに見える。
+- 斧頭の軌道が連続した弧ではなく、frame 間でテレポート/ポーズ切替に見える。
+- active frame の刃の向きと敵への接触点が直感的に一致しない場面がある。
+- smear/afterimage が「高速な振り抜き」ではなく、多重化した斧画像やノイズに見える。
+- follow-through で斧頭が慣性を持って流れず、身体の横や後ろへ急に収まる。
+- 現在の generator は既存の斧画像を回転・拡大縮小して帳尻を合わせており、武器アニメとしての rig がない。
+
+### 修正方針
+
+次の改善は、身体側の微修正ではなく、斧攻撃アニメを作り直す。
+
+1. Diagnostic overlay を作る
+   - 8 frame contact sheet に `grip point`, `blade edge`, `axe head center`, `hitbox`, `spark origin` を描く。
+   - 実ウィンドウ screenshot だけではなく、sheet 上でも破綻を確認できるようにする。
+
+2. 斧を rig として再定義する
+   - grip anchor、柄の向き、斧頭中心、刃先、重心を metadata として持つ。
+   - grip は player hand に常時一致させる。
+   - scale は固定し、威力は弧、タイミング、smear、impact pose で表現する。
+
+3. 8 frame timeline を作り直す
+   - frame 0: 構え。
+   - frame 1: 後方/上方へ引き始める。
+   - frame 2: 重さを支える windup。
+   - frame 3: held weight。ほぼ止めて重さを読む。
+   - frame 4: snap/smear。長い移動量だが刃の方向は読める。
+   - frame 5: impact。刃、敵、spark、hitbox が一致する。
+   - frame 6: overshoot。斧頭がまだ前方/下方へ流れる。
+   - frame 7: recovery。重量を戻す減速。
+
+4. 見た目の gate を追加する
+   - grip から blade edge までの距離が frame 間で不自然に変わらない。
+   - blade edge path が連続した弧を描く。
+   - active frame 4/5 の blade edge が runtime hitbox の前方接触帯に入る。
+   - frame 6 は impact より少し前方/下方へ overshoot する。
+   - smear は frame 4/5 のみに限定し、full axe の多重残像にしない。
+
+5. 実ウィンドウで判定する
+   - `window-attack-windup`, `window-attack-active`, `window-hit-spark`, `window-attack-follow-through` を取り直す。
+   - ここで見た目がまだ変なら、変と記録する。
+   - `hit=true` や asset test pass だけで高品質とは言わない。
+
+## ユーザー実プレイRED 2026-06-15
+
+前回の改善評価は甘かった。ユーザー実プレイでは、斧攻撃の手触りはまだ改善として感じられず、敵接触時の knockback はコースアウトするほど暴れていた。
+
+### 追加改善点
+
+1. 被弾 knockback が制御不能になる
+
+原因:
+
+- `scripts/player.gd` で knockback を通常速度に重ねる際、前フレームの寄与が残ったまま次フレームにも加算され、速度が蓄積していた。
+- RED evidence では `max_abs_velocity_x=3005.83`, `max_displacement_x=1196.32`, `control_recovery_frames=-1` まで悪化していた。
+
+改善方針:
+
+- knockback は「短い怯み」として扱い、通常速度と分離して合成する。
+- `max_displacement_x <= 72`, `control_recovery_frames <= 18` を gate にする。
+- 実装後の GREEN は `max_abs_velocity_x=155`, `max_displacement_x=9.12`, `control_recovery_frames=4`。
+- 実ウィンドウ Boss 接触でも `contact_knockback_max_velocity_x=105.08`, `contact_knockback_max_displacement_x=12.69`, `contact_knockback_control_recovery_frames=1` を確認した。
+
+2. 斧攻撃の改善が実プレイに届いていない
+
+原因:
+
+- 前回の改善は hitbox/axe overlap と spark evidence に寄っていて、body が重い武器を振っている読みやすさを十分に gate していなかった。
+- `player_attack_body` の production 出力導線も generator 側で明示されておらず、更新事故を起こしやすかった。
+
+改善方針:
+
+- `player_attack_body` の generator を production/root 両方へ出力する。
+- attack body に cloth follow-through と impact smear を入れ、実ゲーム上のシルエット変化を増やす。
+- `player_axe_attack` の active frame wake を強め、frame 4/5 の振り抜きを読みやすくする。
+- `playerActionAssetCheck` / `playerAxeAssetCheck` で継続検証する。
+- ただし、実ウィンドウ目視ではまだ「高品質な重い斧モーション」とは言い切らない。次は手元/肩/斧頭の接続、振り抜き後の余韻、Boss戦中の視認性を改善対象にする。
+
+追加PDCA結果:
+
+- `draw_attack_hand_bridge` を追加し、frame 4/5 で肩、肘、手、握りが斧レイヤーへつながるようにした。
+- `playerActionAssetCheck` に active frame の grip bridge pixel gate を追加した。
+- 実ウィンドウ evidence: `artifacts/window-manual-play/20260615-160431-window-manual/summary.json`。
+- 目視では手元接続は前回より改善。ただし、刃の位置がやや低く、Boss戦の激しい場面で斧軌道が十分に読めるかは未評価。次は axe layer の active pose と recovery follow-through を詰める。
+
 ## 面白さの軸
 
 Ecliptica は、暗い城内を読み、敵との間合いを取り、シジルを集めて封印ゲートを開く探索アクションとして成立させたい。

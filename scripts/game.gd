@@ -13,7 +13,9 @@ const CAMERA_VERTICAL_FOLLOW := 0.18
 const CAMERA_IMPULSE_DURATION := 0.16
 const CAMERA_IMPULSE_PIXELS := 10.0
 const GATE_FEEDBACK_DURATION := 1.4
+const SIGIL_CUE_PULSE_FPS := 1.4
 const BOSS_HEALTH_BAR_WIDTH := 400.0
+const BOSS_HEALTH_REVEAL_MARGIN := 96.0
 const GATE_SEALED_COLOR := Color(0.08, 0.09, 0.13, 0.82)
 const GATE_OPEN_COLOR := Color(0.55, 0.08, 0.13, 0.82)
 const ASSET_MANIFEST_SCRIPT := preload("res://scripts/asset_manifest.gd")
@@ -95,6 +97,7 @@ func _process(delta: float) -> void:
 	if player.global_position.y > LEVEL_HEIGHT + 80.0:
 		damage_player()
 	_update_player_damage_feedback()
+	_update_sigil_world_cues()
 	_update_camera()
 	_update_hud()
 
@@ -204,6 +207,8 @@ func _update_hud() -> void:
 	_update_tutorial()
 	_update_run_info()
 	var gate_text := "OPEN" if gate_open else "SEALED"
+	if not gate_open:
+		gate_text = "SEALED %d SIGILS" % [maxi(sigils_total - sigils_collected, 0)]
 	if gate_feedback_timer > 0.0:
 		gate_text = "GATE OPEN"
 	var reward_text := ""
@@ -253,14 +258,64 @@ func _update_sigil_pips() -> void:
 		var pip: ColorRect = sigil_pips.get_child(index)
 		pip.visible = index < sigils_total
 		pip.color = Color(0.72, 0.08, 0.13, 0.96) if index < sigils_collected else Color(0.10, 0.08, 0.09, 0.78)
-	sigil_count_label.text = "Sigils %d/%d" % [sigils_collected, sigils_total]
+	sigil_count_label.text = "Sigils %d/%d%s" % [sigils_collected, sigils_total, _next_sigil_direction_text()]
+
+func _next_sigil_direction_text() -> String:
+	if gate_open or sigils_collected >= sigils_total:
+		return ""
+	var sigil := _nearest_uncollected_sigil()
+	if sigil == null:
+		return ""
+	var delta_x := sigil.global_position.x - player.global_position.x
+	if absf(delta_x) <= 36.0:
+		return " / NEXT HERE"
+	return " / NEXT >" if delta_x > 0.0 else " / NEXT <"
+
+func _nearest_uncollected_sigil() -> Area2D:
+	var nearest: Area2D = null
+	var nearest_distance := INF
+	for node in get_tree().get_nodes_in_group("sigils"):
+		var sigil := node as Area2D
+		if sigil == null or bool(sigil.get_meta("collected", false)):
+			continue
+		var distance := sigil.global_position.distance_squared_to(player.global_position)
+		if distance < nearest_distance:
+			nearest = sigil
+			nearest_distance = distance
+	return nearest
+
+func _update_sigil_world_cues() -> void:
+	var nearest := _nearest_uncollected_sigil()
+	var pulse := (sin(Time.get_ticks_msec() / 1000.0 * TAU * SIGIL_CUE_PULSE_FPS) + 1.0) * 0.5
+	for node in get_tree().get_nodes_in_group("sigils"):
+		var sigil := node as Area2D
+		if sigil == null:
+			continue
+		var collected := bool(sigil.get_meta("collected", false))
+		var glow := sigil.get_node_or_null("Glow") as Sprite2D
+		var visual := sigil.get_node_or_null("Visual") as Sprite2D
+		var is_nearest := sigil == nearest and not collected
+		sigil.set_meta("next_cue_visible", is_nearest)
+		if glow != null:
+			glow.visible = not collected
+			if is_nearest:
+				var cue_scale := 1.04 + pulse * 0.22
+				glow.scale = Vector2(cue_scale, cue_scale)
+				glow.modulate = Color(1.0, 0.35, 0.14, 0.42 + pulse * 0.24)
+				glow.z_index = 8
+			else:
+				glow.scale = Vector2(0.92, 0.92)
+				glow.modulate = Color(1.0, 0.24, 0.16, 0.16)
+				glow.z_index = 5
+		if visual != null:
+			visual.modulate = Color(1.30, 1.12 + pulse * 0.10, 0.94, 1.0) if is_nearest else Color(1.22, 1.04, 0.92, 1.0)
 
 func _update_tutorial() -> void:
 	tutorial_label.visible = run_stage_index == 1 and sigils_collected == 0 and not won and not game_over
 
 func _update_boss_health() -> void:
 	var boss: Area2D = _current_boss()
-	if boss == null or bool(boss.get_meta("destroyed", false)):
+	if boss == null or bool(boss.get_meta("destroyed", false)) or not _should_show_boss_health(boss):
 		boss_health_panel.visible = false
 		return
 	var max_hp := maxi(1, int(boss.get_meta("max_hit_points", 1)))
@@ -276,6 +331,12 @@ func _current_boss() -> Area2D:
 		if boss != null:
 			return boss
 	return null
+
+func _should_show_boss_health(boss: Area2D) -> bool:
+	if boss == null:
+		return false
+	var visible_half_width := TARGET_WINDOW_SIZE.x / (2.0 * CAMERA_ZOOM.x)
+	return absf(boss.global_position.x - camera.global_position.x) <= visible_half_width + BOSS_HEALTH_REVEAL_MARGIN
 
 func _ensure_input_actions() -> void:
 	_add_key_action("move_left", [KEY_A, KEY_LEFT])

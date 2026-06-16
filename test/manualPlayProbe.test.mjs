@@ -50,6 +50,10 @@ test('manual play probe runs held input and saves evidence screenshots', async (
   assert.ok(summary.capture_diagnostics.method.length > 0);
   assert.ok(summary.ui_evidence.objective_text.includes('Collect'));
   assert.ok(summary.ui_evidence.sigil_text.includes('Sigils'));
+  assert.ok(summary.ui_evidence.sigil_text.includes('NEXT'));
+  assert.ok(summary.ui_evidence.state_text.includes('SEALED'));
+  assert.ok(summary.ui_evidence.state_text.includes('SIGILS'));
+  assert.equal(summary.ui_evidence.boss_hp_visible, false);
   assert.ok(Array.isArray(summary.timeline));
   assert.ok(summary.timeline.length >= 6);
   assert.ok(summary.timeline.some((entry) => entry.phase === 'movement' && entry.input.axis === 1));
@@ -60,6 +64,7 @@ test('manual play probe runs held input and saves evidence screenshots', async (
     'attack_while_moving',
     'jump_buffer_or_coyote',
     'enemy_lunge_tell',
+    'enemy_contact_recovery',
     'boss_three_hits',
   ]);
   assert.equal(summary.scenarios.length, summary.scenario_names.length);
@@ -71,6 +76,9 @@ test('manual play probe runs held input and saves evidence screenshots', async (
     assert.ok(scenario.timeline.length > 0, `${scenario.name} should include timeline entries`);
     assert.ok(scenario.verdict.reason.length > 0, `${scenario.name} should include a verdict reason`);
   }
+  const firstRoomScenario = summary.scenarios.find((scenario) => scenario.name === 'first_enemy_approach_attack');
+  assert.equal(firstRoomScenario.ui_evidence.boss_hp_visible, false);
+  assert.ok(firstRoomScenario.ui_evidence.sigil_text.includes('NEXT'));
   const movingAttack = summary.scenarios.find((scenario) => scenario.name === 'attack_while_moving');
   assert.ok(movingAttack.timeline.some((entry) => entry.phase === 'attack_while_moving' && entry.input.axis === 1));
   const jumpScenario = summary.scenarios.find((scenario) => scenario.name === 'jump_buffer_or_coyote');
@@ -79,6 +87,12 @@ test('manual play probe runs held input and saves evidence screenshots', async (
   assert.ok(jumpScenario.metrics.jump_velocity_after_input < -100);
   const lungeScenario = summary.scenarios.find((scenario) => scenario.name === 'enemy_lunge_tell');
   assert.ok(lungeScenario.timeline.some((entry) => entry.enemy && entry.enemy.state === 'windup'));
+  const contactScenario = summary.scenarios.find((scenario) => scenario.name === 'enemy_contact_recovery');
+  assert.equal(contactScenario.metrics.damage_taken, 1);
+  assert.ok(contactScenario.metrics.max_displacement_x <= 72, `contact knockback should stay bounded, got ${contactScenario.metrics.max_displacement_x}`);
+  assert.ok(contactScenario.metrics.control_recovery_frames > 0);
+  assert.ok(contactScenario.metrics.control_recovery_frames <= 18, `control should recover quickly, got ${contactScenario.metrics.control_recovery_frames} frames`);
+  assert.ok(contactScenario.timeline.some((entry) => entry.phase === 'enemy_contact_recovery' && entry.result.displacement_x >= 0));
   const bossScenario = summary.scenarios.find((scenario) => scenario.name === 'boss_three_hits');
   assert.equal(typeof bossScenario.metrics.hits_landed, 'number');
   assert.ok(summary.screenshots.length >= 2);

@@ -107,6 +107,10 @@ test('LLM verify mode emits a machine-readable pass summary', async () => {
   assert.equal(summary.player.stayed_in_place_after_damage, true);
   assert.equal(summary.player.damage_invulnerability_started, true);
   assert.equal(summary.player.knockback_applied, true);
+  assert.ok(summary.player.damage_knockback_max_displacement_x <= 72, `contact knockback should stay bounded, got ${summary.player.damage_knockback_max_displacement_x}`);
+  assert.ok(summary.player.damage_knockback_max_velocity_x >= 80);
+  assert.ok(summary.player.damage_knockback_control_recovery_frames > 0);
+  assert.ok(summary.player.damage_knockback_control_recovery_frames <= 18);
   assert.equal(summary.player.health_after_invulnerable_hit, 2);
   assert.equal(summary.attack.available, true);
   assert.equal(summary.attack.animation_seen, true);
@@ -125,9 +129,9 @@ test('LLM verify mode emits a machine-readable pass summary', async () => {
   assert.equal(summary.attack.enemy_hit_knockback_triggered, true);
   assert.equal(summary.attack.hit_spark_spawned, true);
   assert.equal(summary.attack.camera_impulse_triggered, true);
-  assert.deepEqual(summary.attack.hitbox_position_right, { x: 78, y: -50 });
-  assert.deepEqual(summary.attack.hitbox_position_left, { x: -78, y: -50 });
-  assert.deepEqual(summary.attack.hitbox_size_right, { x: 136, y: 92 });
+  assert.deepEqual(summary.attack.hitbox_position_right, { x: 48, y: -50 });
+  assert.deepEqual(summary.attack.hitbox_position_left, { x: -48, y: -50 });
+  assert.deepEqual(summary.attack.hitbox_size_right, { x: 78, y: 88 });
   assert.deepEqual(summary.attack.active_hitbox_samples.map((sample) => sample.frame), [4, 5]);
   assert.equal(summary.attack.training_dummy_destroyed, true);
   assert.equal(summary.feel.move_max_speed, 210);

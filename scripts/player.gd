@@ -30,14 +30,14 @@ const ATTACK_DURATION := 0.50
 const ATTACK_ACTIVE_START := 0.25
 const ATTACK_ACTIVE_END := 0.375
 const ATTACK_HITBOX_OFFSETS := [
-	[Vector2(56, -82), Vector2(78, -50)],
-	[Vector2(54, -90), Vector2(78, -56)],
-	[Vector2(60, -78), Vector2(88, -46)],
+	[Vector2(28, -82), Vector2(48, -50)],
+	[Vector2(26, -90), Vector2(48, -56)],
+	[Vector2(24, -78), Vector2(48, -46)],
 ]
 const ATTACK_HITBOX_SIZES := [
-	[Vector2(116, 84), Vector2(136, 92)],
-	[Vector2(104, 86), Vector2(124, 96)],
-	[Vector2(112, 82), Vector2(136, 92)],
+	[Vector2(68, 84), Vector2(78, 88)],
+	[Vector2(64, 86), Vector2(78, 92)],
+	[Vector2(64, 82), Vector2(78, 88)],
 ]
 const AXE_BASE_POSITION := Vector2(-2, -68)
 const AXE_ATTACK_POSITION := Vector2(28, -42)
@@ -51,8 +51,9 @@ const ENEMY_HIT_KNOCKBACK := 155.0
 const HIT_SPARK_FRAME_SIZE := Vector2i(64, 64)
 const HIT_SPARK_FRAME_COUNT := 4
 const HIT_SPARK_FPS := 30.0
-const KNOCKBACK_DURATION := 0.24
-const KNOCKBACK_VELOCITY := Vector2(360, -260)
+const KNOCKBACK_DURATION := 0.16
+const KNOCKBACK_VELOCITY := Vector2(155, -135)
+const KNOCKBACK_MAX_HORIZONTAL_SPEED := 190.0
 const COMBO_RESET_TIME := 1.5
 const SHOOT_DURATION := 0.28
 const FOCUS_MAX := 3.0
@@ -96,6 +97,7 @@ var shoot_timer := 0.0
 var shoot_focus := FOCUS_MAX
 var knockback_timer := 0.0
 var knockback_velocity := Vector2.ZERO
+var knockback_contribution_x := 0.0
 var landing_recovery_timer := 0.0
 var coyote_timer := 0.0
 var jump_buffer_timer := 0.0
@@ -166,11 +168,13 @@ func _physics_process(delta: float) -> void:
 		coyote_timer = 0.0
 		jump_buffer_timer = 0.0
 
+	var base_velocity_x := velocity.x - knockback_contribution_x
 	var knockback_factor := _update_knockback(delta)
 	var target_x := axis * MOVE_MAX_SPEED * speed_scale
 	var acceleration := _horizontal_acceleration(axis, target_x)
-	velocity.x = move_toward(velocity.x, target_x, acceleration * delta)
-	velocity.x += knockback_velocity.x * knockback_factor
+	velocity.x = move_toward(base_velocity_x, target_x, acceleration * delta)
+	knockback_contribution_x = knockback_velocity.x * knockback_factor
+	velocity.x += knockback_contribution_x
 	velocity.y = minf(velocity.y + GRAVITY * delta, MAX_FALL)
 	move_and_slide()
 	if was_airborne and is_on_floor():
@@ -202,6 +206,7 @@ func reset_to_spawn() -> void:
 	shoot_timer = 0.0
 	knockback_timer = 0.0
 	knockback_velocity = Vector2.ZERO
+	knockback_contribution_x = 0.0
 	landing_recovery_timer = 0.0
 	coyote_timer = 0.0
 	jump_buffer_timer = 0.0
@@ -254,7 +259,8 @@ func apply_damage_knockback(source_position: Vector2) -> void:
 	var direction := -1.0 if global_position.x < source_position.x else 1.0
 	knockback_velocity = Vector2(KNOCKBACK_VELOCITY.x * direction, KNOCKBACK_VELOCITY.y)
 	knockback_timer = KNOCKBACK_DURATION
-	velocity = knockback_velocity
+	velocity.x = clampf(velocity.x, -KNOCKBACK_MAX_HORIZONTAL_SPEED, KNOCKBACK_MAX_HORIZONTAL_SPEED)
+	velocity.y = minf(velocity.y, KNOCKBACK_VELOCITY.y)
 
 func _setup_animations() -> void:
 	var sprite_frames := SpriteFrames.new()
@@ -374,12 +380,14 @@ func _sync_attack_geometry() -> void:
 func _update_knockback(delta: float) -> float:
 	if knockback_timer <= 0.0:
 		knockback_velocity = Vector2.ZERO
+		knockback_contribution_x = 0.0
 		return 0.0
 	var factor := knockback_timer / KNOCKBACK_DURATION
 	knockback_timer = maxf(knockback_timer - delta, 0.0)
 	if knockback_timer <= 0.0:
 		knockback_velocity = Vector2.ZERO
-	return factor
+		knockback_contribution_x = 0.0
+	return ease(factor, 2.2)
 
 func _update_landing_recovery(delta: float) -> void:
 	if landing_recovery_timer > 0.0:
@@ -608,7 +616,7 @@ func _apply_hit_feedback(area: Area2D, lethal: bool) -> void:
 		area.call("apply_hit_reaction", global_position, force, lethal)
 	else:
 		area.modulate = Color(1.35, 1.25, 1.18, 1.0)
-	_spawn_hit_spark(area.global_position + Vector2(0.0, -42.0))
+	_spawn_hit_spark(_hit_spark_position(area))
 	var frames := HITSTOP_IMPACT_FRAMES if _is_attack_impact_frame() else HITSTOP_GLANCING_FRAMES
 	hitstop_timer = maxf(hitstop_timer, float(frames) / HITSTOP_FRAME_RATE)
 	var game := get_parent()
@@ -622,10 +630,28 @@ func _spawn_hit_spark(world_position: Vector2) -> void:
 	spark.name = "HitSpark"
 	spark.global_position = world_position
 	spark.sprite_frames = _build_hit_spark_frames()
+	spark.scale = Vector2(1.16, 1.16)
 	spark.z_index = 12
 	spark.play("burst")
 	spark.animation_finished.connect(spark.queue_free)
 	projectile_container.add_child(spark)
+	projectile_container.set_meta("hit_spark_visible", true)
+	projectile_container.set_meta("last_hit_spark_position", world_position)
+
+func _hit_spark_position(area: Area2D) -> Vector2:
+	var direction := -1.0 if facing_left else 1.0
+	var target_half_width := 20.0
+	var collision_shape := area.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if collision_shape != null:
+		var rectangle := collision_shape.shape as RectangleShape2D
+		var circle := collision_shape.shape as CircleShape2D
+		if rectangle != null:
+			target_half_width = rectangle.size.x * 0.5
+		elif circle != null:
+			target_half_width = circle.radius
+	var contact_x := area.global_position.x - direction * target_half_width
+	var contact_y := clampf(attack_hitbox.global_position.y, area.global_position.y - 50.0, area.global_position.y + 8.0)
+	return Vector2(contact_x, contact_y)
 
 func _build_hit_spark_frames() -> SpriteFrames:
 	var sprite_frames := SpriteFrames.new()

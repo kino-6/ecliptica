@@ -41,6 +41,17 @@ Use this skill to turn concept art or AI-generated character images into stable,
    - idle core pixels are mostly fixed
    - movement animation activates in an E2E smoke test
 
+## External Generator Routing
+
+For `NO6KIKO/gorest-2d-animation-spritesheet-generator`, use the project-local `gorest-spritesheet-pilot` skill first. Treat gorest as a raw-material pilot, not as an automatic production asset source.
+
+When a gorest candidate is involved:
+
+- keep upstream workspaces, API keys, caches, and `.env` files outside this repo;
+- import only reviewed raw candidates into `assets/source/`;
+- normalize into this project's `assets/production/` contract with deterministic local scripts;
+- run the relevant asset test and real-window evidence gate before claiming a playfeel improvement.
+
 ## Animation Rules
 
 Idle animation should not make the whole character squirm, pulse, or slide. Use a fixed core body:

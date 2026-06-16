@@ -5,6 +5,8 @@ import struct
 import zlib
 from pathlib import Path
 
+from attack_motion_contract import ATTACK_MOTION_POSES
+
 
 FRAME_WIDTH = 192
 FRAME_HEIGHT = 384
@@ -15,8 +17,8 @@ SHOOT_FRAME_COUNT = 8
 GUTTER = 8
 
 IDLE_IN = Path("assets/player-idle-sheet-10.png")
-ATTACK_OUT = Path("assets/player-attack-combo-sheet-24.png")
-SHOOT_OUT = Path("assets/player-shoot-sheet-8.png")
+ATTACK_OUTS = [Path("assets/production/player-attack-combo-sheet-24.png"), Path("assets/player-attack-combo-sheet-24.png")]
+SHOOT_OUTS = [Path("assets/production/player-shoot-sheet-8.png"), Path("assets/player-shoot-sheet-8.png")]
 
 
 def main() -> None:
@@ -44,29 +46,21 @@ def main() -> None:
         action = make_shoot_frame(source, progress)
         paste_frame(shoot_pixels, FRAME_WIDTH * SHOOT_FRAME_COUNT, frame, action)
 
-    ATTACK_OUT.write_bytes(encode_png(FRAME_WIDTH * COMBO_STEP_COUNT * ATTACK_BODY_FRAME_COUNT, FRAME_HEIGHT, attack_pixels))
-    SHOOT_OUT.write_bytes(encode_png(FRAME_WIDTH * SHOOT_FRAME_COUNT, FRAME_HEIGHT, shoot_pixels))
+    write_png_all(ATTACK_OUTS, FRAME_WIDTH * COMBO_STEP_COUNT * ATTACK_BODY_FRAME_COUNT, FRAME_HEIGHT, attack_pixels)
+    write_png_all(SHOOT_OUTS, FRAME_WIDTH * SHOOT_FRAME_COUNT, FRAME_HEIGHT, shoot_pixels)
 
 
 def make_attack_frame(source: bytearray, step: int, local_frame: int) -> bytearray:
-    timing = [0.00, 0.05, 0.12, 0.15, 0.68, 1.00, 0.88, 0.72][local_frame]
-    windup = 1.0 if local_frame in [1, 2, 3] else max(0.0, 1.0 - timing)
-    snap = 1.0 if local_frame in [4, 5] else math.sin(min(timing * 1.2, 1.0) * math.pi)
-    impact = 1.0 if local_frame == 5 else 0.0
-    follow = 1.0 if local_frame >= 6 else 0.0
-    step_biases = [
-        {"lean": 14.0, "shear": 9.0, "lift": -1.0, "start": -1.28, "end": 0.28},
-        {"lean": 18.0, "shear": 12.0, "lift": -5.0, "start": -1.68, "end": 0.12},
-        {"lean": 22.0, "shear": 14.0, "lift": -8.0, "start": -2.02, "end": -0.06},
-    ][step]
-
-    held_weight = 1.0 if local_frame == 3 else 0.0
-    lean = -9.0 * windup + step_biases["lean"] * timing + impact * 9.0 + follow * 3.0
-    shear = -6.0 * windup + (timing - 0.32) * step_biases["shear"] + impact * 5.0
-    upper_lift = step_biases["lift"] * (windup * 0.8 + impact * 0.35)
-    lean -= held_weight * 2.0
-    upper_lift -= held_weight * 1.5
+    pose = ATTACK_MOTION_POSES[step][local_frame]
+    lean = pose["body_shift"]
+    shear = pose["body_shear"]
+    upper_lift = pose["body_lift"]
     dest = warp_body(source, lean, upper_lift, shear)
+    if local_frame >= 3:
+        draw_cloth_pull(dest, step + 1, pose["cloth_progress"])
+    if local_frame in [4, 5, 6]:
+        draw_impact_body_smear(dest, step, local_frame)
+        draw_attack_hand_bridge(dest, pose)
 
     clear_gutters(dest)
     return dest
@@ -143,6 +137,44 @@ def draw_cloth_pull(pixels: bytearray, step: int, progress: float) -> None:
         y1 = y0 + 35 + strand * 7
         draw_line(pixels, x0, y0, x1, y1, 5 - min(strand, 3), (71, 19, 23, 126))
         draw_line(pixels, x0 + 2, y0, x1 + 2, y1, 2, (126, 78, 49, 78))
+
+
+def draw_impact_body_smear(pixels: bytearray, step: int, local_frame: int) -> None:
+    strength = 0.74 if local_frame == 4 else 0.52
+    base_x = 116 + step * 4
+    base_y = 121 + step * 2
+    for i in range(8):
+        t = i / 7
+        x0 = base_x - t * (28 + step * 4)
+        y0 = base_y + t * 64
+        x1 = x0 + 28 + t * 18
+        y1 = y0 + 10 + t * 12
+        draw_line(pixels, x0, y0, x1, y1, 2, (18, 15, 17, int((58 - i * 3) * strength)))
+        if i % 2 == 0:
+            draw_line(pixels, x0 + 2, y0 - 2, x1 + 8, y1 - 1, 1, (139, 89, 54, int((36 - i * 2) * strength)))
+
+
+def draw_attack_hand_bridge(pixels: bytearray, pose: dict) -> None:
+    impact = pose["impact"]
+    shoulder_x, shoulder_y = pose["shoulder"]
+    elbow_x, elbow_y = pose["elbow"]
+    hand_x, hand_y = pose["hand"]
+    offhand_x, offhand_y = pose["offhand"]
+
+    draw_line(pixels, shoulder_x, shoulder_y, elbow_x, elbow_y, 5, (17, 14, 16, 216))
+    draw_line(pixels, elbow_x, elbow_y, hand_x, hand_y, 5, (19, 15, 16, 226))
+    draw_line(pixels, shoulder_x + 2, shoulder_y - 1, elbow_x + 2, elbow_y - 1, 2, (92, 63, 49, 138))
+    draw_line(pixels, elbow_x + 2, elbow_y - 1, hand_x + 2, hand_y - 1, 2, (128, 83, 52, 132))
+    draw_line(pixels, offhand_x, offhand_y, hand_x - 3, hand_y - 2, 4, (16, 13, 15, 210))
+    draw_rotated_ellipse(pixels, hand_x + 2, hand_y, 8, 4, math.radians(24 + impact * 18), (127, 83, 54, 184))
+    draw_rotated_ellipse(pixels, offhand_x - 1, offhand_y, 6, 3, math.radians(-16), (104, 67, 49, 160))
+
+
+def write_png_all(paths: list[Path], width: int, height: int, pixels: bytearray) -> None:
+    encoded = encode_png(width, height, pixels)
+    for path in paths:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(encoded)
 
 
 def crop_frame(pixels: bytearray, sheet_width: int, x0: int, width: int, height: int) -> bytearray:

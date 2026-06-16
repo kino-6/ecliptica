@@ -21,6 +21,10 @@ func run_capture() -> void:
 	var player: CharacterBody2D = scene.get_node("Player")
 	var player_sprite: AnimatedSprite2D = scene.get_node("Player/PlayerSprite")
 	var camera: Camera2D = scene.get_node("Camera2D")
+	scene.set("damage_invulnerability_timer", 999.0)
+	for enemy in get_nodes_in_group("enemies"):
+		if enemy is Area2D:
+			(enemy as Area2D).monitoring = false
 	player.e2e_set_axis(1.0)
 	for warmup in range(24):
 		await physics_frame

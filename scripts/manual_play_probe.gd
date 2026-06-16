@@ -8,6 +8,7 @@ const SCENARIO_NAMES := [
 	"attack_while_moving",
 	"jump_buffer_or_coyote",
 	"enemy_lunge_tell",
+	"enemy_contact_recovery",
 	"boss_three_hits",
 ]
 
@@ -119,6 +120,8 @@ func _run_scenario(scenario_name: String) -> Dictionary:
 			await _run_jump_scenario(game, player, scene, route_log, screenshots)
 		"enemy_lunge_tell":
 			await _run_enemy_lunge_tell_scenario(game, player, scene, route_log, screenshots)
+		"enemy_contact_recovery":
+			await _run_enemy_contact_recovery_scenario(game, player, scene, route_log, screenshots)
 		"boss_three_hits":
 			await _run_boss_three_hits_scenario(game, player, scene, route_log, screenshots)
 		_:
@@ -305,6 +308,53 @@ func _run_enemy_lunge_tell_scenario(game: Node, player: CharacterBody2D, scene: 
 		"reason": "windup_state_seen_before_lunge" if windup_seen else "windup_state_not_observed",
 	})
 	screenshots.append(await _capture("enemy_lunge_tell-after_tell", scene))
+
+func _run_enemy_contact_recovery_scenario(game: Node, player: CharacterBody2D, scene: Node, route_log: Array, screenshots: Array) -> void:
+	screenshots.append(await _capture("enemy_contact_recovery-before_hit", scene))
+	var enemy := _first_standard_enemy()
+	if enemy == null:
+		route_log.append({
+			"phase": "enemy_contact_recovery",
+			"found": false,
+			"reason": "enemy_not_found",
+		})
+		return
+	enemy.global_position = player.global_position + Vector2(58.0, -18.0)
+	enemy.set_physics_process(false)
+	player.e2e_set_axis(0.0)
+	player.velocity = Vector2.ZERO
+	await _wait_physics_frames(2)
+	var health_before := int(game.get("player_health"))
+	var start_position := player.global_position
+	game.set("damage_invulnerability_timer", 0.0)
+	game.call("damage_player", enemy)
+	var max_displacement := 0.0
+	var max_abs_velocity_x := absf(player.velocity.x)
+	var recovery_frame := -1
+	for frame in range(28):
+		await physics_frame
+		var displacement := absf(player.global_position.x - start_position.x)
+		max_displacement = maxf(max_displacement, displacement)
+		max_abs_velocity_x = maxf(max_abs_velocity_x, absf(player.velocity.x))
+		if recovery_frame < 0 and absf(player.velocity.x) <= 72.0:
+			recovery_frame = frame + 1
+		if frame % 4 == 0 or frame == 27:
+			_record_sample("enemy_contact_recovery", game, player, enemy, _input_state(0.0, false, false, false), {
+				"recovery_frame": frame + 1,
+				"displacement_x": snapped(displacement, 0.01),
+			})
+	var damage_taken := health_before - int(game.get("player_health"))
+	route_log.append({
+		"phase": "enemy_contact_recovery",
+		"found": true,
+		"damage_taken": damage_taken,
+		"max_displacement_x": snapped(max_displacement, 0.01),
+		"max_abs_velocity_x": snapped(max_abs_velocity_x, 0.01),
+		"control_recovery_frames": recovery_frame,
+		"end_displacement_x": snapped(absf(player.global_position.x - start_position.x), 0.01),
+		"reason": "bounded_short_hit_reaction" if max_displacement <= 72.0 and recovery_frame > 0 and recovery_frame <= 18 else "contact_knockback_too_large_or_slow",
+	})
+	screenshots.append(await _capture("enemy_contact_recovery-after_recovery", scene))
 
 func _run_boss_three_hits_scenario(game: Node, player: CharacterBody2D, scene: Node, route_log: Array, screenshots: Array) -> void:
 	var boss := _first_boss()
@@ -591,6 +641,14 @@ func _scenario_metrics(scenario_name: String, route_log: Array) -> Dictionary:
 				"windup_seen": bool(tell_entry.get("windup_seen", false)),
 				"attack_seen": bool(tell_entry.get("attack_seen", false)),
 			}
+		"enemy_contact_recovery":
+			var contact_entry := _last_route_entry(route_log, "enemy_contact_recovery")
+			return {
+				"damage_taken": int(contact_entry.get("damage_taken", 0)),
+				"max_displacement_x": snapped(float(contact_entry.get("max_displacement_x", 999.0)), 0.01),
+				"max_abs_velocity_x": snapped(float(contact_entry.get("max_abs_velocity_x", 999.0)), 0.01),
+				"control_recovery_frames": int(contact_entry.get("control_recovery_frames", -1)),
+			}
 		"boss_three_hits":
 			var boss_entry := _last_route_entry(route_log, "boss_three_hits")
 			return {
@@ -618,6 +676,14 @@ func _validate_scenario_result(scenario_name: String, metrics: Dictionary, failu
 		"enemy_lunge_tell":
 			if not bool(metrics.get("windup_seen", false)):
 				failures.append("enemy lunge scenario should observe windup before attack")
+		"enemy_contact_recovery":
+			if int(metrics.get("damage_taken", 0)) != 1:
+				failures.append("enemy contact recovery should take exactly one damage")
+			if float(metrics.get("max_displacement_x", 999.0)) > 72.0:
+				failures.append("enemy contact knockback should stay under 72px")
+			var recovery_frames := int(metrics.get("control_recovery_frames", -1))
+			if recovery_frames < 1 or recovery_frames > 18:
+				failures.append("enemy contact knockback should return control within 18 frames")
 		"boss_three_hits":
 			if int(metrics.get("hits_landed", 0)) < 3:
 				failures.append("boss scenario should land three real attacks")
@@ -754,11 +820,15 @@ func _capture_diagnostics() -> Dictionary:
 func _ui_evidence(game: Node) -> Dictionary:
 	var tutorial := game.get_node_or_null("CanvasLayer/TutorialLabel") as Label
 	var sigils := game.get_node_or_null("CanvasLayer/HUDPanel/SigilCountLabel") as Label
+	var state := game.get_node_or_null("CanvasLayer/HUDPanel/StateLabel") as Label
+	var boss_panel := game.get_node_or_null("CanvasLayer/BossHealthPanel") as Control
 	var boss := game.get_node_or_null("CanvasLayer/BossHealthPanel/BossHealthLabel") as Label
 	return {
 		"objective_text": tutorial.text if tutorial != null else "",
 		"sigil_text": sigils.text if sigils != null else "",
+		"state_text": state.text if state != null else "",
 		"boss_text": boss.text if boss != null else "",
+		"boss_hp_visible": boss_panel.visible if boss_panel != null else false,
 	}
 
 func _stdout_summary(summary: Dictionary) -> Dictionary:

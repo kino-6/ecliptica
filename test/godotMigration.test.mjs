@@ -304,9 +304,9 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(player, /ATTACK_ACTIVE_START := 0\.25/);
   assert.match(player, /ATTACK_ACTIVE_END := 0\.375/);
   assert.match(player, /ATTACK_HITBOX_OFFSETS := \[/);
-  assert.match(player, /Vector2\(56, -82\), Vector2\(78, -50\)/);
+  assert.match(player, /Vector2\(28, -82\), Vector2\(48, -50\)/);
   assert.match(player, /ATTACK_HITBOX_SIZES := \[/);
-  assert.match(player, /Vector2\(116, 84\), Vector2\(136, 92\)/);
+  assert.match(player, /Vector2\(68, 84\), Vector2\(78, 88\)/);
   assert.match(player, /AXE_ATTACK_SCALE := Vector2\(0\.46, 0\.46\)/);
   assert.match(player, /ATTACK_MOVE_SPEED_SCALE := 0\.24/);
   assert.match(player, /HITSTOP_IMPACT_FRAMES := 5/);
@@ -330,8 +330,10 @@ test('Godot scripts expose the expected gameplay and E2E hooks', async () => {
   assert.match(player, /func _apply_hit_feedback/);
   assert.match(player, /func _spawn_hit_spark/);
   assert.match(player, /func apply_damage_knockback/);
-  assert.match(player, /KNOCKBACK_DURATION := 0\.24/);
-  assert.match(player, /KNOCKBACK_VELOCITY := Vector2\(360, -260\)/);
+  assert.match(player, /KNOCKBACK_DURATION := 0\.16/);
+  assert.match(player, /KNOCKBACK_VELOCITY := Vector2\(155, -135\)/);
+  assert.match(player, /KNOCKBACK_MAX_HORIZONTAL_SPEED := 190\.0/);
+  assert.match(player, /knockback_contribution_x/);
   assert.match(player, /func e2e_attack/);
   assert.match(player, /func is_attacking/);
   assert.match(game, /shoot_focus/);

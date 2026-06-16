@@ -8,11 +8,20 @@ const GUTTER = 8;
 const ATTACK_SCALE = 0.46;
 const ATTACK_POSITION_X = 28;
 const ATTACK_POSITION_Y = -42;
-const ATTACK_HITBOXES_RIGHT = [
-  { x: 68, y: -50, w: 112, h: 86 },
-  { x: 78, y: -56, w: 124, h: 96 },
-  { x: 88, y: -46, w: 136, h: 92 },
-];
+const PLAYER_SCRIPT = readFileSync('scripts/player.gd', 'utf8');
+const AXE_GENERATOR = readFileSync('tools/generatePlayerAxeSheets.py', 'utf8');
+const ATTACK_MOTION_CONTRACT = readFileSync('tools/attack_motion_contract.py', 'utf8');
+const ATTACK_HITBOXES_RIGHT = parseRuntimeAttackHitboxes(PLAYER_SCRIPT);
+const AXE_ATTACK_SCALES = parseAttackPoseScales(ATTACK_MOTION_CONTRACT);
+
+assert.match(AXE_GENERATOR, /from attack_motion_contract import ATTACK_MOTION_POSES/, 'axe attack layer should use the shared motion contract');
+
+assert.ok(Math.min(...AXE_ATTACK_SCALES) >= 0.94, 'axe attack should not fake wind-up weight by shrinking the weapon');
+assert.ok(Math.max(...AXE_ATTACK_SCALES) <= 1.06, 'axe attack should not fake impact weight by inflating the weapon');
+assert.ok(
+  Math.max(...AXE_ATTACK_SCALES) - Math.min(...AXE_ATTACK_SCALES) <= 0.12,
+  'axe attack should keep weapon scale stable and express force through arc, timing, and body motion',
+);
 
 const contracts = [
   { file: 'assets/player-axe-idle-sheet-10.png', frames: 10, minVisible: 2100, minMetal: 220 },
@@ -59,8 +68,53 @@ for (const frame of [5, 13, 21]) {
 }
 
 for (const [combo, frame] of [5, 13, 21].entries()) {
-  const overlap = attackMassInWorldHitbox(attack, frame, ATTACK_HITBOXES_RIGHT[combo]);
+  const overlap = attackMassInWorldHitbox(attack, frame, ATTACK_HITBOXES_RIGHT[combo][1]);
   assert.ok(overlap > 680, `attack frame ${frame} should put the image-based axe mass inside the active hitbox, got ${overlap}`);
+}
+
+for (const [combo, framePair] of [
+  [4, 5],
+  [12, 13],
+  [20, 21],
+].entries()) {
+  for (const [activeIndex, frame] of framePair.entries()) {
+    const frontOverlap = attackMassInWorldHitbox(attack, frame, ATTACK_HITBOXES_RIGHT[combo][activeIndex], 0.1);
+    assert.ok(
+      frontOverlap > 380,
+      `attack frame ${frame} should put visible axe pixels in the runtime hitbox's contact band, got ${frontOverlap}`,
+    );
+  }
+}
+
+function parseRuntimeAttackHitboxes(script) {
+  const offsets = parseVector2PairArray(script, 'ATTACK_HITBOX_OFFSETS');
+  const sizes = parseVector2PairArray(script, 'ATTACK_HITBOX_SIZES');
+  assert.equal(offsets.length, 3, 'player.gd should define three attack hitbox offset profiles');
+  assert.equal(sizes.length, 3, 'player.gd should define three attack hitbox size profiles');
+  return offsets.map((profile, combo) =>
+    profile.map((offset, activeIndex) => ({
+      x: offset.x,
+      y: offset.y,
+      w: sizes[combo][activeIndex].x,
+      h: sizes[combo][activeIndex].y,
+    })),
+  );
+}
+
+function parseAttackPoseScales(contract) {
+  const axePoseDeclaration = contract.match(/AXE_POSE_SETS = \[([\s\S]*?)\]\n\nSTEP_BIASES/)?.[1] ?? '';
+  const scales = [...axePoseDeclaration.matchAll(/\(([-\d.]+), ([-\d.]+), ([-\d.]+), ([-\d.]+)\)/g)].map((match) => Number(match[4]));
+  assert.equal(scales.length, 24, 'axe attack generator should define 24 explicit pose scales');
+  return scales;
+}
+
+function parseVector2PairArray(script, constantName) {
+  const declaration = script.match(new RegExp(`const ${constantName} := \\[([\\s\\S]*?)\\n\\]`));
+  assert.ok(declaration, `${constantName} should exist in player.gd`);
+  return [...declaration[1].matchAll(/\[Vector2\(([-\d.]+), ([-\d.]+)\), Vector2\(([-\d.]+), ([-\d.]+)\)\]/g)].map((match) => [
+    { x: Number(match[1]), y: Number(match[2]) },
+    { x: Number(match[3]), y: Number(match[4]) },
+  ]);
 }
 
 function parsePng(buffer) {
@@ -272,12 +326,13 @@ function longestFlatOpaqueRun(png, frame) {
   return longest;
 }
 
-function attackMassInWorldHitbox(png, frame, hitbox) {
+function attackMassInWorldHitbox(png, frame, hitbox, frontBand = 0.0) {
   const x0 = frame * FRAME_WIDTH;
   const left = hitbox.x - hitbox.w / 2;
   const right = hitbox.x + hitbox.w / 2;
   const top = hitbox.y - hitbox.h / 2;
   const bottom = hitbox.y + hitbox.h / 2;
+  const front = frontBand > 0.0 ? hitbox.x + hitbox.w * frontBand : left;
   let count = 0;
 
   for (let yy = 0; yy < FRAME_HEIGHT; yy += 1) {
@@ -285,7 +340,7 @@ function attackMassInWorldHitbox(png, frame, hitbox) {
     if (worldY < top || worldY > bottom) continue;
     for (let xx = 0; xx < FRAME_WIDTH; xx += 1) {
       const worldX = (xx - FRAME_WIDTH / 2) * ATTACK_SCALE + ATTACK_POSITION_X;
-      if (worldX < left || worldX > right) continue;
+      if (worldX < left || worldX > right || worldX < front) continue;
       const alpha = png.pixels[(yy * png.width + x0 + xx) * 4 + 3];
       if (alpha > 32) count += 1;
     }

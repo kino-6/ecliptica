@@ -11,8 +11,10 @@ const FLOOR_PROBE_DOWN := 96.0
 const FOOT_OFFSET_Y := 29.0
 const HIT_FLASH_DURATION := 0.12
 const HIT_REACTION_DURATION := 0.16
-const DEATH_HOLD_DURATION := 0.10
+const DEATH_HOLD_DURATION := 0.22
 const WINDUP_DURATION := 0.18
+const WINDUP_TELL_COLOR := Color(1.0, 0.30, 0.12, 0.76)
+const WINDUP_RIM_COLOR := Color(1.0, 0.60, 0.32, 0.70)
 
 var patrol_origin := Vector2.ZERO
 var patrol_radius := 74.0
@@ -29,10 +31,12 @@ var hit_knockback_velocity := 0.0
 var death_hold_timer := 0.0
 var windup_timer := 0.0
 var windup_direction := -1.0
+var windup_tell: Node2D
 
 @onready var sprite: AnimatedSprite2D = get_node_or_null("EnemySprite")
 
 func _ready() -> void:
+	_ensure_windup_tell()
 	if patrol_origin == Vector2.ZERO:
 		patrol_origin = global_position
 	_set_state(PATROL_STATE)
@@ -50,6 +54,7 @@ func _physics_process(delta: float) -> void:
 	if bool(get_meta("destroyed", false)):
 		_update_hit_reaction(delta)
 		_update_hit_feedback(delta)
+		_update_windup_visual()
 		_update_death_hold(delta)
 		return
 
@@ -70,6 +75,7 @@ func _physics_process(delta: float) -> void:
 	_apply_gravity(delta, previous_y)
 	_update_hit_feedback(delta)
 	_update_facing()
+	_update_windup_visual()
 
 func _can_lunge_at(player: Node2D) -> bool:
 	if player == null:
@@ -97,6 +103,57 @@ func _update_windup(delta: float) -> void:
 	windup_timer = maxf(windup_timer - delta, 0.0)
 	direction = windup_direction
 	_set_state(WINDUP_STATE)
+
+func _ensure_windup_tell() -> void:
+	if windup_tell != null:
+		return
+	windup_tell = Node2D.new()
+	windup_tell.name = "WindupTell"
+	windup_tell.visible = false
+	windup_tell.z_index = 6
+	add_child(windup_tell)
+
+	var foot := Line2D.new()
+	foot.name = "FootTell"
+	foot.width = 7.0
+	foot.default_color = WINDUP_TELL_COLOR
+	foot.joint_mode = Line2D.LINE_JOINT_ROUND
+	foot.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	foot.end_cap_mode = Line2D.LINE_CAP_ROUND
+	foot.points = PackedVector2Array([
+		Vector2(-20.0, 29.0),
+		Vector2(14.0, 29.0),
+		Vector2(36.0, 23.0),
+	])
+	windup_tell.add_child(foot)
+
+	var rim := Line2D.new()
+	rim.name = "RimTell"
+	rim.width = 3.0
+	rim.default_color = WINDUP_RIM_COLOR
+	rim.joint_mode = Line2D.LINE_JOINT_ROUND
+	rim.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	rim.end_cap_mode = Line2D.LINE_CAP_ROUND
+	rim.points = PackedVector2Array([
+		Vector2(16.0, -74.0),
+		Vector2(24.0, -42.0),
+		Vector2(18.0, -8.0),
+	])
+	windup_tell.add_child(rim)
+
+func _update_windup_visual() -> void:
+	if windup_tell == null:
+		return
+	var active := windup_timer > 0.0 and not bool(get_meta("destroyed", false))
+	windup_tell.visible = active
+	if not active:
+		set_meta("windup_tell_visible", false)
+		return
+	var progress := 1.0 - clampf(windup_timer / WINDUP_DURATION, 0.0, 1.0)
+	windup_tell.scale = Vector2(windup_direction * (1.0 + progress * 0.08), 1.0)
+	windup_tell.modulate = Color(1.0, 1.0, 1.0, 0.78 + progress * 0.22)
+	set_meta("windup_tell_visible", true)
+	set_meta("windup_direction", "left" if windup_direction < 0.0 else "right")
 
 func _should_lunge_after_windup(player: Node2D) -> bool:
 	return windup_timer <= 0.0 and get_meta("ai_state", "") == WINDUP_STATE and _can_lunge_at(player)

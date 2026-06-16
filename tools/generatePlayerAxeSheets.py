@@ -5,6 +5,8 @@ import struct
 import zlib
 from pathlib import Path
 
+from attack_motion_contract import ATTACK_MOTION_POSES
+
 
 FRAME_WIDTH = 192
 FRAME_HEIGHT = 384
@@ -31,7 +33,7 @@ def main() -> None:
     crop_width = bounds[2] - bounds[0] + 1
     crop_height = bounds[3] - bounds[1] + 1
     axe = resize_to_width(cropped, crop_width, crop_height, 166)
-    attack_axe = resize_to_width(cropped, crop_width, crop_height, 176)
+    attack_axe = resize_to_width(cropped, crop_width, crop_height, 188)
     SOURCE_ALPHA.write_bytes(encode_png(crop_width, crop_height, cropped))
 
     write_sheet_all(IDLE_OUTS, [make_idle_frame(axe, i) for i in range(IDLE_FRAME_COUNT)])
@@ -71,61 +73,33 @@ def make_shoot_frame(axe: Sprite, frame: int) -> bytearray:
 
 def make_attack_frame(axe: Sprite, step: int, local_frame: int) -> bytearray:
     pixels = blank_frame()
-    pose_sets = [
-        [
-            (105.0, 178.0, -132.0, 0.76),
-            (101.0, 151.0, -156.0, 0.82),
-            (98.0, 136.0, -178.0, 0.86),
-            (100.0, 134.0, -180.0, 0.87),
-            (82.0, 153.0, -82.0, 1.00),
-            (111.0, 184.0, -12.0, 1.08),
-            (119.0, 203.0, 32.0, 1.00),
-            (101.0, 190.0, 16.0, 0.92),
-        ],
-        [
-            (108.0, 174.0, -142.0, 0.78),
-            (104.0, 140.0, -170.0, 0.86),
-            (100.0, 122.0, -190.0, 0.90),
-            (102.0, 121.0, -193.0, 0.91),
-            (88.0, 146.0, -98.0, 1.05),
-            (119.0, 176.0, -20.0, 1.12),
-            (126.0, 198.0, 34.0, 1.04),
-            (104.0, 188.0, 16.0, 0.94),
-        ],
-        [
-            (110.0, 172.0, -150.0, 0.80),
-            (106.0, 135.0, -182.0, 0.90),
-            (102.0, 116.0, -204.0, 0.95),
-            (104.0, 115.0, -207.0, 0.96),
-            (92.0, 150.0, -104.0, 1.10),
-            (126.0, 188.0, -8.0, 1.16),
-            (132.0, 210.0, 40.0, 1.06),
-            (106.0, 194.0, 18.0, 0.96),
-        ],
-    ]
-    x, y, angle, scale = pose_sets[step][local_frame]
+    x, y, angle, scale = ATTACK_MOTION_POSES[step][local_frame]["axe"]
 
     if local_frame == 4:
+        draw_motion_wake(pixels, x + 16.0, y - 10.0, step, local_frame)
         draw_axe(pixels, axe, x - 20.0, y - 10.0, math.radians(angle - 54.0), scale * 0.96, 52, 0.31, 0.58)
         draw_axe(pixels, axe, x - 9.0, y - 5.0, math.radians(angle - 26.0), scale * 0.99, 92, 0.31, 0.58)
     elif local_frame == 5:
+        draw_motion_wake(pixels, x + 22.0, y - 6.0, step, local_frame)
         draw_axe(pixels, axe, x - 14.0, y - 6.0, math.radians(angle - 28.0), scale * 0.98, 86, 0.31, 0.58)
         draw_axe(pixels, axe, x + 8.0, y + 6.0, math.radians(angle + 11.0), scale * 0.94, 48, 0.31, 0.58)
 
     draw_axe(pixels, axe, x, y, math.radians(angle), scale, 255, 0.31, 0.58)
+    if local_frame == 5:
+        draw_impact_sparks(pixels, min(FRAME_WIDTH - GUTTER - 18.0, x + 54.0 + step * 3.0), y - 28.0 + step * 2.0, step)
     return pixels
 
 
 def draw_motion_wake(pixels: bytearray, cx: float, cy: float, step: int, local_frame: int) -> None:
-    strength = 1.0 if local_frame == 3 else 0.62
-    for i in range(18):
-        t = i / 17
-        radius = 28.0 + step * 4.0 + t * 42.0
-        angle = math.radians(-74.0 + t * 84.0 + step * 7.0)
-        color = (70, 10, 14, int((36 + t * 26) * strength))
-        draw_ellipse(pixels, cx + math.cos(angle) * radius, cy + math.sin(angle) * radius, 9 - int(t * 4), 2.2, angle, color)
+    strength = 1.0 if local_frame == 4 else 0.78
+    for i in range(24):
+        t = i / 23
+        radius = 24.0 + step * 4.0 + t * 52.0
+        angle = math.radians(-82.0 + t * 102.0 + step * 7.0)
+        color = (70, 10, 14, int((42 + t * 32) * strength))
+        draw_ellipse(pixels, cx + math.cos(angle) * radius, cy + math.sin(angle) * radius, 10 - int(t * 4), 2.6, angle, color)
         if i % 3 == 0:
-            draw_ellipse(pixels, cx + math.cos(angle) * (radius + 7), cy + math.sin(angle) * (radius + 7), 6, 1.5, angle, (132, 126, 104, int(24 * strength)))
+            draw_ellipse(pixels, cx + math.cos(angle) * (radius + 8), cy + math.sin(angle) * (radius + 8), 7, 1.7, angle, (148, 139, 108, int(32 * strength)))
 
 
 def draw_impact_sparks(pixels: bytearray, cx: float, cy: float, step: int) -> None:

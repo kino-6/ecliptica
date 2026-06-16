@@ -265,7 +265,22 @@ func run_e2e() -> void:
 		return
 	if not _expect(game.damage_invulnerability_timer > 0.0, "enemy contact damage should start invulnerability"):
 		return
-	if not _expect(absf(player.velocity.x) > 120.0 and player.velocity.y < 0.0, "enemy contact damage should apply knockback"):
+	var max_damage_displacement := 0.0
+	var max_damage_velocity_x := 0.0
+	var min_damage_velocity_y := 0.0
+	var control_recovery_frames := -1
+	for frame in 24:
+		await physics_frame
+		max_damage_displacement = maxf(max_damage_displacement, absf(player.global_position.x - position_before_damage.x))
+		max_damage_velocity_x = maxf(max_damage_velocity_x, absf(player.velocity.x))
+		min_damage_velocity_y = minf(min_damage_velocity_y, player.velocity.y)
+		if control_recovery_frames < 0 and absf(player.velocity.x) <= 72.0:
+			control_recovery_frames = frame + 1
+	if not _expect(max_damage_velocity_x >= 80.0 and min_damage_velocity_y < 0.0, "enemy contact damage should apply knockback"):
+		return
+	if not _expect(max_damage_displacement <= 72.0, "enemy contact knockback should stay bounded"):
+		return
+	if not _expect(control_recovery_frames > 0 and control_recovery_frames <= 18, "enemy contact knockback should return control quickly"):
 		return
 	var health_after_first_hit: int = game.player_health
 	game.damage_player(enemies[0])

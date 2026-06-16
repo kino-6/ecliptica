@@ -6,12 +6,25 @@ const FRAME_WIDTH = 192;
 const FRAME_HEIGHT = 384;
 const GUTTER = 8;
 const MAX_BAKED_AXE_PIXELS = 650;
+const MIN_ATTACK_UPPER_BODY_SHIFT = 7.0;
+const MIN_ATTACK_IMPACT_SILHOUETTE_DIFF = 1350;
 
 const actionGenerator = readFileSync('tools/generatePlayerActionSheets.py', 'utf8');
+const axeGenerator = readFileSync('tools/generatePlayerAxeSheets.py', 'utf8');
+const motionContract = readFileSync('tools/attack_motion_contract.py', 'utf8');
 const attackFrameGenerator = actionGenerator.match(/def make_attack_frame[\s\S]*?def make_shoot_frame/)?.[0] ?? '';
+assert.match(actionGenerator, /from attack_motion_contract import ATTACK_MOTION_POSES/, 'player body attack should use the shared axe motion contract');
+assert.match(axeGenerator, /from attack_motion_contract import ATTACK_MOTION_POSES/, 'axe attack layer should use the shared axe motion contract');
+assert.match(motionContract, /kinetic_chain/, 'shared axe motion contract should document the human kinetic chain intent');
 assert.doesNotMatch(attackFrameGenerator, /draw_line\(/, 'player body attack generator should not draw a script-made axe or handle');
 assert.doesNotMatch(attackFrameGenerator, /draw_circle\(/, 'player body attack generator should not draw a script-made axe grip');
-assert.doesNotMatch(attackFrameGenerator, /draw_cloth_pull/, 'player body attack generator should not add rear strokes that read as an old axe handle');
+assert.match(attackFrameGenerator, /draw_cloth_pull/, 'player body attack should include cloth follow-through so the heavy swing reads in-game');
+assert.match(attackFrameGenerator, /draw_attack_hand_bridge/, 'player body attack should visibly connect shoulder, hands, and axe grip during active frames');
+assert.match(
+  attackFrameGenerator,
+  /local_frame in \[4, 5, 6\]/,
+  'player body attack should keep shoulder, hands, and grip connected into frame 6 follow-through',
+);
 
 const contracts = [
   { file: 'assets/player-attack-combo-sheet-24.png', frameCount: 24, minVisible: 12500, minFrameDiff: 900, heavyAttack: true },
@@ -38,6 +51,26 @@ for (const contract of contracts) {
       const base = combo * 8;
       assert.ok(centerOfMassX(png, base + 2) < centerOfMassX(png, base + 6), `${contract.file} combo ${combo + 1} should shift body weight into the hit`);
       assert.ok(frameDifference(png, base + 3, base + 5) > frameDifference(png, base, base + 1) * 1.12, `${contract.file} combo ${combo + 1} should accelerate after anticipation`);
+      assert.ok(
+        upperBodyCenterOfMassX(png, base + 5) - upperBodyCenterOfMassX(png, base + 3) >= MIN_ATTACK_UPPER_BODY_SHIFT,
+        `${contract.file} combo ${combo + 1} should visibly drive the upper body into the axe impact`,
+      );
+      assert.ok(
+        silhouetteDifference(png, base + 3, base + 5, 44, 228) >= MIN_ATTACK_IMPACT_SILHOUETTE_DIFF,
+        `${contract.file} combo ${combo + 1} needs a readable windup-to-impact silhouette change`,
+      );
+      assert.ok(
+        attackGripBridgePixels(png, base + 4) >= 95,
+        `${contract.file} combo ${combo + 1} frame 4 should show the hands driving the axe grip`,
+      );
+      assert.ok(
+        attackGripBridgePixels(png, base + 5) >= 115,
+        `${contract.file} combo ${combo + 1} frame 5 should keep the hands connected through impact`,
+      );
+      assert.ok(
+        attackGripBridgePixels(png, base + 6) >= 85,
+        `${contract.file} combo ${combo + 1} frame 6 should keep the hands and shoulders visible during axe follow-through`,
+      );
       assert.ok(countBakedAxePixels(png, base + 5) < MAX_BAKED_AXE_PIXELS, `${contract.file} combo ${combo + 1} should keep the axe out of the body sheet`);
     }
   }
@@ -148,6 +181,53 @@ function centerOfMassX(png, frame) {
   return weighted / total;
 }
 
+function upperBodyCenterOfMassX(png, frame) {
+  let weighted = 0;
+  let total = 0;
+  const x0 = frame * FRAME_WIDTH;
+  for (let y = 44; y < 228; y += 2) {
+    for (let x = 0; x < FRAME_WIDTH; x += 2) {
+      const alpha = png.pixels[(y * png.width + x0 + x) * 4 + 3];
+      if (alpha <= 16) continue;
+      weighted += x * alpha;
+      total += alpha;
+    }
+  }
+  return weighted / Math.max(total, 1);
+}
+
+function silhouetteDifference(png, frameA, frameB, yMin, yMax) {
+  let difference = 0;
+  const ax = frameA * FRAME_WIDTH;
+  const bx = frameB * FRAME_WIDTH;
+  for (let y = yMin; y < yMax; y += 1) {
+    for (let x = 0; x < FRAME_WIDTH; x += 1) {
+      const alphaA = png.pixels[(y * png.width + ax + x) * 4 + 3] > 28;
+      const alphaB = png.pixels[(y * png.width + bx + x) * 4 + 3] > 28;
+      if (alphaA !== alphaB) difference += 1;
+    }
+  }
+  return difference;
+}
+
+function attackGripBridgePixels(png, frame) {
+  let count = 0;
+  const x0 = frame * FRAME_WIDTH;
+  for (let y = 118; y < 194; y += 1) {
+    for (let x = 86; x < 142; x += 1) {
+      const i = (y * png.width + x0 + x) * 4;
+      const r = png.pixels[i];
+      const g = png.pixels[i + 1];
+      const b = png.pixels[i + 2];
+      const a = png.pixels[i + 3];
+      const darkArm = a > 72 && r >= 12 && r <= 94 && g >= 10 && g <= 76 && b >= 10 && b <= 70;
+      const warmGrip = a > 64 && r > 70 && r <= 165 && g > 42 && g <= 118 && b < 92;
+      if (darkArm || warmGrip) count += 1;
+    }
+  }
+  return count;
+}
+
 function countBakedAxePixels(png, frame) {
   let count = 0;
   const x0 = frame * FRAME_WIDTH;
@@ -156,6 +236,8 @@ function countBakedAxePixels(png, frame) {
       const likelyWeaponZone = x > 95 && x < 185 && y > 70 && y < 220;
       if (!likelyWeaponZone) continue;
       const i = (y * png.width + x0 + x) * 4;
+      const expectedHandBridgeZone = x >= 86 && x <= 142 && y >= 118 && y <= 194;
+      if (expectedHandBridgeZone) continue;
       const [r, g, b, a] = [png.pixels[i], png.pixels[i + 1], png.pixels[i + 2], png.pixels[i + 3]];
       if (a > 70 && r >= 70 && r <= 175 && g <= 70 && b <= 75 && r > g * 1.3 && r > b * 1.2) count += 1;
     }

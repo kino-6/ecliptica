@@ -656,7 +656,16 @@ func _verify_combat_and_damage(scene: Node, game: Node, player: CharacterBody2D,
 	var health_after: int = int(game.get("player_health"))
 	var stayed_in_place := player.global_position.distance_to(position_before_damage) < 1.0
 	var invulnerability_started := float(game.get("damage_invulnerability_timer")) > 0.0
-	var knockback_applied := absf(player.velocity.x) > 120.0 and player.velocity.y < 0.0
+	var max_damage_displacement := 0.0
+	var max_damage_velocity_x := 0.0
+	var control_recovery_frames := -1
+	for frame in 24:
+		await physics_frame
+		max_damage_displacement = maxf(max_damage_displacement, absf(player.global_position.x - position_before_damage.x))
+		max_damage_velocity_x = maxf(max_damage_velocity_x, absf(player.velocity.x))
+		if control_recovery_frames < 0 and absf(player.velocity.x) <= 72.0:
+			control_recovery_frames = frame + 1
+	var knockback_applied := max_damage_velocity_x >= 80.0 and player.global_position.distance_to(position_before_damage) > 2.0
 	game.damage_player(enemy)
 	var health_after_invulnerable_hit: int = int(game.get("player_health"))
 	var player_summary: Dictionary = summary["player"]
@@ -664,6 +673,9 @@ func _verify_combat_and_damage(scene: Node, game: Node, player: CharacterBody2D,
 	player_summary["stayed_in_place_after_damage"] = stayed_in_place
 	player_summary["damage_invulnerability_started"] = invulnerability_started
 	player_summary["knockback_applied"] = knockback_applied
+	player_summary["damage_knockback_max_displacement_x"] = snapped(max_damage_displacement, 0.01)
+	player_summary["damage_knockback_max_velocity_x"] = snapped(max_damage_velocity_x, 0.01)
+	player_summary["damage_knockback_control_recovery_frames"] = control_recovery_frames
 	player_summary["health_after_invulnerable_hit"] = health_after_invulnerable_hit
 	summary["player"] = player_summary
 
@@ -672,6 +684,8 @@ func _verify_combat_and_damage(scene: Node, game: Node, player: CharacterBody2D,
 	_expect(stayed_in_place, "enemy damage should not return player to spawn", failures)
 	_expect(invulnerability_started, "enemy damage should start invulnerability", failures)
 	_expect(knockback_applied, "enemy damage should apply knockback", failures)
+	_expect(max_damage_displacement <= 72.0, "enemy contact knockback should stay bounded under 72px", failures)
+	_expect(control_recovery_frames > 0 and control_recovery_frames <= 18, "enemy contact knockback should return control quickly", failures)
 	_expect(health_after_invulnerable_hit == health_after, "invulnerability should block repeated enemy contact damage", failures)
 
 func _verify_retry(scene: Node, game: Node, player: CharacterBody2D, summary: Dictionary, failures: Array) -> void:
